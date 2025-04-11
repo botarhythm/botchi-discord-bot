@@ -1,6 +1,18 @@
 const { Client, GatewayIntentBits, Events } = require('discord.js');
+const http = require('http');
 
-// クライアント作成
+// Create an HTTP server to keep the bot alive
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Discord Bot is running!');
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+
+// Discord client setup
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -10,41 +22,41 @@ const client = new Client({
   ],
 });
 
-// 準備完了イベント
+// Ready event
 client.once(Events.ClientReady, (readyClient) => {
-  console.log(`準備完了！ ${readyClient.user.tag}としてログインしました`);
+  console.log(`Ready! Logged in as ${readyClient.user.tag}`);
 });
 
-// メッセージ受信イベント
+// Message event
 client.on(Events.MessageCreate, async (message) => {
-  // ボット自身のメッセージは無視
+  // Ignore messages from the bot itself
   if (message.author.bot) return;
 
-  console.log(`メッセージ受信: ${message.content} (送信者: ${message.author.tag})`);
+  console.log(`Message received: ${message.content} (from: ${message.author.tag})`);
 
-  // !ping コマンド
+  // !ping command
   if (message.content === '!ping') {
     await message.reply('Pong!');
     return;
   }
 
-  // !hello コマンド
+  // !hello command
   if (message.content === '!hello') {
-    await message.reply(`こんにちは、${message.author.username}さん！`);
+    await message.reply(`Hello, ${message.author.username}!`);
     return;
   }
 
-  // ボットがメンションされたとき
+  // When bot is mentioned
   if (message.mentions.has(client.user)) {
-    await message.reply('何かお手伝いできることはありますか？');
+    await message.reply('How can I help you?');
     return;
   }
 });
 
-// エラーハンドリング
+// Error handling
 client.on('error', (error) => {
-  console.error('Discord.jsエラー:', error);
+  console.error('Discord.js error:', error);
 });
 
-// トークンを使用してDiscordにログイン
+// Login to Discord with token
 client.login(process.env.DISCORD_TOKEN);
