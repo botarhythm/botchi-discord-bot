@@ -45,13 +45,31 @@ const prefix = process.env.PREFIX || '!';
 // Ready event
 client.once(Events.ClientReady, (readyClient) => {
   console.log(`Ready! Logged in as ${readyClient.user.tag}`);
-  console.log(`Configured intents: ${client.options.intents}`);
+  console.log(`Configured intents: ${JSON.stringify(client.options.intents)}`);
   
   // GeminiサービスのAPIキー設定を確認
   if (geminiService.isConfigured()) {
     console.log('Gemini AI service is properly configured');
   } else {
     console.warn('WARNING: Gemini AI service is not configured. Bot will use fallback responses.');
+  }
+  
+  // 全インテントの詳細表示
+  console.log('Direct Messages intent enabled:', 
+    (client.options.intents & GatewayIntentBits.DirectMessages) === GatewayIntentBits.DirectMessages);
+  console.log('Message Content intent enabled:', 
+    (client.options.intents & GatewayIntentBits.MessageContent) === GatewayIntentBits.MessageContent);
+});
+
+// Raw event logging for debugging
+client.on('raw', packet => {
+  if (DEBUG) {
+    // DM関連のイベントのみをログに記録
+    if (packet.t === 'DIRECT_MESSAGE_CREATE' || 
+        packet.t === 'CHANNEL_CREATE' && packet.d && packet.d.type === 1) {
+      console.log(`DEBUG RAW DM EVENT:`, packet.t);
+      console.log(`DM Event details: Type=${packet.t}, Channel Type=${packet.d?.type}`);
+    }
   }
 });
 
@@ -63,9 +81,12 @@ client.on(Events.MessageCreate, async (message) => {
   // Determine if this is a DM
   const isDM = message.channel.type === ChannelType.DM;
   
-  if (DEBUG) {
-    console.log(`Message received: ${message.content} (from: ${message.author.tag}, isDM: ${isDM})`);
-  }
+  // 詳細ログ (全メッセージ)
+  console.log(`Message received: ${message.content}`);
+  console.log(`From: ${message.author.tag} (ID: ${message.author.id})`);
+  console.log(`Channel: ${message.channel.name || 'DM'} (ID: ${message.channel.id})`);
+  console.log(`Channel Type: ${message.channel.type}`);
+  console.log(`Is DM: ${isDM}`);
 
   // コマンド処理
   if (message.content.startsWith(prefix)) {
@@ -91,6 +112,37 @@ client.on(Events.MessageCreate, async (message) => {
         await message.reply('会話履歴をクリアしました。');
       } else {
         await message.reply('会話履歴はありません。');
+      }
+      return;
+    }
+    
+    // !debug command - デバッグ情報表示
+    if (command === 'debug') {
+      try {
+        const debugInfo = {
+          isDM: isDM,
+          channelType: message.channel.type,
+          intents: {
+            DirectMessages: (client.options.intents & GatewayIntentBits.DirectMessages) === GatewayIntentBits.DirectMessages,
+            MessageContent: (client.options.intents & GatewayIntentBits.MessageContent) === GatewayIntentBits.MessageContent,
+            GuildMessages: (client.options.intents & GatewayIntentBits.GuildMessages) === GatewayIntentBits.GuildMessages
+          },
+          channel: {
+            id: message.channel.id,
+            type: message.channel.type,
+            name: message.channel.name || 'DM'
+          },
+          author: {
+            id: message.author.id,
+            username: message.author.username,
+            tag: message.author.tag
+          }
+        };
+        
+        await message.reply(`デバッグ情報:\n\`\`\`json\n${JSON.stringify(debugInfo, null, 2)}\n\`\`\``);
+      } catch (error) {
+        console.error('デバッグコマンドエラー:', error);
+        await message.reply('デバッグ情報の取得中にエラーが発生しました。');
       }
       return;
     }
