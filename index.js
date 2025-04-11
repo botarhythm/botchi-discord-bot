@@ -1,10 +1,20 @@
 const { Client, GatewayIntentBits, Events, ChannelType } = require('discord.js');
 const http = require('http');
 const dotenv = require('dotenv');
-const graphaiService = require('./graphai-service');
+const geminiService = require('./gemini-service');
 
 // 環境変数の読み込み
 dotenv.config();
+
+// Debug mode
+const DEBUG = process.env.DEBUG === 'true';
+
+// ボットトークンをログに出力（セキュリティのため一部を隠す）
+if (DEBUG) {
+  const token = process.env.DISCORD_TOKEN;
+  console.log(`Debug: Provided token: ${token.substring(0, 20)}.${'*'.repeat(20)}`);
+  console.log(`Debug: Preparing to connect to the gateway...`);
+}
 
 // Create an HTTP server to keep the bot alive
 const server = http.createServer((req, res) => {
@@ -30,18 +40,18 @@ const client = new Client({
 });
 
 // プレフィックスの設定
-const prefix = process.env.BOT_PREFIX || '!';
+const prefix = process.env.PREFIX || '!';
 
 // Ready event
 client.once(Events.ClientReady, (readyClient) => {
   console.log(`Ready! Logged in as ${readyClient.user.tag}`);
-  console.log(`Configured intents: ${JSON.stringify(client.options.intents)}`);
+  console.log(`Configured intents: ${client.options.intents}`);
   
-  // GraphAIサービスが設定されているか確認
-  if (graphaiService.isConfigured()) {
-    console.log('GraphAI service is properly configured');
+  // GeminiサービスのAPIキー設定を確認
+  if (geminiService.isConfigured()) {
+    console.log('Gemini AI service is properly configured');
   } else {
-    console.warn('WARNING: GraphAI service is not configured. Bot will use fallback responses.');
+    console.warn('WARNING: Gemini AI service is not configured. Bot will use fallback responses.');
   }
 });
 
@@ -53,7 +63,9 @@ client.on(Events.MessageCreate, async (message) => {
   // Determine if this is a DM
   const isDM = message.channel.type === ChannelType.DM;
   
-  console.log(`Message received: ${message.content} (from: ${message.author.tag}, isDM: ${isDM})`);
+  if (DEBUG) {
+    console.log(`Message received: ${message.content} (from: ${message.author.tag}, isDM: ${isDM})`);
+  }
 
   // コマンド処理
   if (message.content.startsWith(prefix)) {
@@ -72,20 +84,20 @@ client.on(Events.MessageCreate, async (message) => {
       return;
     }
     
-    // !clear command - コンテキストをクリア
+    // !clear command - 会話履歴をクリア
     if (command === 'clear') {
-      const cleared = graphaiService.clearUserContext(message.author.id);
+      const cleared = geminiService.clearConversationHistory(message.author.id);
       if (cleared) {
-        await message.reply('会話コンテキストをクリアしました。');
+        await message.reply('会話履歴をクリアしました。');
       } else {
-        await message.reply('会話コンテキストはありません。');
+        await message.reply('会話履歴はありません。');
       }
       return;
     }
   }
 
   try {
-    // When bot is mentioned or in DM, use GraphAI to respond
+    // When bot is mentioned or in DM, use Gemini to respond
     if (message.mentions.has(client.user) || isDM) {
       console.log(`${isDM ? 'DM' : 'メンション'} からの呼びかけを検出: ${message.content}`);
       
@@ -102,8 +114,8 @@ client.on(Events.MessageCreate, async (message) => {
         cleanContent = 'こんにちは';
       }
       
-      // GraphAIからの応答を取得
-      const response = await graphaiService.processMessage(
+      // Gemini AIからの応答を取得
+      const response = await geminiService.getAIResponse(
         message.author.id,
         cleanContent,
         message.author.username,
@@ -120,7 +132,7 @@ client.on(Events.MessageCreate, async (message) => {
         await message.reply(response);
       }
       
-      console.log(`GraphAI応答を送信しました: ${response.substring(0, 100)}${response.length > 100 ? '...' : ''}`);
+      console.log(`AI応答を送信しました: ${response.substring(0, 100)}${response.length > 100 ? '...' : ''}`);
     }
   } catch (error) {
     console.error('メッセージ応答中にエラーが発生しました:', error);
@@ -130,7 +142,7 @@ client.on(Events.MessageCreate, async (message) => {
 
 // Debug event for connection issues
 client.on(Events.Debug, (info) => {
-  if (process.env.DEBUG === 'true') {
+  if (DEBUG) {
     console.log(`Debug: ${info}`);
   }
 });
