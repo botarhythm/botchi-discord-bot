@@ -1,7 +1,7 @@
 const { Client, GatewayIntentBits, Events, ChannelType } = require('discord.js');
 const http = require('http');
 const dotenv = require('dotenv');
-const aiService = require('./ai-service');
+const graphaiService = require('./graphai-service');
 
 // 環境変数の読み込み
 dotenv.config();
@@ -37,11 +37,11 @@ client.once(Events.ClientReady, (readyClient) => {
   console.log(`Ready! Logged in as ${readyClient.user.tag}`);
   console.log(`Configured intents: ${JSON.stringify(client.options.intents)}`);
   
-  // AIサービスが設定されているか確認
-  if (aiService.isConfigured()) {
-    console.log('AI service is properly configured');
+  // GraphAIサービスが設定されているか確認
+  if (graphaiService.isConfigured()) {
+    console.log('GraphAI service is properly configured');
   } else {
-    console.warn('WARNING: AI service is not configured. Bot will use fallback responses.');
+    console.warn('WARNING: GraphAI service is not configured. Bot will use fallback responses.');
   }
 });
 
@@ -72,20 +72,20 @@ client.on(Events.MessageCreate, async (message) => {
       return;
     }
     
-    // !clear command - 会話履歴をクリア
+    // !clear command - コンテキストをクリア
     if (command === 'clear') {
-      const cleared = aiService.clearConversationHistory(message.author.id);
+      const cleared = graphaiService.clearUserContext(message.author.id);
       if (cleared) {
-        await message.reply('会話履歴をクリアしました。');
+        await message.reply('会話コンテキストをクリアしました。');
       } else {
-        await message.reply('会話履歴はありません。');
+        await message.reply('会話コンテキストはありません。');
       }
       return;
     }
   }
 
   try {
-    // When bot is mentioned or in DM, use AI to respond
+    // When bot is mentioned or in DM, use GraphAI to respond
     if (message.mentions.has(client.user) || isDM) {
       console.log(`${isDM ? 'DM' : 'メンション'} からの呼びかけを検出: ${message.content}`);
       
@@ -102,8 +102,8 @@ client.on(Events.MessageCreate, async (message) => {
         cleanContent = 'こんにちは';
       }
       
-      // AIからの応答を取得
-      const response = await aiService.getAIResponse(
+      // GraphAIからの応答を取得
+      const response = await graphaiService.processMessage(
         message.author.id,
         cleanContent,
         message.author.username,
@@ -120,7 +120,7 @@ client.on(Events.MessageCreate, async (message) => {
         await message.reply(response);
       }
       
-      console.log(`AI応答を送信しました: ${response.substring(0, 100)}${response.length > 100 ? '...' : ''}`);
+      console.log(`GraphAI応答を送信しました: ${response.substring(0, 100)}${response.length > 100 ? '...' : ''}`);
     }
   } catch (error) {
     console.error('メッセージ応答中にエラーが発生しました:', error);
