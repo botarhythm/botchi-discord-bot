@@ -9,7 +9,7 @@ GraphAI × Discord マルチモーダルチャットボット「ボッチー」
 - シンプルなコマンド処理
 - メンション時の自動応答
 - GraphAI統合によるインテリジェントな会話
-- 会話履歴の管理
+- 会話コンテキストの管理
 - HTTPサーバー機能による常時稼働
 
 ## セットアップ
@@ -23,8 +23,8 @@ GraphAI × Discord マルチモーダルチャットボット「ボッチー」
 3. 環境変数の設定
    - `.env.example`を`.env`にコピーして編集
    - `DISCORD_TOKEN`: Discordボットトークン
-   - `GRAPH_AI_API_KEY`: GraphAI APIキー
-   - `GRAPH_AI_ENDPOINT`: GraphAI APIエンドポイント
+   - `GRAPHAI_API_KEY`: GraphAI APIキー
+   - `GRAPHAI_ENDPOINT`: GraphAI APIエンドポイント
 4. 依存関係のインストール: `npm install`
 5. ボットの起動: `npm start`
 6. 開発モードでの起動: `npm run dev`
@@ -33,24 +33,25 @@ GraphAI × Discord マルチモーダルチャットボット「ボッチー」
 
 Railway を使用してデプロイされています。Railway ダッシュボードで以下の環境変数を設定してください:
 - `DISCORD_TOKEN`
-- `GRAPH_AI_API_KEY`
-- `GRAPH_AI_ENDPOINT`
+- `GRAPHAI_API_KEY`（または `GRAPH_AI_API_KEY`）
+- `GRAPHAI_ENDPOINT`（または `GRAPH_AI_ENDPOINT`）
 - `DEBUG`（オプション）
 
 ## コマンド一覧
 
 - `!ping` - 接続テスト用コマンド
 - `!hello` - 挨拶コマンド
-- `!clear` - 会話履歴をクリア
+- `!clear` - 会話コンテキストをクリア
 - `@ボッチー [メッセージ]` - ボットにメンションして会話
 - DM - ダイレクトメッセージで直接会話
 
-## AI統合
+## GraphAI統合
 
-ボットはGraphAI APIと統合されており、以下の機能を提供します:
-- ユーザーごとの会話コンテキスト管理
-- インテリジェントな応答生成
-- 会話の継続性の維持
+ボットはGraphAIフレームワークと統合されており、以下の機能を提供します:
+- YAMLやJSONで定義されたデータフローグラフの活用
+- ユーザーごとのコンテキスト管理
+- 非同期データフロー処理
+- エージェントワークフローの実行
 
 ## デバッグ
 
