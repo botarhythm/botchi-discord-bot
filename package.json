@@ -1,0 +1,15 @@
+{
+  "name": "botchi-discord-bot",
+  "version": "1.0.0",
+  "description": "GraphAI × Discord マルチモーダルチャットボット「ボッチー」",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.13.0"
+  },
+  "engines": {
+    "node": ">=16.9.0"
+  }
+}
