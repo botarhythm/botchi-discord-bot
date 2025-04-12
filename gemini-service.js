@@ -3,6 +3,7 @@ const axios = require('axios');
 
 // 環境変数から設定を読み込む
 const API_KEY = process.env.GEMINI_API_KEY;
+// デフォルトエンドポイントを修正 (gemini-pro モデルを使用)
 const API_ENDPOINT = process.env.GEMINI_ENDPOINT || 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
 // 会話履歴キャッシュ (ユーザーIDをキーとする)
