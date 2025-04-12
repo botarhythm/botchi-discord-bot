@@ -343,7 +343,8 @@ client.on(Events.MessageCreate, async (message) => {
             }
           };
           
-          await message.reply(`デバッグ情報:\\n\\`\\`\\`json\\n${JSON.stringify(debugInfo, null, 2)}\\n\\`\\`\\``);
+          // エスケープの問題を修正 - 適切にエスケープして文字列を送信
+          await message.reply("デバッグ情報:\n```json\n" + JSON.stringify(debugInfo, null, 2) + "\n```");
         } catch (error) {
           console.error('デバッグコマンドエラー:', error);
           await message.reply('🌧️ 情報を集めようとしましたが、風が強くて難しいようです。');
@@ -363,7 +364,7 @@ client.on(Events.MessageCreate, async (message) => {
         // メンションの場合はメンション部分を取り除く
         let cleanContent = message.content;
         if (!isDM && message.mentions.has(client.user)) {
-          cleanContent = cleanContent.replace(/<@!?[\\d]+>/g, '').trim();
+          cleanContent = cleanContent.replace(/<@!?[\d]+>/g, '').trim();
         }
         
         if (cleanContent === '') {
