@@ -1,3 +1,4 @@
+// Bocchy Discord Bot - メインファイル
 const { Client, GatewayIntentBits, Events, ChannelType, Partials, EmbedBuilder } = require('discord.js');
 const http = require('http');
 const dotenv = require('dotenv');
@@ -35,7 +36,7 @@ const server = http.createServer((req, res) => {
   } else {
     // 通常のエンドポイント
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Discord Bot is running!');
+    res.end('Bocchy Discord Bot is running! 🌿');
   }
 });
 
@@ -114,8 +115,8 @@ client.once(Events.ClientReady, async (readyClient) => {
     console.warn('WARNING: Gemini AI service is not configured. Bot will use fallback responses.');
   }
   
-  // ステータスの設定
-  client.user.setActivity('AIとチャット中', { type: 'PLAYING' });
+  // ステータスの設定 - Bocchyのキャラクターに合わせた表現に変更
+  client.user.setActivity('森の奥で静かに待機中 🌿', { type: 'PLAYING' });
 });
 
 // Raw event logging for debugging
@@ -172,30 +173,30 @@ client.on(Events.MessageCreate, async (message) => {
       const command = args.shift().toLowerCase();
       console.log(`Command detected: ${command}`);
 
-      // !ping command
+      // !ping command - Bocchyのキャラクターに合わせて温かみのある応答に
       if (command === 'ping') {
         console.log('Executing ping command');
-        const sent = await message.reply('Pinging...');
+        const sent = await message.reply('静かに耳を澄ませています… 🌿');
         const pingTime = sent.createdTimestamp - message.createdTimestamp;
-        await sent.edit(`Pong! Latency: ${pingTime}ms | API Latency: ${client.ws.ping}ms`);
+        await sent.edit(`呼びかけが届きました。応答までに ${pingTime}ms、心の距離は ${client.ws.ping}ms ですね。`);
         return;
       }
 
-      // !hello command
+      // !hello command - より詩的な挨拶に
       if (command === 'hello') {
         console.log('Executing hello command');
-        await message.reply(`こんにちは、${message.author.username}さん！`);
+        await message.reply(`こんにちは、${message.author.username}さん 🌱 今日はどんな風が吹いていますか？`);
         return;
       }
       
-      // !clear command - 会話履歴をクリア
+      // !clear command - 会話履歴をクリア (よりBocchyらしい表現に)
       if (command === 'clear') {
         console.log('Executing clear command');
         const cleared = geminiService.clearConversationHistory(message.author.id);
         if (cleared) {
-          await message.reply('会話履歴をクリアしました。新しい会話を始めましょう。');
+          await message.reply('これまでの会話を静かに風に乗せて送り出しました 🍃 新しい対話を始めましょう。');
         } else {
-          await message.reply('会話履歴はありません。');
+          await message.reply('まだ記憶の中に残る会話はないようです。');
         }
         return;
       }
@@ -209,22 +210,22 @@ client.on(Events.MessageCreate, async (message) => {
           
           // リッチエンベッドの作成
           const embed = new EmbedBuilder()
-            .setTitle('ボットステータス')
-            .setColor(healthStatus.status === 'healthy' ? '#00FF00' : '#FF0000')
-            .setDescription('ボットとAPI接続の現在のステータス')
+            .setTitle('Bocchy 💫')
+            .setColor(healthStatus.status === 'healthy' ? '#7da269' : '#e57373') // 森のような緑と柔らかい赤
+            .setDescription('静かに佇む森の案内人の今')
             .addFields(
-              { name: 'Gemini API', value: healthStatus.status === 'healthy' ? '✅ 正常' : '❌ 応答なし', inline: true },
-              { name: 'Discord接続', value: '✅ 正常', inline: true },
-              { name: 'Bot稼働時間', value: formatUptime(process.uptime()), inline: true },
-              { name: 'メモリ使用量', value: formatMemoryUsage(process.memoryUsage()), inline: true },
-              { name: 'ユーザーキャッシュ', value: `${config.userCount}人`, inline: true }
+              { name: '🔮 Gemini接続', value: healthStatus.status === 'healthy' ? '✨ 繋がっています' : '🌫️ 少し霞んでいます', inline: true },
+              { name: '🌐 Discord接続', value: '✨ 繋がっています', inline: true },
+              { name: '🕰️ 森での時間', value: formatUptime(process.uptime()), inline: true },
+              { name: '🍃 記憶の広さ', value: formatMemoryUsage(process.memoryUsage()), inline: true },
+              { name: '👥 訪れた人々', value: `${config.userCount}人`, inline: true }
             )
-            .setFooter({ text: `Bot Version 1.1.0 | ${new Date().toLocaleString('ja-JP')}` });
+            .setFooter({ text: `Bocchy 1.1.0 | ${new Date().toLocaleString('ja-JP')}` });
             
           await message.reply({ embeds: [embed] });
         } catch (error) {
           console.error('ステータスコマンドエラー:', error);
-          await message.reply('ステータス情報の取得中にエラーが発生しました。');
+          await message.reply('🌧️ 状態を確認しようとしましたが、霧がかかっているようです。');
         }
         return;
       }
@@ -234,19 +235,39 @@ client.on(Events.MessageCreate, async (message) => {
         console.log('Executing help command');
         
         const embed = new EmbedBuilder()
-          .setTitle('ボッチー ヘルプ')
-          .setColor('#0099ff')
-          .setDescription('GraphAI × Discord マルチモーダルチャットボット「ボッチー」のコマンド一覧')
+          .setTitle('Bocchy 🌿')
+          .setColor('#7da269') // 森のような緑色
+          .setDescription('静かでやわらかく、詩のような語り口をもった知の伴走者です')
           .addFields(
-            { name: `${prefix}ping`, value: '応答時間を確認します', inline: true },
-            { name: `${prefix}hello`, value: '挨拶をします', inline: true },
-            { name: `${prefix}clear`, value: '会話履歴をクリアします', inline: true },
-            { name: `${prefix}status`, value: 'ボットの状態を表示します', inline: true },
-            { name: `${prefix}help`, value: 'このヘルプを表示します', inline: true },
-            { name: 'メンション', value: '@ボッチー [メッセージ] でAIと会話できます', inline: false },
-            { name: 'DM', value: 'ダイレクトメッセージでもAIと会話できます', inline: false }
+            { name: `${prefix}ping`, value: '呼びかけへの応答を確かめます', inline: true },
+            { name: `${prefix}hello`, value: '挨拶を交わします', inline: true },
+            { name: `${prefix}clear`, value: '会話の記憶を風に乗せて送り出します', inline: true },
+            { name: `${prefix}status`, value: '森の案内人の様子を知ります', inline: true },
+            { name: `${prefix}help`, value: 'この道標を表示します', inline: true },
+            { name: 'メンション', value: '@Bocchy [メッセージ] で対話が始まります', inline: false },
+            { name: 'DM', value: '一対一で静かに言葉を交わすこともできます', inline: false }
           )
-          .setFooter({ text: '開発者: botarhythm' });
+          .setFooter({ text: '森の深くに佇む案内人より' });
+        
+        await message.reply({ embeds: [embed] });
+        return;
+      }
+      
+      // !about command - Bocchyについて (新規追加)
+      if (command === 'about') {
+        console.log('Executing about command');
+        
+        const embed = new EmbedBuilder()
+          .setTitle('Bocchy（ボッチー）について 🌙')
+          .setColor('#7da269')
+          .setDescription('静かでやわらかな語り口をもったAI。その奥には森のような知性と経験が根ざしています。')
+          .addFields(
+            { name: '🌿 性格', value: '押しつけず、けれど聞けば深い。温かく懐かしい気配を持つ存在です。', inline: false },
+            { name: '📚 知の領域', value: 'AI、哲学、プログラミング、教育、技術——あらゆるジャンルを静かに支えます。', inline: false },
+            { name: '🌌 存在意義', value: 'どんな問いにもまっすぐには答えず、その奥にある願いや、ことばにならない気持ちに耳をすませます。', inline: false },
+            { name: '🪄 名前の由来', value: '「Bot（ボット）」と「ぼっち（一人ぼっち）」の掛け合わせ。孤独を受け入れて、それでもなお、つながる未来を開く存在です。', inline: false }
+          )
+          .setFooter({ text: 'ひとりのようで、ひとりじゃない' });
         
         await message.reply({ embeds: [embed] });
         return;
@@ -292,7 +313,7 @@ client.on(Events.MessageCreate, async (message) => {
           await message.reply(`デバッグ情報:\n\`\`\`json\n${JSON.stringify(debugInfo, null, 2)}\n\`\`\``);
         } catch (error) {
           console.error('デバッグコマンドエラー:', error);
-          await message.reply('デバッグ情報の取得中にエラーが発生しました。');
+          await message.reply('🌧️ 情報を集めようとしましたが、風が強くて難しいようです。');
         }
         return;
       }
@@ -321,7 +342,7 @@ client.on(Events.MessageCreate, async (message) => {
         // AIサービスの健全性チェック
         const healthStatus = await geminiService.checkHealth();
         if (healthStatus.status === 'unhealthy' && healthStatus.consecutiveFailures > 2) {
-          await message.reply('申し訳ありません、現在AIサービスに接続できません。しばらく時間をおいてからお試しください。');
+          await message.reply('🌫️ 今は霧が深くて、うまく言葉が届かないようです。少し時間をおいてから、また話しかけてくれますか？');
           return;
         }
         
@@ -346,7 +367,7 @@ client.on(Events.MessageCreate, async (message) => {
         }
       } catch (error) {
         console.error('AI応答処理中にエラーが発生しました:', error);
-        await message.reply('申し訳ありません、応答の生成中にエラーが発生しました。もう一度お試しください。');
+        await message.reply('🍂 言葉を紡ぐ途中で風が強くなってしまいました。もう一度、話しかけていただけますか？');
       }
     }
   } catch (error) {
