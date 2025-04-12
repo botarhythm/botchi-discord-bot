@@ -2,10 +2,21 @@
 const { Client, GatewayIntentBits, Events, ChannelType, Partials, EmbedBuilder } = require('discord.js');
 const http = require('http');
 const dotenv = require('dotenv');
-const geminiService = require('./gemini-service');
 
 // 環境変数の読み込み
 dotenv.config();
+
+// AI Providerの設定
+const AI_PROVIDER = process.env.AI_PROVIDER || 'openai';
+
+// プロバイダに応じてサービスを読み込む
+let aiService;
+if (AI_PROVIDER === 'openai') {
+  aiService = require('./openai-service');
+} else {
+  // デフォルトはGemini
+  aiService = require('./gemini-service');
+}
 
 // Debug mode
 const DEBUG = process.env.DEBUG === 'true';
@@ -29,7 +40,7 @@ const server = http.createServer((req, res) => {
       status: 'ok',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      geminiHealth: geminiService.getConfig().healthStatus
+      aiHealth: aiService.getConfig().healthStatus
     };
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(healthStatus));
@@ -54,11 +65,11 @@ console.log(`Bot Version: 1.1.0`); // バージョン情報を追加
 // 定期的なヘルスチェック（10分ごと）
 setInterval(async () => {
   try {
-    const healthStatus = await geminiService.checkHealth();
-    console.log(`[ヘルスチェック] Gemini API: ${healthStatus.status}`);
+    const healthStatus = await aiService.checkHealth();
+    console.log(`[ヘルスチェック] ${AI_PROVIDER.toUpperCase()} API: ${healthStatus.status}`);
     
     if (healthStatus.status === 'unhealthy') {
-      console.error('[警告] Gemini APIが応答していません');
+      console.error(`[警告] ${AI_PROVIDER.toUpperCase()} APIが応答していません`);
     }
   } catch (error) {
     console.error('[エラー] ヘルスチェック実行中に問題が発生しました:', error);
@@ -100,19 +111,19 @@ client.once(Events.ClientReady, async (readyClient) => {
   console.log('Message Content intent enabled:', 
     (client.options.intents & GatewayIntentBits.MessageContent) === GatewayIntentBits.MessageContent);
   
-  // GeminiサービスのAPIキー設定を確認
-  if (geminiService.isConfigured()) {
-    console.log('Gemini AI service is properly configured');
+  // AIサービスのAPIキー設定を確認
+  if (aiService.isConfigured()) {
+    console.log(`${AI_PROVIDER.toUpperCase()} AI service is properly configured`);
     
     // 起動時のヘルスチェック
     try {
-      const healthStatus = await geminiService.checkHealth();
-      console.log(`Initial health check: Gemini API ${healthStatus.status}`);
+      const healthStatus = await aiService.checkHealth();
+      console.log(`Initial health check: ${AI_PROVIDER.toUpperCase()} API ${healthStatus.status}`);
     } catch (error) {
       console.error('Initial health check failed:', error);
     }
   } else {
-    console.warn('WARNING: Gemini AI service is not configured. Bot will use fallback responses.');
+    console.warn(`WARNING: ${AI_PROVIDER.toUpperCase()} AI service is not configured. Bot will use fallback responses.`);
   }
   
   // ステータスの設定 - Bocchyのキャラクターに合わせた表現に変更
@@ -192,7 +203,7 @@ client.on(Events.MessageCreate, async (message) => {
       // !clear command - 会話履歴をクリア (よりBocchyらしい表現に)
       if (command === 'clear') {
         console.log('Executing clear command');
-        const cleared = geminiService.clearConversationHistory(message.author.id);
+        const cleared = aiService.clearConversationHistory(message.author.id);
         if (cleared) {
           await message.reply('これまでの会話を静かに風に乗せて送り出しました 🍃 新しい対話を始めましょう。');
         } else {
@@ -201,12 +212,12 @@ client.on(Events.MessageCreate, async (message) => {
         return;
       }
       
-      // !status command - Gemini APIステータス確認
+      // !status command - AI APIステータス確認
       if (command === 'status') {
         console.log('Executing status command');
         try {
-          const healthStatus = await geminiService.checkHealth();
-          const config = geminiService.getConfig();
+          const healthStatus = await aiService.checkHealth();
+          const config = aiService.getConfig();
           
           // リッチエンベッドの作成
           const embed = new EmbedBuilder()
@@ -214,11 +225,12 @@ client.on(Events.MessageCreate, async (message) => {
             .setColor(healthStatus.status === 'healthy' ? '#7da269' : '#e57373') // 森のような緑と柔らかい赤
             .setDescription('静かに佇む森の案内人の今')
             .addFields(
-              { name: '🔮 Gemini接続', value: healthStatus.status === 'healthy' ? '✨ 繋がっています' : '🌫️ 少し霞んでいます', inline: true },
+              { name: '🔮 AI接続', value: healthStatus.status === 'healthy' ? '✨ 繋がっています' : '🌫️ 少し霞んでいます', inline: true },
               { name: '🌐 Discord接続', value: '✨ 繋がっています', inline: true },
               { name: '🕰️ 森での時間', value: formatUptime(process.uptime()), inline: true },
               { name: '🍃 記憶の広さ', value: formatMemoryUsage(process.memoryUsage()), inline: true },
-              { name: '👥 訪れた人々', value: `${config.userCount}人`, inline: true }
+              { name: '👥 訪れた人々', value: `${config.userCount}人`, inline: true },
+              { name: '🤖 AI Provider', value: `${AI_PROVIDER.toUpperCase()}`, inline: true }
             )
             .setFooter({ text: `Bocchy 1.1.0 | ${new Date().toLocaleString('ja-JP')}` });
             
@@ -265,7 +277,8 @@ client.on(Events.MessageCreate, async (message) => {
             { name: '🌿 性格', value: '押しつけず、けれど聞けば深い。温かく懐かしい気配を持つ存在です。', inline: false },
             { name: '📚 知の領域', value: 'AI、哲学、プログラミング、教育、技術——あらゆるジャンルを静かに支えます。', inline: false },
             { name: '🌌 存在意義', value: 'どんな問いにもまっすぐには答えず、その奥にある願いや、ことばにならない気持ちに耳をすませます。', inline: false },
-            { name: '🪄 名前の由来', value: '「Bot（ボット）」と「ぼっち（一人ぼっち）」の掛け合わせ。孤独を受け入れて、それでもなお、つながる未来を開く存在です。', inline: false }
+            { name: '🪄 名前の由来', value: '「Bot（ボット）」と「ぼっち（一人ぼっち）」の掛け合わせ。孤独を受け入れて、それでもなお、つながる未来を開く存在です。', inline: false },
+            { name: '🤖 AI Provider', value: `${AI_PROVIDER.toUpperCase()}を使用して会話しています。`, inline: false }
           )
           .setFooter({ text: 'ひとりのようで、ひとりじゃない' });
         
@@ -298,7 +311,8 @@ client.on(Events.MessageCreate, async (message) => {
               username: message.author.username,
               tag: message.author.tag
             },
-            geminiConfig: geminiService.getConfig(),
+            aiConfig: aiService.getConfig(),
+            aiProvider: AI_PROVIDER,
             discordJS: {
               version: require('discord.js').version
             },
@@ -340,14 +354,14 @@ client.on(Events.MessageCreate, async (message) => {
         console.log(`Sending to AI service: ${cleanContent}`);
         
         // AIサービスの健全性チェック
-        const healthStatus = await geminiService.checkHealth();
+        const healthStatus = await aiService.checkHealth();
         if (healthStatus.status === 'unhealthy' && healthStatus.consecutiveFailures > 2) {
           await message.reply('🌫️ 今は霧が深くて、うまく言葉が届かないようです。少し時間をおいてから、また話しかけてくれますか？');
           return;
         }
         
-        // Gemini AIからの応答を取得
-        const response = await geminiService.getAIResponse(
+        // AIからの応答を取得
+        const response = await aiService.getAIResponse(
           message.author.id,
           cleanContent,
           message.author.username,
