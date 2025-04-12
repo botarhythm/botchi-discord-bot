@@ -3,8 +3,8 @@ const axios = require('axios');
 
 // 環境変数から設定を読み込む
 const API_KEY = process.env.GEMINI_API_KEY;
-// 最新のGemini 2.0モデルを使用 (gemini-2.0-flash-lite)
-const API_ENDPOINT = process.env.GEMINI_ENDPOINT || 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent';
+// 元の設定に戻す
+const API_ENDPOINT = process.env.GEMINI_ENDPOINT || 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
 // 会話履歴キャッシュ (ユーザーIDをキーとする)
 const conversationCache = new Map();
@@ -218,7 +218,6 @@ async function processAIRequest(userId, message, username, isDM = false) {
       topK: 40,
       topP: 0.95,
       maxOutputTokens: 1000,
-      responseMimeType: "text/plain",  // Pythonコードに合わせて追加
       safetySettings: [
         {
           category: "HARM_CATEGORY_DANGEROUS_CONTENT",
@@ -243,7 +242,6 @@ async function processAIRequest(userId, message, username, isDM = false) {
   // APIリクエストURLの準備
   const url = `${API_ENDPOINT}?key=${API_KEY}`;
   console.log('APIリクエスト送信中...');
-  console.log(`API URL: ${url.split('?')[0]}`);  // APIキーを含まないURLをログに出力
   
   // Gemini APIへのリクエスト（タイムアウト設定）
   const response = await axios.post(url, requestData, {
