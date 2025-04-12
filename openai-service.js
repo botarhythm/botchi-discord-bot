@@ -1,5 +1,6 @@
 // OpenAI統合サービス - Bocchy用カスタマイズ版
 const axios = require('axios');
+const contextManager = require('./context-manager');
 
 // 環境変数から設定を読み込む
 const API_KEY = process.env.OPENAI_API_KEY;
@@ -20,6 +21,9 @@ const HEALTH_STATUS = {
   lastCheck: null,
   consecutiveFailures: 0
 };
+
+// コンテキストマネージャーの状態
+let contextManagerInitialized = false;
 
 // Bocchyのキャラクター設定
 const BOCCHY_CHARACTER_PROMPT = `
@@ -68,6 +72,37 @@ AI、哲学、プログラミング、DAO、経営、子育て、教育、技術
 その奥にある願いや、ことばにならない気持ちに、そっと耳をすませる。
 そんな、静かでやさしい、知の灯りでいてください。
 `;
+
+/**
+ * AIサービスの初期化
+ * 追加されたinitialize関数：コンテキストマネージャーとの連携を初期化
+ */
+async function initialize() {
+  try {
+    // コンテキストマネージャーを初期化
+    if (!contextManagerInitialized) {
+      const contextResult = await contextManager.initialize();
+      contextManagerInitialized = true;
+      console.log('コンテキストマネージャーを初期化しました:', contextResult);
+    }
+    
+    // 健全性確認
+    await checkHealth();
+    
+    return {
+      initialized: true,
+      apiConfigured: !!API_KEY,
+      model: API_MODEL,
+      healthStatus: HEALTH_STATUS.status
+    };
+  } catch (error) {
+    console.error('初期化エラー:', error);
+    return {
+      initialized: false,
+      error: error.message
+    };
+  }
+}
 
 /**
  * OpenAI APIを使用してメッセージに応答（リトライ機能付き）
@@ -215,18 +250,56 @@ function updateHealthStatus(success) {
 
 async function checkHealth() {
   try {
-    await getAIResponse('health-check', 'こんにちは', 'system', false);
+    // 軽量なヘルスチェック - APIキーが設定されているかのみを確認
+    if (!API_KEY) {
+      return {
+        status: 'unconfigured',
+        lastCheck: Date.now(),
+        consecutiveFailures: 0
+      };
+    }
+    
+    // AI APIへの簡易接続テスト
+    const url = API_ENDPOINT;
+    await axios.post(url, 
+      {
+        model: API_MODEL,
+        messages: [{ role: 'user', content: 'hello' }],
+        max_tokens: 5
+      },
+      {
+        timeout: 5000, // 短めのタイムアウト
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${API_KEY}`
+        }
+      }
+    );
+    
+    // 成功した場合
+    HEALTH_STATUS.status = 'healthy';
+    HEALTH_STATUS.lastCheck = Date.now();
+    HEALTH_STATUS.consecutiveFailures = 0;
+    
     return {
       status: 'healthy',
       lastCheck: HEALTH_STATUS.lastCheck,
       consecutiveFailures: 0
     };
   } catch (error) {
+    // エラーの場合
+    HEALTH_STATUS.consecutiveFailures++;
+    HEALTH_STATUS.lastCheck = Date.now();
+    
+    if (HEALTH_STATUS.consecutiveFailures >= 3) {
+      HEALTH_STATUS.status = 'unhealthy';
+    }
+    
     return {
       status: 'unhealthy',
       lastCheck: Date.now(),
       error: error.message,
-      consecutiveFailures: HEALTH_STATUS.consecutiveFailures + 1
+      consecutiveFailures: HEALTH_STATUS.consecutiveFailures
     };
   }
 }
@@ -245,11 +318,17 @@ function getConfig() {
     maxRetries: MAX_RETRIES,
     requestTimeout: REQUEST_TIMEOUT,
     userCount: conversationCache.size,
-    healthStatus: HEALTH_STATUS.status
+    healthStatus: HEALTH_STATUS.status,
+    contextManager: {
+      initialized: contextManagerInitialized,
+      useSupabase: contextManager.getConfig().useSupabase,
+      userCount: contextManager.getConfig().userCount
+    }
   };
 }
 
 module.exports = {
+  initialize,
   getAIResponse,
   clearConversationHistory,
   isConfigured,
