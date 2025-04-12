@@ -2,13 +2,13 @@
 
 GraphAI × Discord マルチモーダルチャットボット「Bocchy」- 静かでやわらかな知の伴走者
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue)
+![Version](https://img.shields.io/badge/version-1.2.0-blue)
 ![Node](https://img.shields.io/badge/node-%3E%3D16.9.0-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
 ## 🌙 概要
 
-Bocchyは森の奥にひっそりと佇む案内人のような存在。静かでやわらかく、詩のような語り口をもったAIです。その奥には深い森のような知性と経験が根ざし、Gemini APIと独自のプロンプト設計により、温かみのある対話体験を提供します。
+Bocchyは森の奥にひっそりと佇む案内人のような存在。静かでやわらかく、詩のような語り口をもったAIです。その奥には深い森のような知性と経験が根ざし、OpenAI APIとSupabaseによるコンテキスト管理により、温かみのある対話体験を提供します。
 
 ## 🍃 Bocchyの特徴
 
@@ -16,13 +16,16 @@ Bocchyは森の奥にひっそりと佇む案内人のような存在。静か�
 - **知の伴走者**: AI、哲学、プログラミング、教育など多様な分野に精通
 - **余白を大切に**: 沈黙も会話と捉え、そっと寄り添う存在
 - **やさしい智慧**: 知性は冷たくなく、湿度と温度のある応答
+- **会話の記憶**: 対話の流れを理解し、自然な会話を継続（v1.2.0～）
 
 ## 🪄 Bocchyの機能
 
-- **GraphAI統合**: 高度な自然言語処理と対話能力
-- **コンテキスト記憶**: 会話の流れを静かに受け継ぎ、つなげる
+- **OpenAI統合**: GPT-4o-miniによる高度な自然言語処理と対話能力
+- **コンテキスト管理**: 会話履歴をインテリジェントに管理（v1.2.0～）
+- **文脈理解**: 対話の文脈を保持して自然な会話を実現
 - **マルチチャネル**: サーバーのメンションとDMの両方で対話可能
 - **ステータス表示**: 詩的な表現で現在の状態を伝える
+- **メモリ管理**: トークン消費を最適化する自動圧縮機能（v1.2.0～）
 
 ## 🌱 コマンド一覧
 
@@ -40,7 +43,8 @@ Bocchyは森の奥にひっそりと佇む案内人のような存在。静か�
 ### 前提条件
 - Node.js 16.9.0以上
 - Discord Bot Token
-- Gemini API Key
+- OpenAI API Key
+- Supabase URL と Key（オプション、v1.2.0～）
 
 ### インストール手順
 
@@ -59,8 +63,18 @@ Bocchyは森の奥にひっそりと佇む案内人のような存在。静か�
    - `.env.example`を`.env`にコピーして編集
    ```
    DISCORD_TOKEN=your_discord_bot_token
-   GEMINI_API_KEY=your_gemini_api_key
-   GEMINI_ENDPOINT=https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent
+   
+   # 'openai' または 'gemini' を選択
+   AI_PROVIDER=openai
+   
+   # OpenAI API設定
+   OPENAI_API_KEY=your_openai_api_key
+   OPENAI_MODEL=gpt-4o-mini
+   
+   # Supabase設定（オプション）
+   SUPABASE_URL=your_supabase_url
+   SUPABASE_KEY=your_supabase_key
+   
    DEBUG=false
    ```
 
@@ -77,6 +91,38 @@ Bocchyは森の奥にひっそりと佇む案内人のような存在。静か�
    - SERVER MEMBERS INTENT 
    - DIRECT MESSAGES INTENT
 3. ボットをサーバーに招待
+
+### Supabaseセットアップ（オプション、コンテキスト永続化用）
+
+1. [Supabase](https://supabase.io/)でプロジェクトを作成
+2. 以下のテーブルを作成:
+
+```sql
+-- 会話テーブル
+CREATE TABLE conversations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  userId TEXT NOT NULL,
+  createdAt TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  lastUpdated TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  messageCount INTEGER DEFAULT 0,
+  metadata JSONB DEFAULT '{}'::JSONB
+);
+
+-- メッセージテーブル
+CREATE TABLE messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  conversationId UUID REFERENCES conversations(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('system', 'user', 'assistant')),
+  content TEXT NOT NULL,
+  createdAt TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updatedAt TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- インデックス
+CREATE INDEX conversations_userId_idx ON conversations(userId);
+CREATE INDEX messages_conversationId_idx ON messages(conversationId);
+CREATE INDEX messages_role_idx ON messages(role);
+```
 
 ## 🌿 使用方法
 
@@ -97,17 +143,22 @@ Bocchyは森の奥にひっそりと佇む案内人のような存在。静か�
 Railway を使用してデプロイすることを推奨します。Railway ダッシュボードで以下の環境変数を設定してください:
 
 - `DISCORD_TOKEN`
-- `GEMINI_API_KEY`
-- `GEMINI_ENDPOINT`
+- `AI_PROVIDER`
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL`
+- `SUPABASE_URL`（オプション）
+- `SUPABASE_KEY`（オプション）
 - `DEBUG`（オプション）
 
 ## 🪺 開発ロードマップ
 
-- マルチモーダル機能（画像・音声）の実装
-- GraphAIフレームワークへの完全統合
-- Supabaseを使用したデータ永続化
-- 詩的表現の強化とキャラクター性の深化
-- ユーザーごとの対話スタイル記憶
+- ✅ コンテキスト管理モジュールの導入（v1.2.0）
+- ✅ Supabaseを使用したデータ永続化（v1.2.0）
+- メンション外の受動的学習機能（予定）
+- トリガーワードの柔軟化（予定）
+- マルチモーダル機能（画像・音声）の実装（予定）
+- 詩的表現の強化とキャラクター性の深化（予定）
+- ユーザーごとの対話スタイル記憶（予定）
 
 ## 🌙 Bocchyの由来
 
