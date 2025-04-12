@@ -1,19 +1,20 @@
 {
   "name": "botchi-discord-bot",
   "version": "1.1.0",
-  "description": "GraphAI × Discord マルチモーダルチャットボット「ボッチー」",
+  "description": "OpenAI/GraphAI × Discord マルチモーダルチャットボット「ボッチー」",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
     "test": "node gemini-test.js",
-    "health": "node -e \"require('./gemini-service').checkHealth().then(console.log)\"",
+    "health": "node -e \"require('./openai-service').checkHealth().then(console.log)\"",
     "lint": "eslint ."
   },
   "dependencies": {
     "discord.js": "^14.13.0",
     "axios": "^1.6.2",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "openai": "^4.28.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
@@ -30,7 +31,7 @@
     "bot",
     "ai",
     "gemini",
-    "graphai",
+    "openai",
     "chatbot"
   ],
   "author": "botarhythm",
