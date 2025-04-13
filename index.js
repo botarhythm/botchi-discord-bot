@@ -9,14 +9,26 @@ dotenv.config();
 
 // AI Providerの設定
 const AI_PROVIDER = process.env.AI_PROVIDER || 'openai';
+const DM_MESSAGE_HANDLER = process.env.DM_MESSAGE_HANDLER || 'legacy';
 
-// プロバイダに応じてサービスを読み込む
+// プロバイダシステムの選択
 let aiService;
-if (AI_PROVIDER === 'openai') {
-  aiService = require('./openai-service');
+
+// 新プロバイダシステムを使用する場合
+if (DM_MESSAGE_HANDLER === 'new') {
+  // 新しいプロバイダーマネージャーを読み込む
+  const providerManager = require('./extensions/providers');
+  
+  // プロバイダーマネージャーを初期化し、プロバイダーインスタンスを取得
+  aiService = providerManager;
 } else {
-  // デフォルトはGemini
-  aiService = require('./gemini-service');
+  // レガシーモード - 直接サービスを読み込む
+  if (AI_PROVIDER === 'openai') {
+    aiService = require('./openai-service');
+  } else {
+    // デフォルトはGemini
+    aiService = require('./gemini-service');
+  }
 }
 
 // Debug mode
@@ -40,13 +52,45 @@ if (DEBUG) {
 const server = http.createServer((req, res) => {
   if (req.url === '/health') {
     // ヘルスチェックエンドポイント
-    const healthStatus = {
+    let healthStatus = {
       status: 'ok',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      aiHealth: aiService.getConfig().healthStatus,
       version: BOT_VERSION
     };
+    
+    // モードに応じてヘルス情報を追加
+    if (DM_MESSAGE_HANDLER === 'new') {
+      // 新プロバイダーシステム
+      const providerName = aiService.getProviderName() || 'unknown';
+      const provider = aiService.getProvider();
+      healthStatus.provider = providerName;
+      healthStatus.mode = 'new';
+      
+      // プロバイダー固有の情報を追加
+      if (provider) {
+        try {
+          const config = provider.getConfig ? provider.getConfig() : {};
+          healthStatus.aiHealth = config.healthStatus || 'unknown';
+          healthStatus.memoryEnabled = config.memoryEnabled || false;
+        } catch (error) {
+          healthStatus.aiHealth = 'error';
+          healthStatus.error = error.message;
+        }
+      }
+    } else {
+      // 従来のシステム
+      try {
+        const config = aiService.getConfig();
+        healthStatus.aiHealth = config.healthStatus || 'unknown';
+        healthStatus.aiProvider = AI_PROVIDER;
+        healthStatus.mode = 'legacy';
+      } catch (error) {
+        healthStatus.aiHealth = 'error';
+        healthStatus.error = error.message;
+      }
+    }
+    
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(healthStatus));
   } else {
@@ -71,10 +115,22 @@ console.log(`Bot Version: ${BOT_VERSION}`);
 setInterval(async () => {
   try {
     const healthStatus = await aiService.checkHealth();
-    console.log(`[ヘルスチェック] ${AI_PROVIDER.toUpperCase()} API: ${healthStatus.status}`);
     
-    if (healthStatus.status === 'unhealthy') {
-      console.error(`[警告] ${AI_PROVIDER.toUpperCase()} APIが応答していません`);
+    if (DM_MESSAGE_HANDLER === 'new') {
+      // 新プロバイダーシステムの場合
+      const providerName = aiService.getProviderName() || 'AI';
+      console.log(`[ヘルスチェック] ${providerName.toUpperCase()} API: ${healthStatus.status}`);
+      
+      if (healthStatus.status === 'unhealthy') {
+        console.error(`[警告] ${providerName.toUpperCase()} APIが応答していません`);
+      }
+    } else {
+      // 従来のシステムの場合
+      console.log(`[ヘルスチェック] ${AI_PROVIDER.toUpperCase()} API: ${healthStatus.status}`);
+      
+      if (healthStatus.status === 'unhealthy') {
+        console.error(`[警告] ${AI_PROVIDER.toUpperCase()} APIが応答していません`);
+      }
     }
   } catch (error) {
     console.error('[エラー] ヘルスチェック実行中に問題が発生しました:', error);
@@ -118,22 +174,47 @@ client.once(Events.ClientReady, async (readyClient) => {
   
   // AIサービスの初期化
   try {
-    await aiService.initialize();
-    console.log('AIサービスを初期化しました');
-    
-    // APIキー設定を確認
-    if (aiService.isConfigured()) {
-      console.log(`${AI_PROVIDER.toUpperCase()} AI service is properly configured`);
+    // 新プロバイダーシステムか従来のシステムかによって初期化方法を変更
+    if (DM_MESSAGE_HANDLER === 'new') {
+      // 新プロバイダーシステムの初期化（オプションを渡す）
+      const initResult = await aiService.initialize({ provider: AI_PROVIDER });
+      console.log('新しいプロバイダーシステムを初期化しました:', initResult);
       
-      // 起動時のヘルスチェック
-      try {
-        const healthStatus = await aiService.checkHealth();
-        console.log(`Initial health check: ${AI_PROVIDER.toUpperCase()} API ${healthStatus.status}`);
-      } catch (error) {
-        console.error('Initial health check failed:', error);
+      // プロバイダーインスタンスを取得
+      const provider = aiService.getProvider();
+      
+      if (provider && typeof provider.isConfigured === 'function' && provider.isConfigured()) {
+        console.log(`${aiService.getProviderName()} AI service is properly configured`);
+        
+        // 起動時のヘルスチェック
+        try {
+          const healthStatus = await aiService.checkHealth();
+          console.log(`Initial health check: ${aiService.getProviderName().toUpperCase()} API ${healthStatus.status}`);
+        } catch (error) {
+          console.error('Initial health check failed:', error);
+        }
+      } else {
+        console.warn(`WARNING: ${aiService.getProviderName().toUpperCase()} AI service is not configured. Bot will use fallback responses.`);
       }
     } else {
-      console.warn(`WARNING: ${AI_PROVIDER.toUpperCase()} AI service is not configured. Bot will use fallback responses.`);
+      // 従来のシステムの初期化
+      await aiService.initialize();
+      console.log('AIサービスを初期化しました');
+      
+      // APIキー設定を確認
+      if (aiService.isConfigured()) {
+        console.log(`${AI_PROVIDER.toUpperCase()} AI service is properly configured`);
+        
+        // 起動時のヘルスチェック
+        try {
+          const healthStatus = await aiService.checkHealth();
+          console.log(`Initial health check: ${AI_PROVIDER.toUpperCase()} API ${healthStatus.status}`);
+        } catch (error) {
+          console.error('Initial health check failed:', error);
+        }
+      } else {
+        console.warn(`WARNING: ${AI_PROVIDER.toUpperCase()} AI service is not configured. Bot will use fallback responses.`);
+      }
     }
   } catch (error) {
     console.error('AIサービスの初期化に失敗しました:', error);
@@ -216,7 +297,21 @@ client.on(Events.MessageCreate, async (message) => {
       // !clear command - 会話履歴をクリア (よりBocchyらしい表現に)
       if (command === 'clear') {
         console.log('Executing clear command');
-        const cleared = await aiService.clearConversationHistory(message.author.id);
+        let cleared = false;
+        
+        if (DM_MESSAGE_HANDLER === 'new') {
+          // 新プロバイダーシステムを使用する場合
+          const provider = aiService.getProvider();
+          if (provider && typeof provider.clearConversationHistory === 'function') {
+            cleared = await provider.clearConversationHistory(message.author.id);
+          } else {
+            console.warn('プロバイダーに履歴クリア機能がありません');
+          }
+        } else {
+          // 従来のシステムを使用する場合
+          cleared = await aiService.clearConversationHistory(message.author.id);
+        }
+        
         if (cleared) {
           await message.reply('これまでの会話を静かに風に乗せて送り出しました 🍃 新しい対話を始めましょう。');
         } else {
@@ -230,10 +325,29 @@ client.on(Events.MessageCreate, async (message) => {
         console.log('Executing status command');
         try {
           const healthStatus = await aiService.checkHealth();
-          const config = aiService.getConfig();
+          let config = {};
+          let contextInfo = { userCount: 0 };
+          let providerInfo = { 
+            name: AI_PROVIDER.toUpperCase(),
+            memoryEnabled: false
+          };
           
-          // コンテキスト情報を取得
-          const contextInfo = config.contextManager || { userCount: 0 };
+          if (DM_MESSAGE_HANDLER === 'new') {
+            // 新プロバイダーシステムの場合
+            providerInfo.name = aiService.getProviderName() || 'Unknown';
+            
+            // プロバイダーの情報を取得
+            const provider = aiService.getProvider();
+            if (provider && typeof provider.getConfig === 'function') {
+              config = provider.getConfig();
+              contextInfo.userCount = config.userCount || 0;
+              providerInfo.memoryEnabled = config.memoryEnabled || false;
+            }
+          } else {
+            // 従来のシステムの場合
+            config = aiService.getConfig();
+            contextInfo = config.contextManager || { userCount: 0 };
+          }
           
           // リッチエンベッドの作成
           const embed = new EmbedBuilder()
@@ -245,9 +359,10 @@ client.on(Events.MessageCreate, async (message) => {
               { name: '🌐 Discord接続', value: '✨ 繋がっています', inline: true },
               { name: '🕰️ 森での時間', value: formatUptime(process.uptime()), inline: true },
               { name: '🍃 記憶の広さ', value: formatMemoryUsage(process.memoryUsage()), inline: true },
-              { name: '👥 訪れた人々', value: `${contextInfo.userCount}人`, inline: true },
-              { name: '🤖 AI Provider', value: `${AI_PROVIDER.toUpperCase()}`, inline: true },
-              { name: '🌱 コンテキスト', value: contextInfo.useSupabase ? '✨ 持続記憶を使用中' : '🍃 一時記憶を使用中', inline: true }
+              { name: '👥 訪れた人々', value: `${contextInfo.userCount || 0}人`, inline: true },
+              { name: '🤖 AI Provider', value: providerInfo.name, inline: true },
+              { name: '🌱 コンテキスト', value: providerInfo.memoryEnabled ? '✨ 持続記憶を使用中' : '🍃 一時記憶を使用中', inline: true },
+              { name: '🗝️ モード', value: DM_MESSAGE_HANDLER === 'new' ? '🆕 新プロバイダー' : '🔄 レガシー', inline: true }
             )
             .setFooter({ text: `Bocchy ${BOT_VERSION} | ${new Date().toLocaleString('ja-JP')}` });
             
@@ -381,12 +496,30 @@ client.on(Events.MessageCreate, async (message) => {
         }
         
         // AIからの応答を取得
-        const response = await aiService.getAIResponse(
-          message.author.id,
-          cleanContent,
-          message.author.username,
-          isDM
-        );
+        let response;
+        
+        if (DM_MESSAGE_HANDLER === 'new') {
+          // 新プロバイダーシステムを使用する場合
+          const provider = aiService.getProvider();
+          if (provider && typeof provider.getAIResponse === 'function') {
+            response = await provider.getAIResponse(
+              message.author.id,
+              cleanContent,
+              message.author.username,
+              isDM
+            );
+          } else {
+            throw new Error('プロバイダーが正しく設定されていません');
+          }
+        } else {
+          // 従来のシステムを使用する場合
+          response = await aiService.getAIResponse(
+            message.author.id,
+            cleanContent,
+            message.author.username,
+            isDM
+          );
+        }
         
         console.log(`AI response received (${response.length} chars): ${response.substring(0, 100)}${response.length > 100 ? '...' : ''}`);
         
