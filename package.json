@@ -1,42 +1,20 @@
 {
-  "name": "botchi-discord-bot",
+  "name": "bocchy-discord-bot",
   "version": "1.2.0",
-  "description": "OpenAI/GraphAI × Discord マルチモーダルチャットボット「ボッチー」",
+  "description": "An intelligent Discord bot with modular AI architecture",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js",
-    "test": "node gemini-test.js",
-    "health": "node -e \"require('./openai-service').checkHealth().then(console.log)\"",
-    "lint": "eslint ."
+    "test": "node test.js"
   },
+  "keywords": ["discord", "bot", "ai", "bocchy"],
   "dependencies": {
-    "discord.js": "^14.13.0",
-    "axios": "^1.6.2",
+    "axios": "^0.27.2",
+    "discord.js": "^14.11.0",
     "dotenv": "^16.3.1",
-    "openai": "^4.28.0",
-    "@supabase/supabase-js": "^2.39.2"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.1"
+    "openai": "^4.0.0"
   },
   "engines": {
-    "node": ">=16.9.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/botarhythm/botchi-discord-bot.git"
-  },
-  "keywords": [
-    "discord",
-    "bot",
-    "ai",
-    "gemini",
-    "openai",
-    "chatbot",
-    "supabase",
-    "context"
-  ],
-  "author": "botarhythm",
-  "license": "MIT"
+    "node": ">=18.0.0"
+  }
 }
