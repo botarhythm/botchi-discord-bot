@@ -7,18 +7,36 @@
  * @module extensions/providers
  */
 
-// Using path.resolve for more reliable path resolution
-const path = require('path');
-const logger = require(path.resolve(__dirname, '../../system/logger'));
+// 環境非依存のパス解決ユーティリティを使用
+const utils = require('../../local-sync-utility');
 
-// プロバイダー登録 - 絶対パスに変換
+// ロガーを安全にロード
+const logger = utils.safeRequire('../../system/logger', utils.createSimpleLogger());
+
+// 環境に依存しないパス生成（パス関数を使って安全にパスを構築）
+function getProviderPath(relativePath) {
+  try {
+    return utils.appRoot + '/' + relativePath.replace(/^[\.\/]+/, '');
+  } catch (e) {
+    logger.warn(`パス解決エラー: ${e.message}`);
+    return relativePath;
+  }
+}
+
+// 利用可能なプロバイダー定義
 const PROVIDERS = {
-  // 標準プロバイダー
-  'openai': path.resolve(__dirname, '../../openai-service.js'),
-  'gemini': path.resolve(__dirname, '../../gemini-service.js'),
-  // 拡張プロバイダー
-  'openai-memory': path.resolve(__dirname, './openai-memory-provider.js')
+  // 標準プロバイダー (親ディレクトリ)
+  'openai': getProviderPath('../../openai-service.js'),
+  'gemini': getProviderPath('../../gemini-service.js'),
+  // 拡張プロバイダー (同じディレクトリ)
+  'openai-memory': getProviderPath('./openai-memory-provider.js')
 };
+
+// プロバイダーパスのログ
+logger.debug('利用可能なプロバイダーパス:');
+Object.entries(PROVIDERS).forEach(([name, path]) => {
+  logger.debug(`  ${name}: ${path}`);
+});
 
 // 現在のプロバイダー
 let activeProvider = null;
@@ -94,29 +112,62 @@ async function setProvider(providerName) {
   try {
     if (!PROVIDERS[providerName]) {
       logger.error(`プロバイダー '${providerName}' は登録されていません`);
+      
+      // 登録されたプロバイダー一覧を表示（デバッグ用）
+      const availableProviders = Object.keys(PROVIDERS).join(', ');
+      logger.info(`利用可能なプロバイダー: ${availableProviders || 'なし'}`);
+      
       return false;
     }
     
     // プロバイダーモジュールのロード
     try {
-      // 相対パスでモジュールをインポート
       const modulePath = PROVIDERS[providerName];
-      providerInstance = require(modulePath);
+      logger.debug(`プロバイダーモジュールのロード試行: ${modulePath}`);
+      
+      // 安全なモジュールローダーを使用
+      const loadedModule = utils.safeRequire(modulePath, {
+        // フォールバック（プロバイダーの必須メソッド）
+        getResponse: async () => '申し訳ありません、AIプロバイダーのロードに失敗しました。',
+        isConfigured: () => false,
+        initialize: async () => ({ status: 'fallback' }),
+        checkHealth: async () => ({ status: 'unhealthy' })
+      });
+      
+      // プロバイダーが必要なAPIを提供しているか確認
+      const hasGetResponse = typeof loadedModule.getResponse === 'function';
+      const hasGetAIResponse = typeof loadedModule.getAIResponse === 'function';
+      const hasRequiredApi = hasGetResponse || hasGetAIResponse;
+      
+      if (!hasRequiredApi) {
+        logger.error(`プロバイダー '${providerName}' に必要なAPI(getResponse または getAIResponse)が実装されていません`);
+        return false;
+      }
+      
+      // API実装の詳細をログに出力
+      logger.debug(`プロバイダー '${providerName}' のAPI実装: getResponse=${hasGetResponse}, getAIResponse=${hasGetAIResponse}`);
+      
+      // プロバイダーを設定
+      providerInstance = loadedModule;
       activeProvider = providerName;
       
       // プロバイダーの初期化（初期化メソッドがある場合）
       if (typeof providerInstance.initialize === 'function') {
-        await providerInstance.initialize();
+        logger.debug(`プロバイダー '${providerName}' の初期化を実行`);
+        const initResult = await providerInstance.initialize();
+        logger.debug(`初期化結果: ${JSON.stringify(initResult)}`);
       }
       
       logger.info(`プロバイダー '${activeProvider}' を設定しました`);
       return true;
     } catch (error) {
       logger.error(`プロバイダー '${providerName}' のロードエラー: ${error.message}`);
+      logger.debug(`エラー詳細: ${error.stack || 'スタック情報なし'}`);
       return false;
     }
   } catch (error) {
     logger.error(`プロバイダー設定エラー: ${error.message}`);
+    logger.debug(`エラー詳細: ${error.stack || 'スタック情報なし'}`);
     return false;
   }
 }
@@ -143,6 +194,48 @@ function getProviderName() {
  */
 function getAvailableProviders() {
   return Object.keys(PROVIDERS);
+}
+
+/**
+ * 互換性のあるレスポンス取得メソッド
+ * message-handler.jsからの呼び出しに合わせた形式
+ * @param {Object} context - 会話コンテキスト
+ * @returns {Promise<string>} AIからの応答
+ */
+async function getResponse(context) {
+  const provider = getProvider();
+  if (!provider) {
+    logger.error('有効なプロバイダーがありません');
+    return '申し訳ありません、AIサービスが初期化されていません。';
+  }
+
+  // プロバイダーのインターフェースに応じた呼び出し
+  try {
+    logger.debug(`getResponse呼び出し: プロバイダー=${activeProvider}, コンテキスト=`, context);
+    
+    // プロバイダーインターフェースのチェック
+    if (typeof provider.getResponse === 'function') {
+      // 新しいインターフェース (context)
+      logger.debug(`${activeProvider}のgetResponseを使用`);
+      return await provider.getResponse(context);
+    } else if (typeof provider.getAIResponse === 'function') {
+      // レガシーインターフェース (userId, message, username, isDM)
+      const { userId, username, message, contextType } = context;
+      logger.debug(`${activeProvider}のgetAIResponseを使用: userId=${userId}, contextType=${contextType}`);
+      return await provider.getAIResponse(
+        userId,
+        message,
+        username,
+        contextType === 'direct_message'
+      );
+    } else {
+      throw new Error(`プロバイダー ${activeProvider} に応答取得メソッドがありません`);
+    }
+  } catch (error) {
+    logger.error(`応答取得エラー: ${error.message}`);
+    logger.debug(`エラー詳細: ${error.stack || 'スタック情報なし'}`);
+    return '申し訳ありません、応答の生成中にエラーが発生しました。';
+  }
 }
 
 /**
@@ -188,5 +281,7 @@ module.exports = {
   getProvider,
   getProviderName,
   getAvailableProviders,
-  checkHealth
+  checkHealth,
+  // 互換性レイヤー
+  getResponse
 };
