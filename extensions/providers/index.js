@@ -7,29 +7,17 @@
  * @module extensions/providers
  */
 
-// 環境非依存のパス解決ユーティリティを使用
-const utils = require('../../local-sync-utility');
-
-// ロガーを安全にロード
-const logger = utils.safeRequire('../../system/logger', utils.createSimpleLogger());
-
-// 環境に依存しないパス生成（パス関数を使って安全にパスを構築）
-function getProviderPath(relativePath) {
-  try {
-    return utils.appRoot + '/' + relativePath.replace(/^[\.\/]+/, '');
-  } catch (e) {
-    logger.warn(`パス解決エラー: ${e.message}`);
-    return relativePath;
-  }
-}
+// 標準のパスモジュールを使用
+const path = require('path');
+const logger = require('../../system/logger');
 
 // 利用可能なプロバイダー定義
 const PROVIDERS = {
   // 標準プロバイダー (親ディレクトリ)
-  'openai': getProviderPath('../../openai-service.js'),
-  'gemini': getProviderPath('../../gemini-service.js'),
+  'openai': path.resolve(__dirname, '../../openai-service.js'),
+  'gemini': path.resolve(__dirname, '../../gemini-service.js'),
   // 拡張プロバイダー (同じディレクトリ)
-  'openai-memory': getProviderPath('./openai-memory-provider.js')
+  'openai-memory': path.resolve(__dirname, './openai-memory-provider.js')
 };
 
 // プロバイダーパスのログ
@@ -125,18 +113,12 @@ async function setProvider(providerName) {
       const modulePath = PROVIDERS[providerName];
       logger.debug(`プロバイダーモジュールのロード試行: ${modulePath}`);
       
-      // 安全なモジュールローダーを使用
-      const loadedModule = utils.safeRequire(modulePath, {
-        // フォールバック（プロバイダーの必須メソッド）
-        getResponse: async () => '申し訳ありません、AIプロバイダーのロードに失敗しました。',
-        isConfigured: () => false,
-        initialize: async () => ({ status: 'fallback' }),
-        checkHealth: async () => ({ status: 'unhealthy' })
-      });
+      // モジュールを読み込む
+      providerInstance = require(modulePath);
       
       // プロバイダーが必要なAPIを提供しているか確認
-      const hasGetResponse = typeof loadedModule.getResponse === 'function';
-      const hasGetAIResponse = typeof loadedModule.getAIResponse === 'function';
+      const hasGetResponse = typeof providerInstance.getResponse === 'function';
+      const hasGetAIResponse = typeof providerInstance.getAIResponse === 'function';
       const hasRequiredApi = hasGetResponse || hasGetAIResponse;
       
       if (!hasRequiredApi) {
@@ -148,7 +130,6 @@ async function setProvider(providerName) {
       logger.debug(`プロバイダー '${providerName}' のAPI実装: getResponse=${hasGetResponse}, getAIResponse=${hasGetAIResponse}`);
       
       // プロバイダーを設定
-      providerInstance = loadedModule;
       activeProvider = providerName;
       
       // プロバイダーの初期化（初期化メソッドがある場合）
