@@ -10,14 +10,17 @@
 const { OpenAI } = require('openai');
 const memorySystem = require('../memory');
 const logger = require('../../system/logger');
+const character = require('../character/character');
 
 // APIクライアント
 let openaiClient = null;
 
 // 設定
 const DEFAULT_MODEL = 'gpt-4o-mini';
+
+// システムプロンプト
 const SYSTEM_PROMPTS = {
-  default: 'あなたはボッチーというキャラとして会話してください。ボッチーは個性的で優しいチャットボットで、自然な日本語で応答します。敬語を使わず親しげな口調で話し、ときどき「かな？」「だね！」などの表現を使います。人間の友達のように会話を楽しんでください。',
+  default: '' // 初期化時に character.js から読み込む
 };
 
 /**
@@ -43,6 +46,10 @@ async function initialize() {
     
     // メモリシステムの初期化
     await memorySystem.initialize();
+    
+    // キャラクター設定を読み込む
+    SYSTEM_PROMPTS.default = character.getCharacterPrompt({ format: 'raw', extended: true });
+    logger.info('キャラクター設定を読み込みました');
     
     logger.info(`OpenAI Memory Providerが初期化されました (モデル: ${model})`);
     return true;
@@ -230,9 +237,33 @@ function isConfigured() {
   return !!process.env.OPENAI_API_KEY && !!openaiClient;
 }
 
+/**
+ * 新インターフェース用のレスポンス取得メソッド
+ * @param {Object} context - 会話コンテキスト
+ * @returns {Promise<string>} AIからの応答
+ */
+async function getResponse(context) {
+  try {
+    // コンテキストから必要な情報を抽出
+    const { userId, username, message, contextType } = context;
+    
+    // getAIResponseメソッドに変換して呼び出し
+    return await getAIResponse(
+      userId,
+      message,
+      username || 'user',
+      contextType === 'direct_message'
+    );
+  } catch (error) {
+    logger.error(`getResponse呼び出しエラー: ${error.message}`);
+    throw error;
+  }
+}
+
 module.exports = {
   initialize,
   getAIResponse,
+  getResponse, // 新インターフェース用メソッドを追加
   clearConversationHistory,
   checkHealth,
   getConfig,
