@@ -7,15 +7,17 @@
  * @module extensions/providers
  */
 
-const logger = require('../../system/logger');
+// Using path.resolve for more reliable path resolution
+const path = require('path');
+const logger = require(path.resolve(__dirname, '../../system/logger'));
 
-// プロバイダー登録
+// プロバイダー登録 - 絶対パスに変換
 const PROVIDERS = {
   // 標準プロバイダー
-  'openai': '../../openai-service.js',
-  'gemini': '../../gemini-service.js',
+  'openai': path.resolve(__dirname, '../../openai-service.js'),
+  'gemini': path.resolve(__dirname, '../../gemini-service.js'),
   // 拡張プロバイダー
-  'openai-memory': './openai-memory-provider.js'
+  'openai-memory': path.resolve(__dirname, './openai-memory-provider.js')
 };
 
 // 現在のプロバイダー
