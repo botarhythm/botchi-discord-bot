@@ -132,6 +132,31 @@ async function getAIResponse(userId, message, username, isDM = false) {
   }
 }
 
+/**
+ * 新インターフェース用のレスポンス取得メソッド
+ * @param {Object} context - 会話コンテキスト
+ * @returns {Promise<string>} AIからの応答
+ */
+async function getResponse(context) {
+  try {
+    // コンテキストから必要な情報を抽出
+    const { userId, username = 'User', message, contextType = 'unknown' } = context;
+    console.log(`getResponse呼び出し: userId=${userId}, contextType=${contextType}`);
+    
+    // getAIResponseメソッドに変換して呼び出し
+    const isDM = contextType === 'direct_message';
+    return await getAIResponse(
+      userId,
+      message,
+      username,
+      isDM
+    );
+  } catch (error) {
+    console.error(`getResponse呼び出しエラー: ${error.message}`);
+    throw error;
+  }
+}
+
 function isErrorRetryable(error) {
   if (!error.response && error.code === 'ECONNABORTED') return true;
   const status = error.response?.status;
@@ -330,6 +355,7 @@ function getConfig() {
 module.exports = {
   initialize,
   getAIResponse,
+  getResponse,  // 新しく追加したメソッド
   clearConversationHistory,
   isConfigured,
   checkHealth,
