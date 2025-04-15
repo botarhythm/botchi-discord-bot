@@ -325,25 +325,36 @@ async function handleSearch(args, message) {
     // 検索クエリと実行中の通知
     await message.reply(`🔍 「${query}」を検索しています...`);
     
-    // ここでBraveSearch APIを使用した検索と結果の処理を行う
-    // 実際の実装はextensions/search-service.jsモジュールで行う
-    const searchService = require('../extensions/search-service');
-    const searchResults = await searchService.performSearch(query);
-    
-    // 検索結果を整形して返信
-    if (searchResults && searchResults.summary) {
-      const embed = new EmbedBuilder()
-        .setTitle(`🔍 「${query}」の検索結果`)
-        .setColor(0x00FFFF)
-        .setDescription(searchResults.summary)
-        .addFields(
-          { name: '情報源', value: searchResults.sources || '情報なし' }
-        )
-        .setFooter({ text: 'Brave Search APIを使用' });
+    try {
+      // 検索サービスのモジュール読み込みを明示的なエラーハンドリングで実施
+      const searchService = require('../extensions/search-service');
       
-      await message.reply({ embeds: [embed] });
-    } else {
-      await message.reply('検索結果が見つかりませんでした。別のキーワードで試してみてください。');
+      // APIキー情報をデバッグ出力
+      logger.debug(`BRAVE_SEARCH_API_KEY: ${process.env.BRAVE_SEARCH_API_KEY ? 'defined' : 'undefined'}`);
+      logger.debug(`BRAVE_API_KEY: ${process.env.BRAVE_API_KEY ? 'defined' : 'undefined'}`);
+      
+      // 検索実行
+      const searchResults = await searchService.performSearch(query);
+      logger.debug(`検索結果: ${JSON.stringify(searchResults).substring(0, 100)}...`);
+      
+      // 検索結果を整形して返信
+      if (searchResults && searchResults.summary) {
+        const embed = new EmbedBuilder()
+          .setTitle(`🔍 「${query}」の検索結果`)
+          .setColor(0x00FFFF)
+          .setDescription(searchResults.summary)
+          .addFields(
+            { name: '情報源', value: searchResults.sources || '情報なし' }
+          )
+          .setFooter({ text: 'Brave Search APIを使用' });
+        
+        await message.reply({ embeds: [embed] });
+      } else {
+        await message.reply('検索結果が見つかりませんでした。別のキーワードで試してみてください。');
+      }
+    } catch (searchError) {
+      logger.error('検索モジュールエラー:', searchError);
+      await message.reply(`検索処理中に問題が発生しました。: ${searchError.message}`);
     }
   } catch (error) {
     logger.error('検索処理エラー:', error);
