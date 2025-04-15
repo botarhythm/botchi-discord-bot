@@ -4,6 +4,7 @@
  */
 
 const { ChannelType, EmbedBuilder } = require('discord.js');
+const path = require('path');
 const messageHistory = require('../extensions/message-history');
 const contextAnalyzer = require('../extensions/context-analyzer');
 const commands = require('./commands');
@@ -17,18 +18,35 @@ const aiService = initializeAIService();
 function initializeAIService() {
   try {
     if (config.DM_MESSAGE_HANDLER === 'new') {
-      return syncUtil.safeRequire('../extensions/providers', {
+      // 新しいプロバイダーシステムを使用
+      // パス解決を標準的な方法に変更
+      const providersPath = path.resolve(__dirname, '../extensions/providers');
+      
+      // デバッグ出力（モジュール解決の確認用）
+      if (config.DEBUG) {
+        logger.debug(`プロバイダーモジュールパス: ${providersPath}`);
+        logger.debug(`現在の作業ディレクトリ: ${process.cwd()}`);
+      }
+      
+      return syncUtil.safeRequire(providersPath, {
         getProvider: () => null,
         getResponse: async () => 'AIサービスが初期化されていません',
         getProviderName: () => 'fallback'
       });
     } else {
-      return config.AI_PROVIDER === 'openai'
-        ? syncUtil.safeRequire('../openai-service')
-        : syncUtil.safeRequire('../gemini-service');
+      // レガシーシステムの使用
+      if (config.AI_PROVIDER === 'openai') {
+        return syncUtil.safeRequire('../openai-service');
+      } else {
+        return syncUtil.safeRequire('../gemini-service');
+      }
     }
   } catch (error) {
     logger.error('AIサービスの初期化失敗:', error);
+    // エラー詳細出力（トラブルシューティング用）
+    if (config.DEBUG) {
+      logger.debug(`初期化エラー詳細: ${error.stack || '詳細なし'}`);
+    }
     return {
       getResponse: async () => 'AIサービスの読み込みに失敗しました',
       isConfigured: () => false
@@ -108,7 +126,7 @@ async function saveMessageToHistory(message) {
         username: message.author?.username,
         bot: message.author?.bot
       },
-      createdTimestamp: message.createdTimestamp || Date.now()
+      timestamp: message.createdTimestamp || Date.now() // 'timestamp'に統一
     };
     messageHistory.addMessageToHistory(message.channelId, entry);
     if (config.DEBUG) logger.debug(`Message saved to history: ${message.channelId}`);
@@ -118,30 +136,34 @@ async function saveMessageToHistory(message) {
 }
 
 async function evaluateIntervention(message, client, isDM, isMentioned) {
-  if (isDM || isMentioned) return true;
+  // DMや直接メンションの場合は常に応答する
+  if (isDM || isMentioned) {
+    if (config.DEBUG) logger.debug('Direct message or mention detected, will respond');
+    return true;
+  }
 
   try {
-    const recentMessages = messageHistory?.getRecentMessages?.(message.channelId, 10) || [];
-    const analysisParams = {
-      message: {
-        content: message.content || '',
-        channel: {
-          id: message.channelId,
-          name: message.channel?.name
-        },
-        author: {
-          id: message.author?.id,
-          username: message.author?.username
-        },
-        createdTimestamp: message.createdTimestamp
-      },
-      history: recentMessages,
-      mode: process.env.INTERVENTION_MODE || config.INTERVENTION_MODE || 'balanced',
-      keywords: config.INTERVENTION_KEYWORDS,
-      lastInterventionTime: messageHistory?.getLastBotMessageTime?.(message.channelId, client.user?.id) || 0,
-      cooldownSeconds: config.INTERVENTION_COOLDOWN || 60
-    };
-    return contextAnalyzer?.shouldIntervene?.(analysisParams) || false;
+    // 文脈介入機能が有効かどうかをチェック
+    const contextInterventionHandler = require('./context-intervention');
+    
+    if (!contextInterventionHandler || typeof contextInterventionHandler.shouldIntervene !== 'function') {
+      logger.error('文脈介入ハンドラーが正しく読み込めませんでした');
+      return false;
+    }
+    
+    if (config.DEBUG) {
+      logger.debug(`文脈介入判断開始: ${message.content.substring(0, 30)}...`);
+      logger.debug(`現在の介入モード: ${process.env.INTERVENTION_MODE || config.INTERVENTION_MODE || 'balanced'}`);
+    }
+    
+    // 文脈介入ハンドラーを使用して判断
+    const shouldIntervene = await contextInterventionHandler.shouldIntervene(message, client);
+    
+    if (config.DEBUG) {
+      logger.debug(`文脈介入判断結果: ${shouldIntervene ? '介入する' : '介入しない'}`);
+    }
+    
+    return shouldIntervene;
   } catch (error) {
     logger.error('介入判断エラー:', error);
     return false;
@@ -161,25 +183,72 @@ async function handleAIResponse(message, client, contextType) {
       contextType
     };
 
-    const provider = aiService.getProvider?.();
-    const response = provider?.getResponse
-      ? await provider.getResponse(aiContext)
-      : await aiService.getResponse(aiContext);
+    // レスポンス取得処理の堅牢化
+    let response;
+    
+    try {
+      // 新プロバイダーシステムのチェック
+      if (config.DM_MESSAGE_HANDLER === 'new' && aiService.getProvider) {
+        const provider = aiService.getProvider();
+        if (provider) {
+          if (config.DEBUG) {
+            logger.debug(`プロバイダー ${aiService.getProviderName?.() || 'unknown'} を使用`);
+          }
+          
+          // プロバイダーのメソッドを確認
+          if (typeof provider.getResponse === 'function') {
+            response = await provider.getResponse(aiContext);
+          } else if (typeof provider.getAIResponse === 'function') {
+            response = await provider.getAIResponse(
+              aiContext.userId,
+              aiContext.message,
+              aiContext.username,
+              contextType === 'direct_message'
+            );
+          } else if (typeof aiService.getResponse === 'function') {
+            // フォールバック: プロバイダーマネージャー自体のgetResponseを使用
+            response = await aiService.getResponse(aiContext);
+          } else {
+            throw new Error('使用可能なAI応答取得メソッドがありません');
+          }
+        } else {
+          // プロバイダーが取得できない場合はaiServiceに直接問い合わせ
+          if (typeof aiService.getResponse === 'function') {
+            response = await aiService.getResponse(aiContext);
+          } else {
+            throw new Error('AIサービスに応答取得メソッドがありません');
+          }
+        }
+      } else {
+        // レガシーシステムの場合
+        response = await aiService.getResponse(aiContext);
+      }
+    } catch (aiError) {
+      logger.error('AI応答取得エラー:', aiError);
+      throw new Error(`AI応答の取得に失敗しました: ${aiError.message}`);
+    }
 
-    if (!response) throw new Error('AI応答がありません');
+    if (!response) throw new Error('AI応答がありません（空の応答）');
 
     const replies = splitMessage(response);
     for (const chunk of replies) await message.reply(chunk);
 
-    if (contextType === 'intervention') {
-      messageHistory?.updateLastBotMessageTime?.(message.channelId, client.user?.id);
+    // 全ての応答パターンでメッセージ時間を更新する（DMでなくても）
+    messageHistory?.updateLastBotMessageTime?.(message.channelId, client.user?.id);
+    if (config.DEBUG) {
+      logger.debug(`メッセージ履歴の時間更新: ${message.channelId}`);
     }
 
     logger.info(`AI応答完了（${contextType}）: ${response.length}文字`);
   } catch (error) {
     logger.error('AI応答処理エラー:', error);
+    // 詳細なエラー情報をデバッグ出力
+    if (config.DEBUG) {
+      logger.debug(`応答エラー詳細: ${error.stack || 'スタック情報なし'}`);
+    }
+    
     try {
-      await message.reply('応答の生成中にエラーが発生しました。');
+      await message.reply('応答の生成中にエラーが発生しました。しばらく経ってからお試しください。');
     } catch (e) {
       logger.error('エラーメッセージ送信失敗:', e);
     }
