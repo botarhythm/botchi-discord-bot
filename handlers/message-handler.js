@@ -391,11 +391,11 @@ async function handleAIResponse(message, client, contextType) {
     // AI応答用のコンテキスト準備
     const cleanContent = sanitizeMessage(message.content, contextType);
     
-    // パーソナライズされたプロンプトの作成
+    // パーソナライズされたプロンプトを作成（自然な会話をAIモデルに促す）
     let personalizedPrefix = '';
     
-    // タイムベースの挨拶を追加
-    personalizedPrefix += `${timeGreeting}、${displayName}さん。`;
+    // タイムベースの挨拶を追加（名前は控えめに）
+    personalizedPrefix += `${timeGreeting}。`;
     
     // 会話の継続性があれば追加
     if (continuityMsg) {
@@ -406,6 +406,9 @@ async function handleAIResponse(message, client, contextType) {
     if (config.SHOW_DATETIME) {
       personalizedPrefix += ` 今日は${dateTimeStr}です。`;
     }
+    
+    // ユーザー名は表示しないがコンテキストには含める
+    // AIモデルがユーザー名を必要に応じて自然に使えるように
     
     // AI応答のためのコンテキストプロンプトを構築
     const contextPrompt = await buildContextPrompt(message, cleanContent, contextType, personalizedPrefix);
@@ -579,14 +582,17 @@ async function buildContextPrompt(message, content, contextType, personalizedPre
   try {
     // パーソナライズされたプレフィックスがあれば、DMや直接メンションの時に使用
     if (personalizedPrefix && (contextType === 'direct_message' || contextType === 'mention')) {
-      // ユーザーの表示名を取得 (念のため)
+      // ユーザーの表示名を取得 (コンテキスト用)
       const displayName = userDisplay.getMessageAuthorDisplayName(message);
       
       // プロンプトの先頭にパーソナライズされたプレフィックスを追加
       let prompt = `${personalizedPrefix}\n\n`;
       
-      // ユーザーメッセージを追加
-      prompt += `${displayName}さん: ${content}\n\n`;
+      // ユーザーメッセージを追加（名前は付けない - より自然な会話に）
+      prompt += `${content}\n\n`;
+      
+      // システム指示を追加（AIモデル向け）
+      prompt += `${displayName}さんとの会話です。文脈に応じて自然な形で対応し、必要に応じて適切なタイミングでのみ名前を使用してください。\n`;
       
       return prompt;
     }
