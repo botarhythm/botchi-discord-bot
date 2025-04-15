@@ -118,30 +118,34 @@ async function saveMessageToHistory(message) {
 }
 
 async function evaluateIntervention(message, client, isDM, isMentioned) {
-  if (isDM || isMentioned) return true;
+  // DMや直接メンションの場合は常に応答する
+  if (isDM || isMentioned) {
+    if (config.DEBUG) logger.debug('Direct message or mention detected, will respond');
+    return true;
+  }
 
   try {
-    const recentMessages = messageHistory?.getRecentMessages?.(message.channelId, 10) || [];
-    const analysisParams = {
-      message: {
-        content: message.content || '',
-        channel: {
-          id: message.channelId,
-          name: message.channel?.name
-        },
-        author: {
-          id: message.author?.id,
-          username: message.author?.username
-        },
-        createdTimestamp: message.createdTimestamp
-      },
-      history: recentMessages,
-      mode: process.env.INTERVENTION_MODE || config.INTERVENTION_MODE || 'balanced',
-      keywords: config.INTERVENTION_KEYWORDS,
-      lastInterventionTime: messageHistory?.getLastBotMessageTime?.(message.channelId, client.user?.id) || 0,
-      cooldownSeconds: config.INTERVENTION_COOLDOWN || 60
-    };
-    return contextAnalyzer?.shouldIntervene?.(analysisParams) || false;
+    // 文脈介入機能が有効かどうかをチェック
+    const contextInterventionHandler = require('./context-intervention');
+    
+    if (!contextInterventionHandler || typeof contextInterventionHandler.shouldIntervene !== 'function') {
+      logger.error('文脈介入ハンドラーが正しく読み込めませんでした');
+      return false;
+    }
+    
+    if (config.DEBUG) {
+      logger.debug(`文脈介入判断開始: ${message.content.substring(0, 30)}...`);
+      logger.debug(`現在の介入モード: ${process.env.INTERVENTION_MODE || config.INTERVENTION_MODE || 'balanced'}`);
+    }
+    
+    // 文脈介入ハンドラーを使用して判断
+    const shouldIntervene = await contextInterventionHandler.shouldIntervene(message, client);
+    
+    if (config.DEBUG) {
+      logger.debug(`文脈介入判断結果: ${shouldIntervene ? '介入する' : '介入しない'}`);
+    }
+    
+    return shouldIntervene;
   } catch (error) {
     logger.error('介入判断エラー:', error);
     return false;
