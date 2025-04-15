@@ -69,6 +69,29 @@ AI、哲学、プログラミング、DAO、経営、子育て、教育、技術
 `;
 
 /**
+ * AIサービスの初期化
+ */
+async function initialize() {
+  try {
+    // 健全性確認
+    await checkHealth();
+    
+    return {
+      initialized: true,
+      apiConfigured: !!API_KEY,
+      endpoint: API_ENDPOINT,
+      healthStatus: HEALTH_STATUS.status
+    };
+  } catch (error) {
+    console.error('Gemini初期化エラー:', error);
+    return {
+      initialized: false,
+      error: error.message
+    };
+  }
+}
+
+/**
  * Gemini APIを使用してメッセージに応答（リトライ機能付き）
  */
 async function getAIResponse(userId, message, username, isDM = false) {
@@ -88,11 +111,36 @@ async function getAIResponse(userId, message, username, isDM = false) {
       const isRetryableError = isErrorRetryable(error);
       retries++;
       if (!isRetryableError || retries > MAX_RETRIES) {
-        console.error('AI通信失敗:', error);
+        console.error('Gemini通信失敗:', error);
         updateHealthStatus(false);
         return formatErrorResponse(error);
       }
     }
+  }
+}
+
+/**
+ * 新インターフェース用のレスポンス取得メソッド
+ * @param {Object} context - 会話コンテキスト
+ * @returns {Promise<string>} AIからの応答
+ */
+async function getResponse(context) {
+  try {
+    // コンテキストから必要な情報を抽出
+    const { userId, username = 'User', message, contextType = 'unknown' } = context;
+    console.log(`Gemini getResponse呼び出し: userId=${userId}, contextType=${contextType}`);
+    
+    // getAIResponseメソッドに変換して呼び出し
+    const isDM = contextType === 'direct_message';
+    return await getAIResponse(
+      userId,
+      message,
+      username,
+      isDM
+    );
+  } catch (error) {
+    console.error(`Gemini getResponse呼び出しエラー: ${error.message}`);
+    throw error;
   }
 }
 
@@ -107,7 +155,7 @@ function formatErrorResponse(error) {
     const status = error.response.status;
     if (status === 429) return '🌿 少し混みあっているみたい。また後で話そうか。';
     if (status === 401 || status === 403) return '🍃 森の小道が一時的に閉じているかもしれません。';
-    if (status >= 500) return '🌱 今は繋がりが揺らいでいるみたい。また時間をおいてね。';
+    if (status >= 500) return '🌱 今はシステムが揺らいでいるみたい。また時間をおいてね。';
     return '🌙 ごめんね、今うまく応えられないみたい。';
   } else if (error.code === 'ECONNABORTED') {
     return '🕰️ ちょっと待ちすぎちゃったみたい。また話そう？';
@@ -121,59 +169,63 @@ async function processAIRequest(userId, message, username, isDM = false) {
 
   const userConversation = getConversationHistory(userId);
   if (userConversation.messages.length === 0) {
-    userConversation.messages.push({ role: 'system', content: BOCCHY_CHARACTER_PROMPT });
+    userConversation.messages.push({
+      role: 'user',
+      parts: [{text: BOCCHY_CHARACTER_PROMPT}]
+    });
+    
+    userConversation.messages.push({
+      role: 'model',
+      parts: [{text: '了解しました。Bocchy（ボッチー）として会話を進めていきます。'}]
+    });
   }
 
-  userConversation.messages.push({ role: 'user', content: message });
+  userConversation.messages.push({
+    role: 'user',
+    parts: [{text: message}]
+  });
 
-  if (userConversation.messages.length > 11) {
-    const systemPrompt = userConversation.messages[0];
-    userConversation.messages = userConversation.messages.slice(-10);
-    userConversation.messages.unshift(systemPrompt);
+  if (userConversation.messages.length > 21) {
+    // システムプロンプトの次の応答を含む最初の2メッセージを保持
+    const systemMessages = userConversation.messages.slice(0, 2);
+    // 残りは最新の会話を保持
+    userConversation.messages = userConversation.messages.slice(-19);
+    userConversation.messages.unshift(...systemMessages);
   }
-
-  const contents = userConversation.messages.map(msg => ({
-    role: msg.role === 'user' ? 'user' : (msg.role === 'system' ? 'user' : 'model'),
-    parts: [{ text: msg.content }]
-  }));
 
   const requestData = {
-    contents,
+    contents: userConversation.messages,
     generationConfig: {
-      temperature: 0.8,
-      topK: 40,
-      topP: 0.95,
+      temperature: 0.7,
       maxOutputTokens: 1000,
-      safetySettings: [
-        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" }
-      ]
+      topP: 0.95,
+      topK: 40
     }
   };
 
-  // ✅ 正しいURLとヘッダー設定（ここが一番重要！）
-  const url = API_ENDPOINT;
+  const url = `${API_ENDPOINT}?key=${API_KEY}`;
   const response = await axios.post(url, requestData, {
     timeout: REQUEST_TIMEOUT,
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${API_KEY}`
+      'Content-Type': 'application/json'
     }
   });
 
   const responseText = extractResponseText(response);
   const validatedResponse = validateResponse(responseText);
 
-  userConversation.messages.push({ role: 'assistant', content: validatedResponse });
+  userConversation.messages.push({
+    role: 'model',
+    parts: [{text: validatedResponse}]
+  });
+  
   userConversation.lastUpdated = Date.now();
   userConversation.messageCount++;
   userConversation.lastSuccessful = Date.now();
 
   updateHealthStatus(true);
 
-  console.log(`[Bocchy] 応答完了 in ${Date.now() - startTime}ms`);
+  console.log(`[Bocchy-Gemini] 応答完了 in ${Date.now() - startTime}ms`);
   return validatedResponse;
 }
 
@@ -226,19 +278,64 @@ function updateHealthStatus(success) {
   HEALTH_STATUS.lastCheck = now;
 }
 
-function checkHealth() {
-  return getAIResponse('health-check', 'こんにちは', 'system', false)
-    .then(() => ({
+async function checkHealth() {
+  try {
+    // 軽量なヘルスチェック - APIキーが設定されているかのみを確認
+    if (!API_KEY) {
+      return {
+        status: 'unconfigured',
+        lastCheck: Date.now(),
+        consecutiveFailures: 0
+      };
+    }
+    
+    // シンプルなリクエスト
+    const url = `${API_ENDPOINT}?key=${API_KEY}`;
+    const simpleRequest = {
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: 'Hello' }]
+        }
+      ],
+      generationConfig: {
+        maxOutputTokens: 5
+      }
+    };
+    
+    await axios.post(url, simpleRequest, {
+      timeout: 5000, // 短いタイムアウト
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    // 成功した場合
+    HEALTH_STATUS.status = 'healthy';
+    HEALTH_STATUS.lastCheck = Date.now();
+    HEALTH_STATUS.consecutiveFailures = 0;
+    
+    return {
       status: 'healthy',
       lastCheck: HEALTH_STATUS.lastCheck,
       consecutiveFailures: 0
-    }))
-    .catch(error => ({
+    };
+  } catch (error) {
+    // エラーの場合
+    HEALTH_STATUS.consecutiveFailures++;
+    HEALTH_STATUS.lastCheck = Date.now();
+    
+    if (HEALTH_STATUS.consecutiveFailures >= 3) {
+      HEALTH_STATUS.status = 'unhealthy';
+    }
+    
+    return {
       status: 'unhealthy',
       lastCheck: Date.now(),
       error: error.message,
-      consecutiveFailures: HEALTH_STATUS.consecutiveFailures + 1
-    }));
+      consecutiveFailures: HEALTH_STATUS.consecutiveFailures
+    };
+  }
 }
 
 function isConfigured() {
@@ -259,7 +356,9 @@ function getConfig() {
 }
 
 module.exports = {
+  initialize,
   getAIResponse,
+  getResponse,  // 新しく追加したメソッド
   clearConversationHistory,
   isConfigured,
   checkHealth,
