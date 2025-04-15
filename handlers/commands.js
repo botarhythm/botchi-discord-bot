@@ -185,8 +185,13 @@ async function handleStatus(args, message, client) {
  */
 async function handleReset(args, message) {
   try {
+    // チャンネルタイプの判定を統一
+    const channelType = typeof message.channel.type === 'number' ? message.channel.type : 
+                       (message.channel.type === 'DM' ? 1 : 0);
+    const isDM = channelType === 1 || message.channel.type === 'DM';
+    
     // DMチャンネルでのみ有効
-    if (message.channel.type !== 1) { // 1 = DM
+    if (!isDM) { // 非DM
       await message.reply('このコマンドはDMでのみ使用できます。');
       return;
     }
@@ -289,21 +294,46 @@ async function handleIntervention(args, message) {
  */
 async function handleDateTime(args, message) {
   try {
+    // 実行環境のデバッグ情報を出力（チャンネルタイプが数値か確認）
+    const channelType = typeof message.channel.type === 'number' ? message.channel.type : 
+                        (message.channel.type === 'DM' ? 1 : 0);
+    const isDM = channelType === 1 || message.channel.type === 'DM';
+    logger.debug(`日時表示: チャンネルタイプ=${channelType}, DMか=${isDM}`);
+    
     const now = new Date();
     // 日本時間に変換（日本はUTC+9）
     const japanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
     const dateTimeStr = formatDateTime(japanTime);
     
-    const embed = new EmbedBuilder()
-      .setTitle('🕒 現在の日本時間')
-      .setColor(0x00FFFF)
-      .setDescription(`${dateTimeStr}`)
-      .setFooter({ text: 'JST (日本標準時)' });
-    
-    await message.reply({ embeds: [embed] });
+    // DMチャンネルとサーバーチャンネルで異なる処理を行う
+    if (isDM) { // DMチャンネル
+      // DMでは単純なテキストメッセージとして送信
+      try {
+        await message.channel.send(`🕒 **現在の日本時間**: ${dateTimeStr} (JST)`);
+        logger.debug('DMに日時を通常メッセージとして送信しました');
+      } catch (dmError) {
+        logger.error('DMでの日時メッセージ送信エラー:', dmError);
+        await message.channel.send('申し訳ありません、日時情報を送信できませんでした。');
+      }
+    } else {
+      // 通常のチャンネルではリッチ埋め込みメッセージを使用
+      const embed = new EmbedBuilder()
+        .setTitle('🕒 現在の日本時間')
+        .setColor(0x00FFFF)
+        .setDescription(`${dateTimeStr}`)
+        .setFooter({ text: 'JST (日本標準時)' });
+      
+      await message.reply({ embeds: [embed] });
+      logger.debug('通常チャンネルに日時を埋め込みメッセージとして返信しました');
+    }
   } catch (error) {
     logger.error('日時表示エラー:', error);
-    await message.reply('日時情報の取得中にエラーが発生しました。');
+    try {
+      // エラーメッセージをより簡素に
+      await message.channel.send('日時情報の表示中にエラーが発生しました。');
+    } catch (replyError) {
+      logger.error('エラーメッセージの送信にも失敗:', replyError);
+    }
   }
 }
 
@@ -314,16 +344,42 @@ async function handleDateTime(args, message) {
  */
 async function handleSearch(args, message) {
   try {
+    // チャンネルタイプの判定を統一
+    const channelType = typeof message.channel.type === 'number' ? message.channel.type : 
+                        (message.channel.type === 'DM' ? 1 : 0);
+    const isDM = channelType === 1 || message.channel.type === 'DM';
+    logger.debug(`検索: チャンネルタイプ=${channelType}, DMか=${isDM}`);
+    
     if (!args.length) {
-      await message.reply('検索キーワードを入力してください。例: `!search 深層学習とは`');
+      // DMチャンネルとサーバーチャンネルで異なる処理を行う
+      if (isDM) { // DMチャンネル
+        await message.channel.send('検索キーワードを入力してください。例: `!search 深層学習とは`');
+      } else {
+        await message.reply('検索キーワードを入力してください。例: `!search 深層学習とは`');
+      }
       return;
     }
     
     const query = args.join(' ');
-    await message.channel.sendTyping();
     
-    // 検索クエリと実行中の通知
-    await message.reply(`🔍 「${query}」を検索しています...`);
+    try {
+      await message.channel.sendTyping();
+    } catch (typingError) {
+      logger.debug('タイピング状態の設定に失敗しました:', typingError);
+      // 続行 - タイピング表示は重要ではない
+    }
+    
+    // 検索クエリと実行中の通知（DMかどうかで処理を変える）
+    try {
+      if (isDM) {
+        await message.channel.send(`🔍 「${query}」を検索しています...`);
+      } else {
+        await message.reply(`🔍 「${query}」を検索しています...`);
+      }
+    } catch (notifyError) {
+      logger.error('検索開始通知送信エラー:', notifyError);
+      // 続行 - 開始通知は重要ではない
+    }
     
     try {
       // 検索サービスのモジュール読み込みを明示的なエラーハンドリングで実施
@@ -337,28 +393,60 @@ async function handleSearch(args, message) {
       const searchResults = await searchService.performSearch(query);
       logger.debug(`検索結果: ${JSON.stringify(searchResults).substring(0, 100)}...`);
       
-      // 検索結果を整形して返信
+      // 検索結果を整形して返信（DMかどうかで処理を変える）
       if (searchResults && searchResults.summary) {
-        const embed = new EmbedBuilder()
-          .setTitle(`🔍 「${query}」の検索結果`)
-          .setColor(0x00FFFF)
-          .setDescription(searchResults.summary)
-          .addFields(
-            { name: '情報源', value: searchResults.sources || '情報なし' }
-          )
-          .setFooter({ text: 'Brave Search APIを使用' });
-        
-        await message.reply({ embeds: [embed] });
+        if (isDM) { // DMチャンネル
+          // DMでは単純なテキストメッセージとして送信
+          let resultText = `🔍 **「${query}」の検索結果**\n\n${searchResults.summary}\n\n**情報源**:\n${searchResults.sources || '情報なし'}`;
+          await message.channel.send(resultText);
+          logger.debug('DMに検索結果をテキストメッセージとして送信しました');
+        } else {
+          // 通常のチャンネルではリッチ埋め込みメッセージを使用
+          const embed = new EmbedBuilder()
+            .setTitle(`🔍 「${query}」の検索結果`)
+            .setColor(0x00FFFF)
+            .setDescription(searchResults.summary)
+            .addFields(
+              { name: '情報源', value: searchResults.sources || '情報なし' }
+            )
+            .setFooter({ text: 'Brave Search APIを使用' });
+          
+          await message.reply({ embeds: [embed] });
+          logger.debug('通常チャンネルに検索結果を埋め込みメッセージとして返信しました');
+        }
       } else {
-        await message.reply('検索結果が見つかりませんでした。別のキーワードで試してみてください。');
+        // 結果が見つからない場合（DMかどうかで処理を変える）
+        if (isDM) {
+          await message.channel.send('検索結果が見つかりませんでした。別のキーワードで試してみてください。');
+        } else {
+          await message.reply('検索結果が見つかりませんでした。別のキーワードで試してみてください。');
+        }
       }
     } catch (searchError) {
       logger.error('検索モジュールエラー:', searchError);
-      await message.reply(`検索処理中に問題が発生しました。: ${searchError.message}`);
+      try {
+        // エラーメッセージをDMかどうかで変える
+        if (isDM) {
+          await message.channel.send(`検索処理中に問題が発生しました: ${searchError.message}`);
+        } else {
+          await message.reply(`検索処理中に問題が発生しました: ${searchError.message}`);
+        }
+      } catch (replyError) {
+        logger.error('エラーメッセージの送信に失敗:', replyError);
+      }
     }
   } catch (error) {
     logger.error('検索処理エラー:', error);
-    await message.reply('検索処理中にエラーが発生しました。しばらくしてからお試しください。');
+    try {
+      // エラーメッセージをより簡素に、DMかどうかで処理を変える
+      if (message.channel && isDM) {
+        await message.channel.send('検索処理中にエラーが発生しました。');
+      } else if (message.channel) {
+        await message.channel.send('検索処理中にエラーが発生しました。');
+      }
+    } catch (finalError) {
+      logger.error('最終エラーメッセージの送信にも失敗:', finalError);
+    }
   }
 }
 
