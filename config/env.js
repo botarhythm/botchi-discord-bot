@@ -15,11 +15,14 @@ const INTERVENTION_COOLDOWN = parseInt(process.env.INTERVENTION_COOLDOWN || '60'
 const AI_PROVIDER = process.env.AI_PROVIDER || 'openai';
 const DM_MESSAGE_HANDLER = process.env.DM_MESSAGE_HANDLER || 'legacy';
 
+// メモリシステム設定
+const MEMORY_ENABLED = process.env.MEMORY_ENABLED === 'true';
+
 // デバッグモード
 const DEBUG = process.env.DEBUG === 'true';
 
 // ボットバージョン
-const BOT_VERSION = '1.3.0'; // 文脈介入機能を追加したためバージョンを上げる
+const BOT_VERSION = '1.3.2'; // メモリシステムの統合と強化
 
 // スクリプト実行環境
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -48,5 +51,8 @@ module.exports = {
   NODE_ENV,
   
   // コマンド設定
-  PREFIX
+  PREFIX,
+  
+  // メモリシステム設定
+  MEMORY_ENABLED
 };
