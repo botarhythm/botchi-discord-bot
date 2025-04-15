@@ -3,7 +3,7 @@
  * 文脈介入機能の堅牢性と最適化を目的としたリファクタリング
  */
 
-const { ChannelType, EmbedBuilder } = require('discord.js');
+const { ChannelType, EmbedBuilder, DMChannel } = require('discord.js');
 const path = require('path');
 const messageHistory = require('../extensions/message-history');
 const contextAnalyzer = require('../extensions/context-analyzer');
@@ -60,16 +60,29 @@ async function handleMessage(message, client) {
 
   logIncomingMessage(message);
 
-  // チャンネルタイプの判定を統一（数値型と文字列型の両方をチェック）
-  const channelType = typeof message.channel?.type === 'number' ? message.channel.type : 
-                     (message.channel?.type === 'DM' ? 1 : 0);
-  const isDM = channelType === 1 || message.channel?.type === 'DM';
+  // DMチャンネル判定の方法を多重化（より堅牢なアプローチ）
+  // 1. instanceofによる判定（最も信頼性高）
+  // 2. ChannelTypeによる判定（Discord.js v14用）
+  // 3. チャンネルタイプ値による判定（レガシー互換性）
+  // 4. channel.typeが'DM'文字列かどうか（文字列互換性）
+  const isDMByInstance = message.channel instanceof DMChannel;
+  const isDMByEnum = message.channel?.type === ChannelType.DM;
+  const isDMByValue = typeof message.channel?.type === 'number' && message.channel.type === 1;
+  const isDMByString = message.channel?.type === 'DM';
   
-  // デバッグログの追加
+  // いずれかの方法でDMと判定された場合はDMとして扱う
+  const isDM = isDMByInstance || isDMByEnum || isDMByValue || isDMByString;
+  
+  // デバッグログの追加（詳細な診断情報）
   if (config.DEBUG) {
     logger.debug(`メッセージチャンネルタイプ: ${message.channel?.type} (${typeof message.channel?.type})`);
-    logger.debug(`計算されたチャンネルタイプ: ${channelType}`);
-    logger.debug(`DMチャンネル判定: ${isDM}`);
+    logger.debug(`DMチャンネル判定結果: instanceOf=${isDMByInstance}, enum=${isDMByEnum}, value=${isDMByValue}, string=${isDMByString}`);
+    logger.debug(`最終DMチャンネル判定: ${isDM}`);
+    
+    // チャンネルオブジェクトの詳細情報（診断用）
+    if (message.channel) {
+      logger.debug(`チャンネル情報: id=${message.channel.id}, constructor=${message.channel.constructor?.name || '不明'}`);
+    }
   }
   
   const isMentioned = message.mentions?.has?.(client.user?.id);
@@ -126,16 +139,24 @@ async function handleCommandIfPresent(message, client) {
 }
 
 async function saveMessageToHistory(message) {
-  // チャンネルタイプの判定を統一
-  const channelType = typeof message.channel?.type === 'number' ? message.channel.type : 
-                     (message.channel?.type === 'DM' ? 1 : 0);
-  const isDM = channelType === 1 || message.channel?.type === 'DM';
+  // DMチャンネル判定の改良メソッド
+  const isDMByInstance = message.channel instanceof DMChannel;
+  const isDMByEnum = message.channel?.type === ChannelType.DM;
+  const isDMByValue = typeof message.channel?.type === 'number' && message.channel.type === 1;
+  const isDMByString = message.channel?.type === 'DM';
+  const isDM = isDMByInstance || isDMByEnum || isDMByValue || isDMByString;
   
   // DMチャンネルの場合は履歴に保存しない
   if (isDM || !messageHistory?.addMessageToHistory) return;
   
   // GuildTextチャンネルかもチェック（数値と文字列の両方に対応）
-  if (channelType !== 0 && message.channel?.type !== 'GUILD_TEXT') return;
+  // Discord.js v14では ChannelType.GuildText を使う
+  const isGuildText = message.channel?.type === ChannelType.GuildText || 
+                     message.channel?.type === 0 || 
+                     message.channel?.type === 'GUILD_TEXT';
+                     
+  // GuildTextチャンネル以外は処理しない
+  if (!isGuildText) return;
 
   try {
     const entry = {
@@ -192,13 +213,18 @@ async function evaluateIntervention(message, client, isDM, isMentioned) {
 
 async function handleAIResponse(message, client, contextType) {
   try {
-    // チャンネルタイプの判定を統一
-    const channelType = typeof message.channel?.type === 'number' ? message.channel.type : 
-                       (message.channel?.type === 'DM' ? 1 : 0);
-    const isDM = channelType === 1 || message.channel?.type === 'DM';
+    // DMチャンネル判定の改良メソッド
+    const isDMByInstance = message.channel instanceof DMChannel;
+    const isDMByEnum = message.channel?.type === ChannelType.DM;
+    const isDMByValue = typeof message.channel?.type === 'number' && message.channel.type === 1;
+    const isDMByString = message.channel?.type === 'DM';
+    
+    // 最終的なDM判定
+    const isDM = isDMByInstance || isDMByEnum || isDMByValue || isDMByString;
     
     if (config.DEBUG) {
-      logger.debug(`AI応答処理: チャンネルタイプ=${message.channel?.type}, channelType=${channelType}, isDM=${isDM}`);
+      logger.debug(`AI応答処理: チャンネルタイプ=${message.channel?.type}, isDM判定=${isDM}`);
+      logger.debug(`DMチャンネル判定詳細: instanceOf=${isDMByInstance}, enum=${isDMByEnum}, value=${isDMByValue}, string=${isDMByString}`);
     }
     
     try {
@@ -311,10 +337,12 @@ async function handleAIResponse(message, client, contextType) {
     }
     
     try {
-      // チャンネルタイプの判定を再度行う
-      const channelType = typeof message.channel?.type === 'number' ? message.channel.type : 
-                         (message.channel?.type === 'DM' ? 1 : 0);
-      const isDM = channelType === 1 || message.channel?.type === 'DM';
+      // DMチャンネル判定（エラーハンドリング用）
+      const isDMByInstance = message.channel instanceof DMChannel;
+      const isDMByEnum = message.channel?.type === ChannelType.DM;
+      const isDMByValue = typeof message.channel?.type === 'number' && message.channel.type === 1;
+      const isDMByString = message.channel?.type === 'DM';
+      const isDM = isDMByInstance || isDMByEnum || isDMByValue || isDMByString;
       
       if (isDM) {
         // DMではchannel.sendを使用
