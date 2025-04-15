@@ -201,16 +201,6 @@ function setupClient() {
   // Message Event
   client.on(Events.MessageCreate, async (message) => {
     try {
-      // メッセージ基本情報のログ
-      const channelType = message.channel?.type;
-      if (config.DEBUG) {
-        logger.debug(`Message received - Content: "${message.content || '[empty]'}"`);
-        logger.debug(`From User: ${message.author?.tag} (ID: ${message.author?.id})`);
-        logger.debug(`Channel Type: ${channelType}`);
-        logger.debug(`Is Channel DM: ${channelType === 1}`);
-        logger.debug(`Channel ID: ${message.channel?.id}`);
-      }
-
       // メッセージハンドラーを呼び出し
       await handleMessage(message, client);
     } catch (error) {
@@ -218,41 +208,25 @@ function setupClient() {
     }
   });
 
-  // DirectMessageイベントの明示的な購読
-  client.on('directMessage', async (message) => {
-    if (config.DEBUG) {
-      logger.debug('DIRECT_MESSAGE event detected!');
-      logger.debug(`Content: ${message.content || '[empty]'}`);
-    }
-    
-    try {
-      // 直接handleMessageに渡す
-      await handleMessage(message, client);
-    } catch (error) {
-      logger.error('DirectMessage event error:', error);
-    }
-  });
-
   // Raw event logging for debugging - DMの問題診断用
-  client.on('raw', packet => {
-    // DMに関連するイベント
-    if (
-      packet.t === 'MESSAGE_CREATE' || 
-      packet.t === 'CHANNEL_CREATE' || 
-      packet.t === 'DIRECT_MESSAGE_CREATE'
-    ) {
-      if (config.DEBUG) {
+  if (config.DEBUG) {
+    client.on('raw', packet => {
+      // DMに関連するイベント
+      if (
+        packet.t === 'MESSAGE_CREATE' || 
+        packet.t === 'CHANNEL_CREATE' || 
+        packet.t === 'DIRECT_MESSAGE_CREATE'
+      ) {
         logger.debug(`RAW EVENT DETECTED: ${packet.t}`);
-      
+        
         // DMイベントがペイロードに含まれているか確認
         if (packet.d && packet.d.channel_type === 1) {
           logger.debug('DM MESSAGE DETECTED in RAW packet!');
-          logger.debug(`DM from: ${packet.d.author?.username || 'Unknown'} (${packet.d.author?.id || 'Unknown'})`);
-          logger.debug(`Content: ${packet.d.content || '[empty]'}`);
+          logger.debug('DM Data:', JSON.stringify(packet.d, null, 2).substring(0, 500));
         }
       }
-    }
-  });
+    });
+  }
 
   // Login to Discord with token
   client.login(process.env.DISCORD_TOKEN)
