@@ -211,29 +211,122 @@ async function evaluateIntervention(message, client, isDM, isMentioned) {
   }
 }
 
+/**
+ * DMチャンネルにメッセージを安全に送信するヘルパー関数
+ * @param {Object} message - Discordメッセージオブジェクト
+ * @param {string} content - 送信するメッセージ内容
+ * @param {boolean} useFallback - フォールバックを試みるかどうか
+ * @returns {Promise<boolean>} 送信成功したかどうか
+ */
+async function safeSendDM(message, content, useFallback = true) {
+  // 送信方法のプライオリティ順
+  // 1. message.author.send() - ユーザーに直接送信（最も確実）
+  // 2. message.channel.send() - チャンネル経由で送信（標準的）
+  // 3. message.reply() - リプライとして送信（フォールバック）
+  
+  if (config.DEBUG) {
+    logger.debug(`DM送信試行: ${content.slice(0, 30)}...`);
+  }
+  
+  try {
+    // 方法1: author.send() による直接送信
+    if (message.author && typeof message.author.send === 'function') {
+      await message.author.send(content);
+      logger.debug('DMをauthor.send()で送信成功');
+      return true;
+    }
+    
+    // 方法2: channel.send() によるチャンネル経由送信
+    if (message.channel && typeof message.channel.send === 'function') {
+      await message.channel.send(content);
+      logger.debug('DMをchannel.send()で送信成功');
+      return true;
+    }
+    
+    // 方法3: reply() によるフォールバック送信（最終手段）
+    if (useFallback && typeof message.reply === 'function') {
+      await message.reply(content);
+      logger.debug('DMをreply()でフォールバック送信成功');
+      return true;
+    }
+    
+    // すべての方法が失敗した場合
+    logger.error('DMの送信方法がすべて利用できません');
+    return false;
+  } catch (error) {
+    logger.error(`DM送信失敗 (${error.name}): ${error.message}`);
+    
+    // エラー詳細をデバッグログに出力
+    if (config.DEBUG) {
+      logger.debug(`DM送信エラー詳細: ${error.stack || '詳細なし'}`);
+    }
+    
+    // フォールバックが有効な場合は別の方法を試す
+    if (useFallback && typeof message.reply === 'function') {
+      try {
+        await message.reply(content);
+        logger.debug('DMをreply()でフォールバック送信成功');
+        return true;
+      } catch (fallbackError) {
+        logger.error(`フォールバックDM送信も失敗: ${fallbackError.message}`);
+        return false;
+      }
+    }
+    
+    return false;
+  }
+}
+
 async function handleAIResponse(message, client, contextType) {
   try {
-    // DMチャンネル判定の改良メソッド
+    // DMチャンネル判定の改良メソッド - 成功する判定方法をログに記録
     const isDMByInstance = message.channel instanceof DMChannel;
     const isDMByEnum = message.channel?.type === ChannelType.DM;
     const isDMByValue = typeof message.channel?.type === 'number' && message.channel.type === 1;
     const isDMByString = message.channel?.type === 'DM';
+    const isDMByRecipient = Boolean(message.channel?.recipient || message.recipient); // 受信者情報がある場合
     
-    // 最終的なDM判定
-    const isDM = isDMByInstance || isDMByEnum || isDMByValue || isDMByString;
+    // 成功した判定方法を記録
+    const successfulMethods = [];
+    if (isDMByInstance) successfulMethods.push('instanceof');
+    if (isDMByEnum) successfulMethods.push('enum');
+    if (isDMByValue) successfulMethods.push('numeric');
+    if (isDMByString) successfulMethods.push('string');
+    if (isDMByRecipient) successfulMethods.push('recipient');
     
+    // 最終的なDM判定 - 受信者情報も考慮
+    const isDM = isDMByInstance || isDMByEnum || isDMByValue || isDMByString || isDMByRecipient;
+    
+    // DMのチャンネル情報詳細ログ
     if (config.DEBUG) {
       logger.debug(`AI応答処理: チャンネルタイプ=${message.channel?.type}, isDM判定=${isDM}`);
-      logger.debug(`DMチャンネル判定詳細: instanceOf=${isDMByInstance}, enum=${isDMByEnum}, value=${isDMByValue}, string=${isDMByString}`);
+      logger.debug(`DMチャンネル判定成功: [${successfulMethods.join(', ')}]`);
+      logger.debug(`DMチャンネル判定詳細: instanceOf=${isDMByInstance}, enum=${isDMByEnum}, value=${isDMByValue}, string=${isDMByString}, recipient=${isDMByRecipient}`);
+      
+      // チャンネル詳細情報 - DMデバッグ用
+      if (message.channel) {
+        const channelKeys = Object.keys(message.channel).filter(k => !k.startsWith('_')).join(', ');
+        logger.debug(`チャンネルプロパティ: ${channelKeys}`);
+        logger.debug(`チャンネル情報: id=${message.channel.id}, type=${message.channel.type}, name=${message.channel.name || 'なし'}`);
+        
+        // 受信者情報があればログ
+        if (message.channel.recipient) {
+          logger.debug(`受信者情報: id=${message.channel.recipient.id}, username=${message.channel.recipient.username}`);
+        }
+      }
     }
     
+    // タイピング表示の送信 - エラーでも続行
     try {
-      await message.channel.sendTyping();
+      if (message.channel?.sendTyping) {
+        await message.channel.sendTyping();
+      }
     } catch (typingError) {
-      logger.debug('タイピング状態の設定に失敗しました:', typingError);
+      logger.debug(`タイピング状態の設定に失敗: ${typingError.message}`);
       // 続行 - タイピング表示は重要ではない
     }
     
+    // AI応答用のコンテキスト準備
     const cleanContent = sanitizeMessage(message.content, contextType);
     const contextPrompt = await buildContextPrompt(message, cleanContent, contextType);
 
@@ -296,29 +389,45 @@ async function handleAIResponse(message, client, contextType) {
     const replies = splitMessage(response);
     
     if (isDM) {
-      // DMの場合はchannnel.sendを使用
-      try {
-        for (const chunk of replies) {
-          await message.channel.send(chunk);
+      // DMの場合は安全送信ヘルパーを使用
+      let allSucceeded = true;
+      for (const chunk of replies) {
+        const success = await safeSendDM(message, chunk, true);
+        if (!success) {
+          allSucceeded = false;
+          logger.error(`DM応答の一部送信に失敗: ${chunk.slice(0, 30)}...`);
         }
-        logger.debug('DMに応答を送信しました');
-      } catch (dmError) {
-        logger.error('DMでの応答送信エラー:', dmError);
-        // フォールバックとしてreplyを試す
+      }
+      
+      if (allSucceeded) {
+        logger.debug('すべてのDM応答を送信成功');
+      } else {
+        // 少なくとも一部の送信が失敗した場合、最後にもう一度通知を試みる
         try {
-          await message.channel.send('DMへの応答に問題が発生しました。通常の返信で試します...');
-          for (const chunk of replies) {
-            await message.reply(chunk);
-          }
-        } catch (fallbackError) {
-          logger.error('フォールバック応答も失敗:', fallbackError);
-          throw new Error('DMおよびフォールバックでの応答が失敗しました');
+          await safeSendDM(message, '一部のメッセージが正しく送信できなかった可能性があります。', true);
+        } catch (notifyError) {
+          logger.error('DMエラー通知の送信にも失敗:', notifyError);
         }
       }
     } else {
       // 通常チャンネルでは従来通りreplyを使用
-      for (const chunk of replies) {
-        await message.reply(chunk);
+      try {
+        for (const chunk of replies) {
+          await message.reply(chunk);
+        }
+      } catch (replyError) {
+        logger.error('通常チャンネルでの応答送信エラー:', replyError);
+        
+        // フォールバックとしてchannel.sendを試す
+        try {
+          for (const chunk of replies) {
+            await message.channel.send(chunk);
+          }
+          logger.debug('チャンネル応答をchannel.sendでフォールバック送信成功');
+        } catch (fallbackError) {
+          logger.error('フォールバック応答も失敗:', fallbackError);
+          throw new Error('チャンネル応答送信が失敗しました');
+        }
       }
     }
 
@@ -337,19 +446,29 @@ async function handleAIResponse(message, client, contextType) {
     }
     
     try {
-      // DMチャンネル判定（エラーハンドリング用）
-      const isDMByInstance = message.channel instanceof DMChannel;
-      const isDMByEnum = message.channel?.type === ChannelType.DM;
-      const isDMByValue = typeof message.channel?.type === 'number' && message.channel.type === 1;
-      const isDMByString = message.channel?.type === 'DM';
-      const isDM = isDMByInstance || isDMByEnum || isDMByValue || isDMByString;
+      // DMチャンネル判定（エラーハンドリング用）- 簡略化バージョン
+      const isDM = message.channel instanceof DMChannel || 
+                  message.channel?.type === ChannelType.DM || 
+                  message.channel?.type === 1 || 
+                  message.channel?.type === 'DM' ||
+                  Boolean(message.channel?.recipient || message.recipient);
+      
+      // エラーメッセージは安全送信ヘルパーを使用
+      const errorMessage = '応答の生成中にエラーが発生しました。しばらく経ってからお試しください。';
       
       if (isDM) {
-        // DMではchannel.sendを使用
-        await message.channel.send('応答の生成中にエラーが発生しました。しばらく経ってからお試しください。');
+        await safeSendDM(message, errorMessage, true);
       } else {
-        // 通常チャンネルではreplyを使用
-        await message.reply('応答の生成中にエラーが発生しました。しばらく経ってからお試しください。');
+        // 通常チャンネルではreplyを使用し、失敗したらchannel.sendを試す
+        try {
+          await message.reply(errorMessage);
+        } catch (replyError) {
+          try {
+            await message.channel.send(errorMessage);
+          } catch (sendError) {
+            logger.error('エラーメッセージの送信にも失敗:', sendError);
+          }
+        }
       }
     } catch (e) {
       logger.error('エラーメッセージ送信失敗:', e);
