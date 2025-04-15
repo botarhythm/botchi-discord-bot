@@ -59,6 +59,14 @@ function shouldIntervene(options) {
     // 処理時間モニタリング開始
     const startTime = Date.now();
     
+    // 直接console.logを使用（処理をsimpleに）
+    console.log('[DEBUG] Context analyzer called with options:', JSON.stringify({
+      messageContent: options?.message?.content?.substring(0, 30),
+      historyLength: options?.history?.length,
+      mode: options?.mode,
+      keywordsCount: Array.isArray(options?.keywords) ? options?.keywords.length : 0
+    }));
+    
     // オプションの安全な展開
     const { 
       message, 
@@ -71,104 +79,149 @@ function shouldIntervene(options) {
     
     // メッセージが存在しない、または無効な場合は介入しない
     if (!message || !message.content) {
+      console.log('[DEBUG] No valid message content, skipping intervention');
       return false;
     }
     
     // メッセージが長すぎる場合は処理しない (リソース消費防止)
     if (message.content.length > ANALYZER_CONFIG.MAX_MESSAGE_LENGTH) {
+      console.log(`[DEBUG] Message too long (${message.content.length} chars), skipping intervention`);
       return false;
     }
     
     // 'none' モードなら常に介入しない
     if (mode === 'none') {
+      console.log('[DEBUG] Intervention mode is none, skipping intervention');
       return false;
     }
     
     // メッセージが短すぎるなら確率を大幅に下げる
     if (message.content.length < ANALYZER_CONFIG.MIN_MESSAGE_LENGTH) {
       // 短いメッセージでは5%未満の確率でのみ介入
-      return Math.random() < 0.05;
+      const rand = Math.random();
+      const willIntervene = rand < 0.05;
+      console.log(`[DEBUG] Message too short (${message.content.length} chars), random check: ${rand < 0.05 ? 'will intervene' : 'will not intervene'}`);
+      return willIntervene;
     }
     
     // クールダウン期間中なら介入しない
     const now = Date.now();
     if (now - lastInterventionTime < cooldownSeconds * 1000) {
+      const remainingCooldown = ((lastInterventionTime + (cooldownSeconds * 1000)) - now) / 1000;
+      console.log(`[DEBUG] Cooldown active, remaining: ${remainingCooldown.toFixed(1)} seconds, skipping intervention`);
       return false;
+    } else {
+      console.log(`[DEBUG] No cooldown active (last intervention: ${new Date(lastInterventionTime).toISOString()})`);
     }
     
     // 処理時間チェック
     if (now - startTime > ANALYZER_CONFIG.MAX_PROCESS_TIME) {
-      console.warn('Context analysis timeout in initial checks');
+      console.warn('[DEBUG] Context analysis timeout in initial checks');
       return false;
     }
     
     // 会話に関連キーワードが含まれるか確認
     const lowerContent = message.content.toLowerCase();
-    const containsKeyword = Array.isArray(keywords) && keywords.some(keyword => 
-      keyword && lowerContent.includes(keyword.toLowerCase())
-    );
+    const matchedKeywords = [];
+    
+    // キーワード処理の改善
+    const containsKeyword = Array.isArray(keywords) && keywords.some(keyword => {
+      if (!keyword) return false;
+      const lowerKeyword = keyword.toLowerCase();
+      const contains = lowerContent.includes(lowerKeyword);
+      if (contains) matchedKeywords.push(keyword);
+      return contains;
+    });
+    
+    console.log(`[DEBUG] Keywords check: ${containsKeyword ? 'found' : 'not found'}, matched: [${matchedKeywords.join(', ')}]`);
     
     // 質問文かどうか判定
     const isQuestion = isQuestionText(message.content);
+    console.log(`[DEBUG] Question check: ${isQuestion ? 'is question' : 'not a question'}`);
     
     // 処理時間チェック
     if (Date.now() - startTime > ANALYZER_CONFIG.MAX_PROCESS_TIME) {
-      console.warn('Context analysis timeout after question analysis');
+      console.warn('[DEBUG] Context analysis timeout after question analysis');
       return false;
     }
     
     // AI・Bot関連の話題かどうか判定
     const isAIRelated = isAITopic(message.content);
+    console.log(`[DEBUG] AI topic check: ${isAIRelated ? 'is AI-related' : 'not AI-related'}`);
     
     // 感情表現や助けを求める表現があるか判定
     const isEmotionalHelp = hasEmotionalExpression(message.content);
+    console.log(`[DEBUG] Emotional expression check: ${isEmotionalHelp ? 'has emotional expression' : 'no emotional expression'}`);
     
     // 処理時間チェック
     if (Date.now() - startTime > ANALYZER_CONFIG.MAX_PROCESS_TIME) {
-      console.warn('Context analysis timeout after topic analysis');
+      console.warn('[DEBUG] Context analysis timeout after topic analysis');
       return false;
     }
     
     // 最近の会話の流れを分析（質問の連鎖など）
     const conversationContext = analyzeConversationContext(history);
+    console.log(`[DEBUG] Conversation context: ${JSON.stringify(conversationContext)}`);
     
     // 基本確率を取得（モードに基づく）
     let interventionProbability = ANALYZER_CONFIG.INTERVENTION_PROBABILITIES[mode] || 
                                  ANALYZER_CONFIG.INTERVENTION_PROBABILITIES.balanced;
     
+    console.log(`[DEBUG] Base intervention probability (${mode} mode): ${interventionProbability}%`);
+    
     // 特定条件に応じて確率を調整
+    let probabilityLog = [`Base (${mode}): ${interventionProbability}%`];
+    
     if (containsKeyword) {
       interventionProbability += 30; // キーワードがあれば確率UP
+      probabilityLog.push(`Keywords (+30): ${interventionProbability}%`);
     }
     
     if (isQuestion) {
       interventionProbability += 15; // 質問文なら確率UP
+      probabilityLog.push(`Question (+15): ${interventionProbability}%`);
     }
     
     if (isAIRelated) {
       interventionProbability += 25; // AI関連の話題なら確率UP
+      probabilityLog.push(`AI-related (+25): ${interventionProbability}%`);
     }
     
     if (isEmotionalHelp) {
       interventionProbability += 20; // 感情表現や助けを求める場合は確率UP
+      probabilityLog.push(`Emotional (+20): ${interventionProbability}%`);
     }
     
     // 会話コンテキストに基づく調整
-    interventionProbability += conversationContext.probabilityModifier;
+    if (conversationContext.probabilityModifier !== 0) {
+      interventionProbability += conversationContext.probabilityModifier;
+      probabilityLog.push(`Context (${conversationContext.probabilityModifier > 0 ? '+' : ''}${conversationContext.probabilityModifier}): ${interventionProbability}%`);
+    }
     
     // 最終確率（0-100の範囲に収める）
     const finalProbability = Math.min(Math.max(interventionProbability, 0), 100);
     
+    if (finalProbability !== interventionProbability) {
+      probabilityLog.push(`Clamped to range: ${finalProbability}%`);
+    }
+    
+    console.log(`[DEBUG] Probability calculation: ${probabilityLog.join(' → ')}`);
+    
     // 最終処理時間チェック
     if (Date.now() - startTime > ANALYZER_CONFIG.MAX_PROCESS_TIME) {
-      console.warn('Context analysis timeout before final decision');
+      console.warn('[DEBUG] Context analysis timeout before final decision');
       return false;
     }
     
     // 確率に基づいて判断
-    return Math.random() * 100 < finalProbability;
+    const randomValue = Math.random() * 100;
+    const willIntervene = randomValue < finalProbability;
+    
+    console.log(`[DEBUG] Final decision: random value ${randomValue.toFixed(2)} < probability ${finalProbability.toFixed(2)}? ${willIntervene ? 'YES, WILL INTERVENE' : 'NO, WILL NOT INTERVENE'}`);
+    
+    return willIntervene;
   } catch (error) {
-    console.error('Error in context intervention analysis:', error);
+    console.error('[DEBUG] Error in context intervention analysis:', error);
     return false; // エラー時は安全に介入しない
   }
 }
