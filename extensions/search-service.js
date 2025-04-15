@@ -7,7 +7,7 @@ const axios = require('axios');
 const logger = require('../system/logger');
 
 // BraveSearchの設定（環境変数から取得）
-const BRAVE_SEARCH_API_KEY = process.env.BRAVE_SEARCH_API_KEY || '';
+const BRAVE_SEARCH_API_KEY = process.env.BRAVE_SEARCH_API_KEY || process.env.BRAVE_API_KEY || '';
 const BRAVE_SEARCH_API_URL = 'https://api.search.brave.com/res/v1/web/search';
 
 // APIキャッシュ（トークン制限回避と高速化のため）
