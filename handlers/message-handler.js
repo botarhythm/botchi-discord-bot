@@ -351,28 +351,65 @@ async function safeSendDM(message, content, useFallback = true) {
   
   if (config.DEBUG) {
     logger.debug(`DM送信試行: ${content.slice(0, 30)}...`);
+    // 診断用情報を追加
+    logger.debug(`DM診断: message.author=${!!message.author}, message.channel=${!!message.channel}`);
+    if (message.author) {
+      logger.debug(`DM診断: author.id=${message.author.id}, author.send=${typeof message.author.send}`);
+    }
+    if (message.channel) {
+      logger.debug(`DM診断: channel.id=${message.channel.id}, channel.send=${typeof message.channel.send}`);
+    }
   }
   
   try {
     // 方法1: author.send() による直接送信
     if (message.author && typeof message.author.send === 'function') {
-      await message.author.send(content);
-      logger.debug('DMをauthor.send()で送信成功');
-      return true;
+      try {
+        await message.author.send(content);
+        logger.debug('DMをauthor.send()で送信成功');
+        return true;
+      } catch (authorError) {
+        logger.warn(`author.send()失敗: ${authorError.message}`);
+        // 詳細なエラー情報をデバッグモードで記録
+        if (config.DEBUG) {
+          logger.debug(`author.send()エラー詳細: ${authorError.code || 'コードなし'}, ${authorError.name}`);
+          logger.debug(`author.send()スタック: ${authorError.stack?.slice(0, 200) || 'なし'}`);
+        }
+        // 次の方法にフォールバック
+      }
     }
     
     // 方法2: channel.send() によるチャンネル経由送信
     if (message.channel && typeof message.channel.send === 'function') {
-      await message.channel.send(content);
-      logger.debug('DMをchannel.send()で送信成功');
-      return true;
+      try {
+        await message.channel.send(content);
+        logger.debug('DMをchannel.send()で送信成功');
+        return true;
+      } catch (channelError) {
+        logger.warn(`channel.send()失敗: ${channelError.message}`);
+        // 詳細なエラー情報をデバッグモードで記録
+        if (config.DEBUG) {
+          logger.debug(`channel.send()エラー詳細: ${channelError.code || 'コードなし'}, ${channelError.name}`);
+          logger.debug(`channel.send()スタック: ${channelError.stack?.slice(0, 200) || 'なし'}`);
+        }
+        // 次の方法にフォールバック
+      }
     }
     
     // 方法3: reply() によるフォールバック送信（最終手段）
     if (useFallback && typeof message.reply === 'function') {
-      await message.reply(content);
-      logger.debug('DMをreply()でフォールバック送信成功');
-      return true;
+      try {
+        await message.reply(content);
+        logger.debug('DMをreply()でフォールバック送信成功');
+        return true;
+      } catch (replyError) {
+        logger.error(`reply()によるフォールバック送信も失敗: ${replyError.message}`);
+        if (config.DEBUG) {
+          logger.debug(`reply()エラー詳細: ${replyError.code || 'コードなし'}, ${replyError.name}`);
+          logger.debug(`reply()スタック: ${replyError.stack?.slice(0, 200) || 'なし'}`);
+        }
+        return false;
+      }
     }
     
     // すべての方法が失敗した場合
@@ -383,7 +420,8 @@ async function safeSendDM(message, content, useFallback = true) {
     
     // エラー詳細をデバッグログに出力
     if (config.DEBUG) {
-      logger.debug(`DM送信エラー詳細: ${error.stack || '詳細なし'}`);
+      logger.debug(`DM送信エラー詳細: ${error.code || 'コードなし'}, ${error.name}`);
+      logger.debug(`DM送信スタック: ${error.stack?.slice(0, 200) || 'なし'}`);
     }
     
     // フォールバックが有効な場合は別の方法を試す
@@ -394,6 +432,9 @@ async function safeSendDM(message, content, useFallback = true) {
         return true;
       } catch (fallbackError) {
         logger.error(`フォールバックDM送信も失敗: ${fallbackError.message}`);
+        if (config.DEBUG) {
+          logger.debug(`フォールバックエラー詳細: ${fallbackError.code || 'コードなし'}, ${fallbackError.name}`);
+        }
         return false;
       }
     }
@@ -569,11 +610,40 @@ async function handleAIResponse(message, client, contextType) {
     if (isDM) {
       // DMの場合は安全送信ヘルパーを使用
       let allSucceeded = true;
+      
+      // 診断用に応答前にDMチャンネル状態をログ
+      if (config.DEBUG) {
+        logger.debug(`DM応答処理前診断情報: isDM=${isDM}, メッセージ分割=${replies.length}件`);
+        logger.debug(`DM診断: message.channel.constructor=${message.channel?.constructor?.name || 'なし'}`);
+        logger.debug(`DM診断: message.author=${message.author ? '存在' : 'なし'}`);
+        
+        // DMChannel固有のプロパティをチェック
+        if (message.channel) {
+          const hasRecipient = Boolean(message.channel.recipient);
+          logger.debug(`DM診断: channel.recipient=${hasRecipient}, recipientId=${message.channel.recipient?.id || 'なし'}`);
+          logger.debug(`DM診断: channel.type=${message.channel.type}, DMValue=${ChannelType.DM}`);
+          
+          // DMChannelに特有のプロパティ一覧
+          const channelKeys = Object.keys(message.channel)
+            .filter(k => !k.startsWith('_') && typeof message.channel[k] !== 'function')
+            .join(', ');
+          logger.debug(`DMチャンネルプロパティ: ${channelKeys}`);
+        }
+      }
+      
+      // レスポンスの送信を試みる
       for (const chunk of replies) {
         const success = await safeSendDM(message, chunk, true);
         if (!success) {
           allSucceeded = false;
           logger.error(`DM応答の一部送信に失敗: ${chunk.slice(0, 30)}...`);
+          
+          // 詳細な診断情報をログに出力
+          if (config.DEBUG) {
+            logger.debug(`失敗した送信チャンク: "${chunk.slice(0, 50)}..."`);
+            logger.debug(`送信失敗時の作業ディレクトリ: ${process.cwd()}`);
+            logger.debug(`送信失敗時の環境変数: NODE_ENV=${process.env.NODE_ENV}`);
+          }
         }
       }
       
@@ -582,7 +652,29 @@ async function handleAIResponse(message, client, contextType) {
       } else {
         // 少なくとも一部の送信が失敗した場合、最後にもう一度通知を試みる
         try {
-          await safeSendDM(message, '一部のメッセージが正しく送信できなかった可能性があります。', true);
+          // より積極的なフォールバックを試みる
+          if (config.DEBUG) {
+            logger.debug('DM送信失敗後のフォールバック戦略を実行');
+          }
+          
+          // まず通常のsafeSendDMを試す
+          let fallbackSuccess = await safeSendDM(message, '一部のメッセージが正しく送信できなかった可能性があります。', true);
+          
+          // 失敗した場合は、直接メソッドを呼び出してみる
+          if (!fallbackSuccess && message.author && typeof message.author.send === 'function') {
+            try {
+              await message.author.send('メッセージの送信に問題が発生しました。');
+              logger.debug('DM通知を直接author.sendで送信成功');
+              fallbackSuccess = true;
+            } catch (directError) {
+              logger.warn(`直接のauthor.send通知も失敗: ${directError.message}`);
+            }
+          }
+          
+          // どちらも失敗した場合はログに記録
+          if (!fallbackSuccess) {
+            logger.error('すべてのDM送信方法が失敗しました。ユーザーへメッセージを届けられません。');
+          }
         } catch (notifyError) {
           logger.error('DMエラー通知の送信にも失敗:', notifyError);
         }
@@ -775,6 +867,95 @@ async function buildContextPrompt(message, content, contextType, personalizedPre
           prompt += `${roleName}: ${msg.content}\n`;
         }
         prompt += '\n';
+      }
+      
+      // RAGシステムが有効かつ初期化されている場合、関連コンテキストをプロンプトに追加
+      let ragContext = '';
+      const ragEnabled = process.env.RAG_ENABLED === 'true';
+      
+      if (ragEnabled) {
+        try {
+          // グローバル変数からRAGシステムを取得
+          const ragSystem = global.botchiRAG;
+          
+          if (ragSystem) {
+            // RAGシステムが初期化されているか確認
+            const isInitialized = typeof ragSystem.isInitialized === 'function' 
+              ? ragSystem.isInitialized() 
+              : (ragSystem.state && ragSystem.state.initialized);
+            
+            if (isInitialized) {
+              if (config.DEBUG) {
+                logger.debug(`RAGシステムを使用して関連コンテキストを検索: "${content.substring(0, 30)}..."`);
+              }
+              
+              // ユーザーの質問に関連する情報をRAGシステムから検索
+              if (typeof ragSystem.processMessage === 'function') {
+                // 新しいRAGモジュールインターフェースを使用
+                const searchResult = await ragSystem.processMessage(content, {
+                  similarityThreshold: parseFloat(process.env.RAG_SIMILARITY_THRESHOLD || '0.75'),
+                  maxResults: parseInt(process.env.RAG_MAX_RESULTS || '3', 10)
+                });
+                
+                if (searchResult && searchResult.context) {
+                  ragContext = searchResult.context;
+                  
+                  if (config.DEBUG) {
+                    logger.debug(`RAGコンテキスト取得成功: ${ragContext.length}文字, ${searchResult.results.length}件の結果`);
+                    if (searchResult.results.length > 0) {
+                      logger.debug(`最も関連性の高い結果: "${searchResult.results[0].content.substring(0, 50)}..." (類似度: ${searchResult.results[0].similarity.toFixed(2)})`);
+                    }
+                  }
+                }
+              } else if (typeof ragSystem.generateContextForPrompt === 'function') {
+                // 互換性のためのレガシーインターフェース
+                ragContext = await ragSystem.generateContextForPrompt(content, {
+                  similarityThreshold: 0.75,
+                  limit: 3 // 最大3つの関連情報
+                });
+                
+                if (config.DEBUG && ragContext) {
+                  logger.debug(`レガシーRAGインターフェースからコンテキスト取得: ${ragContext.length}文字`);
+                }
+              } else if (typeof ragSystem.search === 'function') {
+                // 直接検索インターフェースのフォールバック
+                try {
+                  const searchResults = await ragSystem.search(content);
+                  if (searchResults && searchResults.length > 0) {
+                    ragContext = '参考資料：\n\n';
+                    searchResults.forEach((result, index) => {
+                      const title = result.metadata && result.metadata.title 
+                        ? result.metadata.title 
+                        : `情報 ${index + 1}`;
+                      
+                      ragContext += `[${title}]\n${result.content}\n\n`;
+                    });
+                    
+                    if (config.DEBUG) {
+                      logger.debug(`直接検索インターフェースからコンテキスト生成: ${ragContext.length}文字, ${searchResults.length}件の結果`);
+                    }
+                  }
+                } catch (searchError) {
+                  logger.error(`RAG直接検索エラー: ${searchError.message}`);
+                }
+              }
+              
+              // 取得したRAGコンテキストをプロンプトに追加
+              if (ragContext && ragContext.trim().length > 0) {
+                prompt += `${ragContext}\n\n`;
+              }
+            } else if (config.DEBUG) {
+              logger.debug('RAGシステムは有効ですが初期化されていません');
+            }
+          }
+        } catch (ragError) {
+          logger.error(`RAGコンテキスト取得エラー: ${ragError.message}`, ragError);
+          // エラーの詳細をデバッグ出力
+          if (config.DEBUG) {
+            logger.debug(`RAGエラー詳細: ${ragError.stack || 'スタック情報なし'}`);
+          }
+          // RAGエラー時も処理を続行
+        }
       }
       
       // ユーザーメッセージを追加（名前は付けない - より自然な会話に）
