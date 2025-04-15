@@ -17,7 +17,18 @@ const userContextMap = new Map();
  * @returns {Date} 日本時間のDateオブジェクト
  */
 function getCurrentJSTDate() {
-  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+  // 直接UTCから計算する最も確実な方法
+  const now = new Date();
+  // 日本時間はUTC+9
+  const jstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+  
+  // デバッグログ出力（カスタム環境向け）
+  if (process.env.DEBUG_TIME || process.env.NODE_ENV === 'development') {
+    console.log(`Current UTC time: ${now.toISOString()}`);
+    console.log(`Calculated JST time: ${jstTime.toISOString()}`);
+  }
+  
+  return jstTime;
 }
 
 /**
@@ -46,11 +57,14 @@ function getFormattedDateTime(includeTime = true) {
   const date = getCurrentJSTDate();
   const dayNames = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
   
+  // 年も含める
+  const year = date.getFullYear();
   const month = date.getMonth() + 1;
   const day = date.getDate();
   const dayName = dayNames[date.getDay()];
   
-  let result = `${month}月${day}日（${dayName}）`;
+  // 「2025年4月15日（火曜日）」のフォーマット
+  let result = `${year}年${month}月${day}日（${dayName}）`;
   
   if (includeTime) {
     const hours = date.getHours().toString().padStart(2, '0');
