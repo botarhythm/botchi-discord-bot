@@ -57,31 +57,46 @@ async function performSearch(query, options = {}) {
       };
     }
     
-    // Brave Search APIへのリクエスト
-    const response = await axios.get(BRAVE_SEARCH_API_URL, {
-      params: {
-        q: query,
-        count: options.count
-      },
-      headers: {
-        'Accept': 'application/json',
-        'X-Subscription-Token': BRAVE_SEARCH_API_KEY
-      },
-      timeout: 10000
-    });
+    // BraveSearch APIへのリクエスト
+    logger.debug(`API Key being used: ${BRAVE_SEARCH_API_KEY.substring(0, 5)}...`);
+    logger.debug(`API URL: ${BRAVE_SEARCH_API_URL}`);
     
-    // 検索結果の解析と要約作成
-    const searchResults = processSearchResults(response.data);
-    
-    // キャッシュに保存
-    if (options.useCache) {
-      searchCache.set(cacheKey, {
-        timestamp: Date.now(),
-        data: searchResults
+    try {
+      const response = await axios.get(BRAVE_SEARCH_API_URL, {
+        params: {
+          q: query,
+          count: options.count
+        },
+        headers: {
+          'Accept': 'application/json',
+          'X-Subscription-Token': BRAVE_SEARCH_API_KEY
+        },
+        timeout: 10000
       });
+      
+      logger.debug(`API response status: ${response.status}`);
+      logger.debug(`API response data keys: ${Object.keys(response.data)}`);
+      
+      // 検索結果の解析と要約作成
+      const searchResults = processSearchResults(response.data);
+      
+      // キャッシュに保存
+      if (options.useCache) {
+        searchCache.set(cacheKey, {
+          timestamp: Date.now(),
+          data: searchResults
+        });
+      }
+      
+      return searchResults;
+    } catch (apiError) {
+      logger.error(`API Error: ${apiError.message}`);
+      if (apiError.response) {
+        logger.error(`Status: ${apiError.response.status}`);
+        logger.error(`Data: ${JSON.stringify(apiError.response.data).substring(0, 500)}`);
+      }
+      throw apiError; // 元の例外を再スロー
     }
-    
-    return searchResults;
   } catch (error) {
     logger.error('検索処理エラー:', error);
     
@@ -106,8 +121,12 @@ async function performSearch(query, options = {}) {
  */
 function processSearchResults(apiResponse) {
   try {
+    // APIレスポンスの全体構造をログ出力
+    logger.debug(`APIレスポンス構造: ${JSON.stringify(Object.keys(apiResponse)).substring(0, 200)}...`);
+    
     // 結果がない場合
     if (!apiResponse || !apiResponse.web || !apiResponse.web.results || apiResponse.web.results.length === 0) {
+      logger.warn('検索結果がありません: ' + JSON.stringify(apiResponse).substring(0, 200));
       return {
         summary: '検索結果が見つかりませんでした。別のキーワードで試してみてください。',
         sources: '情報なし'
@@ -170,24 +189,35 @@ async function checkHealth() {
       return { status: 'unconfigured', message: 'APIキーが設定されていません' };
     }
     
-    // 軽量な検索を試行
-    const testResult = await axios.get(BRAVE_SEARCH_API_URL, {
-      params: {
-        q: 'test',
-        count: 1
-      },
-      headers: {
-        'Accept': 'application/json',
-        'X-Subscription-Token': BRAVE_SEARCH_API_KEY
-      },
-      timeout: 5000
-    });
+    logger.debug(`ヘルスチェック用API Key: ${BRAVE_SEARCH_API_KEY.substring(0, 5)}...`);
     
-    return {
-      status: 'healthy',
-      message: 'API接続正常',
-      timestamp: new Date().toISOString()
-    };
+    // 軽量な検索を試行
+    try {
+      const testResult = await axios.get(BRAVE_SEARCH_API_URL, {
+        params: {
+          q: 'test',
+          count: 1
+        },
+        headers: {
+          'Accept': 'application/json',
+          'X-Subscription-Token': BRAVE_SEARCH_API_KEY
+        },
+        timeout: 5000
+      });
+      
+      logger.debug(`ヘルスチェック成功: ${testResult.status}`);
+      return {
+        status: 'healthy',
+        message: 'API接続正常',
+        timestamp: new Date().toISOString()
+      };
+    } catch (healthError) {
+      logger.error(`ヘルスチェックエラー詳細: ${healthError.message}`);
+      if (healthError.response) {
+        logger.error(`ステータス: ${healthError.response.status}`);
+      }
+      throw healthError;
+    }
   } catch (error) {
     logger.error('検索APIヘルスチェックエラー:', error);
     return {
