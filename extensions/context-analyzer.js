@@ -3,29 +3,43 @@
  * チャンネルでの会話の流れを分析し、会話に介入すべきかを判断する
  */
 
+// ロガーのインポート
+let logger;
+try {
+  logger = require('../system/logger');
+} catch (error) {
+  // フォールバックロガー
+  logger = {
+    debug: (...args) => console.debug('[DEBUG]', ...args),
+    info: (...args) => console.info('[INFO]', ...args),
+    warn: (...args) => console.warn('[WARN]', ...args),
+    error: (...args) => console.error('[ERROR]', ...args)
+  };
+}
+
 // 外部依存を削除し、設定を内部化
 const ANALYZER_CONFIG = {
   // 介入モードごとの基本確率（0-100）
   INTERVENTION_PROBABILITIES: {
     none: 0,        // 介入しない
-    passive: 15,    // ほぼ介入しない
-    balanced: 30,   // バランス型（デフォルト）
-    active: 50,     // 積極的に介入
-    aggressive: 70  // かなり積極的に介入
+    passive: 20,    // ほぼ介入しない
+    balanced: 40,   // バランス型（デフォルト）
+    active: 60,     // 積極的に介入
+    aggressive: 75  // かなり積極的に介入
   },
   // 設定
-  MIN_MESSAGE_LENGTH: 15, // 最小メッセージ長（これより短いとほぼ介入しない）
-  MAX_MESSAGE_LENGTH: 500, // 処理する最大メッセージ長
-  MAX_PROCESS_TIME: 50, // 処理時間上限（ms）
-  DEFAULT_KEYWORDS: ['ボッチー', 'Bocchy', 'ボット', 'Bot', 'AI', '人工知能'],
-  DEFAULT_COOLDOWN: 60 // デフォルトクールダウン時間（秒）
+  MIN_MESSAGE_LENGTH: 10, // 最小メッセージ長（これより短いとほぼ介入しない）- 短くして判定しやすく
+  MAX_MESSAGE_LENGTH: 800, // 処理する最大メッセージ長 - 長めのメッセージも処理
+  MAX_PROCESS_TIME: 100, // 処理時間上限（ms）- 少し余裕を持たせる
+  DEFAULT_KEYWORDS: ['ボッチー', 'Bocchy', 'ボット', 'Bot', 'AI', '人工知能', 'Discord', 'ディスコード'],
+  DEFAULT_COOLDOWN: 30 // デフォルトクールダウン時間（秒）- 短めにして介入しやすく
 };
 
 // 事前コンパイルされた正規表現パターン
 const QUESTION_PATTERNS = {
   JP: /ですか|でしょうか|かな|かしら|なぜ|どう|どの|どこ|だろう|ますか|ませんか|どんな|いかが|何|誰|どちら|教えて|分かる|わかる|思いますか|思う？/,
-  EN: /\b(how|what|when|where|which|who|why|can|could|would|should|is|are|do|does)\b/i,
-  SYMBOLS: /\?|？/
+  EN: /\\b(how|what|when|where|which|who|why|can|could|would|should|is|are|do|does)\\b/i,
+  SYMBOLS: /\\?|？/
 };
 
 // AI・Bot関連キーワード（事前定義）
@@ -59,6 +73,16 @@ function shouldIntervene(options) {
     // 処理時間モニタリング開始
     const startTime = Date.now();
     
+    // より詳細なデバッグ情報
+    logger.debug('[ANALYZER] Context analyzer called with options:', JSON.stringify({
+      messageContent: options?.message?.content?.substring(0, 30),
+      historyLength: options?.history?.length,
+      mode: options?.mode,
+      keywordsCount: Array.isArray(options?.keywords) ? options?.keywords.length : 0,
+      lastInterventionTime: options?.lastInterventionTime ? new Date(options.lastInterventionTime).toISOString() : 'none',
+      cooldownSeconds: options?.cooldownSeconds || ANALYZER_CONFIG.DEFAULT_COOLDOWN
+    }));
+    
     // オプションの安全な展開
     const { 
       message, 
@@ -71,104 +95,149 @@ function shouldIntervene(options) {
     
     // メッセージが存在しない、または無効な場合は介入しない
     if (!message || !message.content) {
+      logger.debug('[ANALYZER] No valid message content, skipping intervention');
       return false;
     }
     
     // メッセージが長すぎる場合は処理しない (リソース消費防止)
     if (message.content.length > ANALYZER_CONFIG.MAX_MESSAGE_LENGTH) {
+      logger.debug(`[ANALYZER] Message too long (${message.content.length} chars), skipping intervention`);
       return false;
     }
     
     // 'none' モードなら常に介入しない
     if (mode === 'none') {
+      logger.debug('[ANALYZER] Intervention mode is none, skipping intervention');
       return false;
     }
     
-    // メッセージが短すぎるなら確率を大幅に下げる
+    // メッセージが短すぎる場合も確率を下げるが完全に除外はしない
     if (message.content.length < ANALYZER_CONFIG.MIN_MESSAGE_LENGTH) {
-      // 短いメッセージでは5%未満の確率でのみ介入
-      return Math.random() < 0.05;
+      // 短いメッセージでは10%の確率で介入（5%から10%に上げる）
+      const rand = Math.random();
+      const willIntervene = rand < 0.1;
+      logger.debug(`[ANALYZER] Message too short (${message.content.length} chars), random check: ${rand.toFixed(3)} < 0.1? ${willIntervene ? 'will intervene' : 'will not intervene'}`);
+      return willIntervene;
     }
     
     // クールダウン期間中なら介入しない
     const now = Date.now();
     if (now - lastInterventionTime < cooldownSeconds * 1000) {
+      const remainingCooldown = ((lastInterventionTime + (cooldownSeconds * 1000)) - now) / 1000;
+      logger.debug(`[ANALYZER] Cooldown active, remaining: ${remainingCooldown.toFixed(1)} seconds, skipping intervention`);
       return false;
+    } else {
+      logger.debug(`[ANALYZER] No cooldown active (last intervention: ${new Date(lastInterventionTime).toISOString()})`);
     }
     
     // 処理時間チェック
     if (now - startTime > ANALYZER_CONFIG.MAX_PROCESS_TIME) {
-      console.warn('Context analysis timeout in initial checks');
+      logger.warn('[ANALYZER] Context analysis timeout in initial checks');
       return false;
     }
     
     // 会話に関連キーワードが含まれるか確認
     const lowerContent = message.content.toLowerCase();
-    const containsKeyword = Array.isArray(keywords) && keywords.some(keyword => 
-      keyword && lowerContent.includes(keyword.toLowerCase())
-    );
+    const matchedKeywords = [];
+    
+    // キーワード処理の改善
+    const containsKeyword = Array.isArray(keywords) && keywords.some(keyword => {
+      if (!keyword) return false;
+      const lowerKeyword = keyword.toLowerCase();
+      const contains = lowerContent.includes(lowerKeyword);
+      if (contains) matchedKeywords.push(keyword);
+      return contains;
+    });
+    
+    logger.debug(`[ANALYZER] Keywords check: ${containsKeyword ? 'found' : 'not found'}, matched: [${matchedKeywords.join(', ')}]`);
     
     // 質問文かどうか判定
     const isQuestion = isQuestionText(message.content);
+    logger.debug(`[ANALYZER] Question check: ${isQuestion ? 'is question' : 'not a question'}`);
     
     // 処理時間チェック
     if (Date.now() - startTime > ANALYZER_CONFIG.MAX_PROCESS_TIME) {
-      console.warn('Context analysis timeout after question analysis');
+      logger.warn('[ANALYZER] Context analysis timeout after question analysis');
       return false;
     }
     
     // AI・Bot関連の話題かどうか判定
     const isAIRelated = isAITopic(message.content);
+    logger.debug(`[ANALYZER] AI topic check: ${isAIRelated ? 'is AI-related' : 'not AI-related'}`);
     
     // 感情表現や助けを求める表現があるか判定
     const isEmotionalHelp = hasEmotionalExpression(message.content);
+    logger.debug(`[ANALYZER] Emotional expression check: ${isEmotionalHelp ? 'has emotional expression' : 'no emotional expression'}`);
     
     // 処理時間チェック
     if (Date.now() - startTime > ANALYZER_CONFIG.MAX_PROCESS_TIME) {
-      console.warn('Context analysis timeout after topic analysis');
+      logger.warn('[ANALYZER] Context analysis timeout after topic analysis');
       return false;
     }
     
     // 最近の会話の流れを分析（質問の連鎖など）
     const conversationContext = analyzeConversationContext(history);
+    logger.debug(`[ANALYZER] Conversation context: ${JSON.stringify(conversationContext)}`);
     
     // 基本確率を取得（モードに基づく）
     let interventionProbability = ANALYZER_CONFIG.INTERVENTION_PROBABILITIES[mode] || 
                                  ANALYZER_CONFIG.INTERVENTION_PROBABILITIES.balanced;
     
+    logger.debug(`[ANALYZER] Base intervention probability (${mode} mode): ${interventionProbability}%`);
+    
     // 特定条件に応じて確率を調整
+    let probabilityLog = [`Base (${mode}): ${interventionProbability}%`];
+    
     if (containsKeyword) {
       interventionProbability += 30; // キーワードがあれば確率UP
+      probabilityLog.push(`Keywords (+30): ${interventionProbability}%`);
     }
     
     if (isQuestion) {
       interventionProbability += 15; // 質問文なら確率UP
+      probabilityLog.push(`Question (+15): ${interventionProbability}%`);
     }
     
     if (isAIRelated) {
       interventionProbability += 25; // AI関連の話題なら確率UP
+      probabilityLog.push(`AI-related (+25): ${interventionProbability}%`);
     }
     
     if (isEmotionalHelp) {
       interventionProbability += 20; // 感情表現や助けを求める場合は確率UP
+      probabilityLog.push(`Emotional (+20): ${interventionProbability}%`);
     }
     
     // 会話コンテキストに基づく調整
-    interventionProbability += conversationContext.probabilityModifier;
+    if (conversationContext.probabilityModifier !== 0) {
+      interventionProbability += conversationContext.probabilityModifier;
+      probabilityLog.push(`Context (${conversationContext.probabilityModifier > 0 ? '+' : ''}${conversationContext.probabilityModifier}): ${interventionProbability}%`);
+    }
     
     // 最終確率（0-100の範囲に収める）
     const finalProbability = Math.min(Math.max(interventionProbability, 0), 100);
     
+    if (finalProbability !== interventionProbability) {
+      probabilityLog.push(`Clamped to range: ${finalProbability}%`);
+    }
+    
+    logger.debug(`[ANALYZER] Probability calculation: ${probabilityLog.join(' → ')}`);
+    
     // 最終処理時間チェック
     if (Date.now() - startTime > ANALYZER_CONFIG.MAX_PROCESS_TIME) {
-      console.warn('Context analysis timeout before final decision');
+      logger.warn('[ANALYZER] Context analysis timeout before final decision');
       return false;
     }
     
     // 確率に基づいて判断
-    return Math.random() * 100 < finalProbability;
+    const randomValue = Math.random() * 100;
+    const willIntervene = randomValue < finalProbability;
+    
+    logger.debug(`[ANALYZER] Final decision: random value ${randomValue.toFixed(2)} < probability ${finalProbability.toFixed(2)}? ${willIntervene ? 'YES, WILL INTERVENE' : 'NO, WILL NOT INTERVENE'}`);
+    
+    return willIntervene;
   } catch (error) {
-    console.error('Error in context intervention analysis:', error);
+    logger.error('[ANALYZER] Error in context intervention analysis:', error);
     return false; // エラー時は安全に介入しない
   }
 }
@@ -201,7 +270,7 @@ function isQuestionText(text) {
     
     return false;
   } catch (error) {
-    console.error('Error in question text analysis:', error);
+    logger.error('Error in question text analysis:', error);
     return false; // エラー時は安全に非質問と判定
   }
 }
@@ -221,7 +290,7 @@ function isAITopic(text) {
     // いずれかのキーワードが含まれるか確認
     return AI_KEYWORDS.some(keyword => lowerText.includes(keyword));
   } catch (error) {
-    console.error('Error in AI topic analysis:', error);
+    logger.error('Error in AI topic analysis:', error);
     return false; // エラー時は安全にAI関連でないと判定
   }
 }
@@ -241,7 +310,7 @@ function hasEmotionalExpression(text) {
     // いずれかのパターンが含まれるか確認
     return EMOTIONAL_PATTERNS.some(pattern => lowerText.includes(pattern));
   } catch (error) {
-    console.error('Error in emotional expression analysis:', error);
+    logger.error('Error in emotional expression analysis:', error);
     return false; // エラー時は安全に感情表現なしと判定
   }
 }
@@ -357,7 +426,7 @@ function analyzeConversationContext(history) {
       topicConsistency
     };
   } catch (error) {
-    console.error('Error in conversation context analysis:', error);
+    logger.error('Error in conversation context analysis:', error);
     // エラー時のフォールバック値
     return { 
       probabilityModifier: 0,
@@ -380,11 +449,11 @@ function extractWords(text) {
     // 英数字の単語を抽出（簡易実装）
     // 実際の実装では形態素解析などの高度な方法を使うべき
     return text.toLowerCase()
-      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '')
-      .split(/\s+/)
+      .replace(/[.,\\/#!$%\\^&\\*;:{}=\\-_`~()]/g, '')
+      .split(/\\s+/)
       .filter(word => word && word.length > 0);
   } catch (error) {
-    console.error('Error in word extraction:', error);
+    logger.error('Error in word extraction:', error);
     return []; // エラー時は空配列を返す
   }
 }
@@ -434,7 +503,7 @@ function getResponseHint(context) {
     
     return hints;
   } catch (error) {
-    console.error('Error in response hint generation:', error);
+    logger.error('Error in response hint generation:', error);
     // エラー時のフォールバック値
     return {
       tone: 'neutral',
