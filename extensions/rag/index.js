@@ -50,12 +50,20 @@ const state = {
 async function initialize() {
   if (state.initialized) {
     logger.debug('RAG system already initialized');
-    return { status: 'already_initialized' };
+    return { 
+      success: true, 
+      status: 'already_initialized',
+      message: 'RAG system already initialized'
+    };
   }
 
   if (!ragConfig.enabled) {
     logger.info('RAG system is disabled in configuration');
-    return { status: 'disabled' };
+    return { 
+      success: false, 
+      status: 'disabled',
+      message: 'RAG system is disabled in configuration'
+    };
   }
 
   try {
@@ -77,14 +85,18 @@ async function initialize() {
     logger.info(`RAG system initialized with status: ${state.healthStatus}`);
     
     return { 
+      success: true,
       status: 'initialized',
+      message: `RAG system initialized with status: ${state.healthStatus}`,
       healthStatus: state.healthStatus 
     };
   } catch (error) {
     logger.error(`Failed to initialize RAG system: ${error.message}`);
     state.healthStatus = 'failed';
     return { 
+      success: false,
       status: 'error',
+      message: error.message,
       error: error.message
     };
   }
@@ -216,12 +228,46 @@ if (ragConfig.enabled && ragConfig.initializeOnStart) {
   });
 }
 
+/**
+ * メッセージハンドラー用のコンテキスト生成関数（互換性のため）
+ * @param {string} query ユーザーの質問または入力
+ * @param {Object} options 検索オプション
+ * @returns {Promise<string>} 生成されたコンテキスト
+ */
+async function generateContextForPrompt(query, options = {}) {
+  const searchResult = await processMessage(query, options);
+  return searchResult.context || '';
+}
+
+/**
+ * レガシーインターフェース互換用のナレッジベース追加関数
+ * @param {string} title ドキュメントのタイトル 
+ * @param {string} content ドキュメントの内容
+ * @param {Object} metadata メタデータ
+ * @returns {Promise<Object>} 追加結果
+ */
+async function addToKnowledgeBase(title, content, metadata = {}) {
+  return await addDocument(title, content, metadata);
+}
+
+/**
+ * RAGシステムが初期化されているかどうかを確認する
+ * @returns {boolean} 初期化状態
+ */
+function isInitialized() {
+  return state.initialized;
+}
+
 module.exports = {
   initialize,
   processMessage,
   addDocument,
+  addToKnowledgeBase, // レガシーインターフェース互換用
   checkHealth,
+  generateContextForPrompt, // メッセージハンドラー用の互換性メソッド
+  isInitialized, // 初期化状態を確認するメソッド
   config: ragConfig,
+  state, // 状態情報をエクスポート
   // サブモジュールへの直接アクセスも提供
   knowledgeBase,
   queryEngine,
