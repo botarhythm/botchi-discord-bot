@@ -196,8 +196,12 @@ async function saveMessageToHistory(message) {
   const isDMByString = message.channel?.type === 'DM';
   const isDM = isDMByInstance || isDMByEnum || isDMByValue || isDMByString;
   
-  // DMチャンネルの場合は履歴に保存しない
-  if (isDM || !messageHistory?.addMessageToHistory) return;
+  // DMチャンネルの場合は履歴に保存しない（一時的な履歴システムのみ）
+  if (isDM || !messageHistory?.addMessageToHistory) {
+    // DMの場合でも永続メモリシステムには保存する
+    await saveToMemorySystem(message, isDM);
+    return;
+  }
   
   // GuildTextチャンネルかもチェック（数値と文字列の両方に対応）
   // Discord.js v14では ChannelType.GuildText を使う
@@ -205,10 +209,15 @@ async function saveMessageToHistory(message) {
                      message.channel?.type === 0 || 
                      message.channel?.type === 'GUILD_TEXT';
                      
-  // GuildTextチャンネル以外は処理しない
-  if (!isGuildText) return;
+  // GuildTextチャンネル以外は処理しない（一時的な履歴システムのみ）
+  if (!isGuildText) {
+    // 永続メモリシステムには保存する
+    await saveToMemorySystem(message, isDM);
+    return;
+  }
 
   try {
+    // 一時的な履歴システムに保存
     const entry = {
       id: message.id,
       content: message.content || '',
@@ -221,8 +230,74 @@ async function saveMessageToHistory(message) {
     };
     messageHistory.addMessageToHistory(message.channelId, entry);
     if (config.DEBUG) logger.debug(`Message saved to history: ${message.channelId}`);
+    
+    // 永続メモリシステムにも保存
+    await saveToMemorySystem(message, isDM);
   } catch (error) {
     logger.error(`履歴保存エラー: ${error.message}`, error);
+  }
+}
+
+/**
+ * メッセージを永続メモリシステムに保存する
+ * @param {Object} message - Discord.jsのメッセージオブジェクト
+ * @param {boolean} isDM - DMチャンネルかどうか
+ * @returns {Promise<Object|null>} 保存された会話コンテキスト、または失敗した場合はnull
+ */
+async function saveToMemorySystem(message, isDM) {
+  // メモリシステムが有効かつロードされている場合、メッセージを永続化
+  const memoryEnabled = config.MEMORY_ENABLED;
+  if (!memoryEnabled) return null;
+  
+  try {
+    // グローバル変数からメモリシステムを取得
+    const memorySystem = global.botchiMemory || require('../extensions/memory');
+    
+    if (!memorySystem || !memorySystem.manager) {
+      if (config.DEBUG) logger.debug('メモリシステムが初期化されていません');
+      return null;
+    }
+    
+    const userInfo = {
+      userId: message.author?.id,
+      channelId: message.channelId,
+      guildId: message.guildId
+    };
+    
+    // システムメッセージが指定されている場合は追加
+    if (message.systemMessage) {
+      userInfo.systemMessage = message.systemMessage;
+    }
+    
+    // 会話コンテキストを取得または作成
+    const conversationContext = await memorySystem.manager.getOrCreateConversationContext(userInfo);
+    
+    // メッセージをメモリシステムに追加
+    await memorySystem.manager.addMessageToConversation(
+      conversationContext.conversationId,
+      'user',
+      message.content || '',
+      {
+        messageId: message.id,
+        timestamp: message.createdTimestamp || Date.now(),
+        isDM: isDM
+      }
+    );
+    
+    if (config.DEBUG) {
+      logger.debug(`Message saved to memory system: user ${message.author?.id}, conversation ${conversationContext.conversationId}`);
+    }
+    
+    // 成功した場合は会話コンテキストを返す
+    return conversationContext;
+  } catch (error) {
+    logger.error(`メモリシステム保存エラー: ${error.message}`, error);
+    // エラーの詳細をデバッグ出力
+    if (config.DEBUG) {
+      logger.debug(`保存エラー詳細: ${error.stack || 'スタック情報なし'}`);
+    }
+    // エラー時も既存の処理は継続（フォールバックとして）
+    return null;
   }
 }
 
@@ -534,6 +609,51 @@ async function handleAIResponse(message, client, contextType) {
       }
     }
 
+    // AIの応答をメモリシステムに保存
+    if (config.MEMORY_ENABLED) {
+      try {
+        // グローバル変数からメモリシステムを取得
+        const memorySystem = global.botchiMemory || require('../extensions/memory');
+        
+        if (memorySystem && memorySystem.manager) {
+          const userInfo = {
+            userId: message.author.id,
+            channelId: message.channelId, 
+            guildId: message.guildId
+          };
+          
+          // 既存の会話コンテキストを取得、または新規作成
+          const conversationContext = await memorySystem.manager.getOrCreateConversationContext(userInfo);
+          
+          if (conversationContext) {
+            // AIの応答をメモリシステムに追加
+            await memorySystem.manager.addMessageToConversation(
+              conversationContext.conversationId,
+              'assistant',
+              response,
+              {
+                timestamp: Date.now(),
+                contextType: contextType,
+                messageLength: response.length
+              }
+            );
+            
+            if (config.DEBUG) {
+              const msgCount = conversationContext.messageCount || 0;
+              logger.debug(`AI応答をメモリシステムに保存: ${conversationContext.conversationId} (メッセージ数: ${msgCount + 1})`);
+            }
+          }
+        }
+      } catch (memoryError) {
+        logger.error(`メモリ保存エラー: ${memoryError.message}`);
+        // エラーの詳細をデバッグ出力
+        if (config.DEBUG) {
+          logger.debug(`AI応答保存エラー詳細: ${memoryError.stack || 'スタック情報なし'}`);
+        }
+        // エラーが発生しても応答処理は続行
+      }
+    }
+
     // 全ての応答パターンでメッセージ時間を更新する（DMでなくても）
     messageHistory?.updateLastBotMessageTime?.(message.channelId, client.user?.id);
     if (config.DEBUG) {
@@ -602,6 +722,60 @@ async function buildContextPrompt(message, content, contextType, personalizedPre
       
       // プロンプトの先頭にパーソナライズされたプレフィックスを追加
       let prompt = `${personalizedPrefix}\n\n`;
+      
+      // メモリシステムからの会話履歴取得（メモリシステムが有効な場合）
+      let memoryMessages = [];
+      const memoryEnabled = config.MEMORY_ENABLED;
+      
+      if (memoryEnabled && (contextType === 'direct_message' || contextType === 'mention')) {
+        try {
+          // グローバル変数からメモリシステムを取得
+          const memorySystem = global.botchiMemory || require('../extensions/memory');
+          
+          if (memorySystem && memorySystem.manager) {
+            const userInfo = {
+              userId: message.author?.id,
+              channelId: message.channelId,
+              guildId: message.guildId
+            };
+            
+            // 会話コンテキストを取得
+            const conversationContext = await memorySystem.manager.getOrCreateConversationContext(userInfo);
+            
+            // 会話履歴を取得（取得数を増やして文脈の理解を深める）
+            if (conversationContext && conversationContext.conversationId) {
+              memoryMessages = await memorySystem.manager.getContextMessages(
+                conversationContext.conversationId, 
+                10 // 直近10件のメッセージを取得（会話の文脈をより深く理解）
+              );
+              
+              if (config.DEBUG) {
+                logger.debug(`会話履歴を ${memoryMessages.length} 件取得: ${conversationContext.conversationId}`);
+                if (memoryMessages.length > 0) {
+                  logger.debug(`最新メッセージ: "${memoryMessages[memoryMessages.length-1]?.content?.slice(0, 30)}..."`);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          logger.error(`会話履歴取得エラー: ${error.message}`, error);
+          // エラーの詳細をデバッグ出力
+          if (config.DEBUG) {
+            logger.debug(`履歴取得エラー詳細: ${error.stack || 'スタック情報なし'}`);
+          }
+          // エラー時は履歴なしで続行
+        }
+      }
+      
+      // 会話履歴がある場合はプロンプトに追加
+      if (memoryMessages.length > 0) {
+        prompt += '過去の会話:\n';
+        for (const msg of memoryMessages) {
+          const roleName = msg.role === 'user' ? displayName : 'Bocchy';
+          prompt += `${roleName}: ${msg.content}\n`;
+        }
+        prompt += '\n';
+      }
       
       // ユーザーメッセージを追加（名前は付けない - より自然な会話に）
       prompt += `${content}\n\n`;
