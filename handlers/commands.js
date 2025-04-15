@@ -7,6 +7,7 @@ const { EmbedBuilder } = require('discord.js');
 const logger = require('../system/logger');
 const config = require('../config/env');
 const messageHistory = require('../extensions/message-history');
+const { formatDateTime } = require('../utilities/date-utils');
 
 // AIサービスを取得
 let aiService;
@@ -37,7 +38,12 @@ async function executeCommand(command, args, message, client) {
       'about': handleAbout,
       'status': handleStatus,
       'reset': handleReset,
-      'intervention': handleIntervention
+      'intervention': handleIntervention,
+      'now': handleDateTime,
+      'time': handleDateTime,
+      'date': handleDateTime,
+      'datetime': handleDateTime,
+      'search': handleSearch
     };
     
     // コマンドが存在するか確認
@@ -88,7 +94,9 @@ async function handleHelp(args, message) {
       { name: `${prefix}about`, value: 'ボットについての情報を表示します' },
       { name: `${prefix}status`, value: 'ボットのステータスと設定情報を表示します' },
       { name: `${prefix}reset`, value: '会話履歴をリセットします (DMでのみ有効)' },
-      { name: `${prefix}intervention [mode]`, value: '文脈介入モードを設定します (none/passive/balanced/active/aggressive)' }
+      { name: `${prefix}intervention [mode]`, value: '文脈介入モードを設定します (none/passive/balanced/active/aggressive)' },
+      { name: `${prefix}now`, value: '現在の日本時間を表示します (time/dateコマンドも同様)' },
+      { name: `${prefix}search [キーワード]`, value: 'ウェブ検索を行い結果を要約して表示します' }
     )
     .setFooter({ text: `Bocchy v${config.BOT_VERSION}` });
   
@@ -272,6 +280,75 @@ async function handleIntervention(args, message) {
   process.env.INTERVENTION_MODE = newMode;
   
   await message.reply(`文脈介入モードを「${newMode}」に設定しました。`);
+}
+
+/**
+ * 現在の日時を表示するコマンドを処理
+ * @param {Array} args - コマンド引数
+ * @param {Object} message - Discordメッセージオブジェクト
+ */
+async function handleDateTime(args, message) {
+  try {
+    const now = new Date();
+    // 日本時間に変換（日本はUTC+9）
+    const japanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    const dateTimeStr = formatDateTime(japanTime);
+    
+    const embed = new EmbedBuilder()
+      .setTitle('🕒 現在の日本時間')
+      .setColor(0x00FFFF)
+      .setDescription(`${dateTimeStr}`)
+      .setFooter({ text: 'JST (日本標準時)' });
+    
+    await message.reply({ embeds: [embed] });
+  } catch (error) {
+    logger.error('日時表示エラー:', error);
+    await message.reply('日時情報の取得中にエラーが発生しました。');
+  }
+}
+
+/**
+ * ウェブ検索コマンドを処理
+ * @param {Array} args - コマンド引数
+ * @param {Object} message - Discordメッセージオブジェクト
+ */
+async function handleSearch(args, message) {
+  try {
+    if (!args.length) {
+      await message.reply('検索キーワードを入力してください。例: `!search 深層学習とは`');
+      return;
+    }
+    
+    const query = args.join(' ');
+    await message.channel.sendTyping();
+    
+    // 検索クエリと実行中の通知
+    await message.reply(`🔍 「${query}」を検索しています...`);
+    
+    // ここでBraveSearch APIを使用した検索と結果の処理を行う
+    // 実際の実装はextensions/search-service.jsモジュールで行う
+    const searchService = require('../extensions/search-service');
+    const searchResults = await searchService.performSearch(query);
+    
+    // 検索結果を整形して返信
+    if (searchResults && searchResults.summary) {
+      const embed = new EmbedBuilder()
+        .setTitle(`🔍 「${query}」の検索結果`)
+        .setColor(0x00FFFF)
+        .setDescription(searchResults.summary)
+        .addFields(
+          { name: '情報源', value: searchResults.sources || '情報なし' }
+        )
+        .setFooter({ text: 'Brave Search APIを使用' });
+      
+      await message.reply({ embeds: [embed] });
+    } else {
+      await message.reply('検索結果が見つかりませんでした。別のキーワードで試してみてください。');
+    }
+  } catch (error) {
+    logger.error('検索処理エラー:', error);
+    await message.reply('検索処理中にエラーが発生しました。しばらくしてからお試しください。');
+  }
 }
 
 module.exports = {
