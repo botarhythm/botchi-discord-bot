@@ -64,26 +64,51 @@ if (typeof messageHistory.initialize === 'function') {
 }
 
 // メモリシステムの初期化（永続的会話履歴）
-if (process.env.MEMORY_ENABLED === 'true') {
+if (config.MEMORY_ENABLED === true) {
   logger.info('Memory system enabled, initializing...');
   const memorySystem = syncUtil.safeRequire('./extensions/memory', {
     initialize: () => Promise.resolve({ status: 'fallback' }),
     manager: null,
-    checkHealth: () => Promise.resolve({ status: 'unhealthy', message: 'Memory module not loaded' })
+    checkHealth: () => Promise.resolve({ status: 'unhealthy', message: 'Memory module not loaded' }),
+    resetUserConversations: () => Promise.resolve(false)
   });
+  
+  // グローバル変数として保存し、他のモジュールからアクセス可能に
+  global.botchiMemory = memorySystem;
   
   // メモリシステムを初期化
   if (typeof memorySystem.initialize === 'function') {
     memorySystem.initialize()
       .then(result => {
         logger.info('Memory system initialized successfully');
+        
+        // メモリシステムの健全性を確認
+        return memorySystem.checkHealth();
       })
-      .catch(err => logger.error('Failed to initialize memory system:', err));
+      .then(health => {
+        if (health && health.status === 'healthy') {
+          logger.info(`Memory system health check passed: ${health.message || 'OK'}`);
+        } else {
+          logger.warn(`Memory system health check warning: ${health.message || 'Unknown issue'}`);
+        }
+      })
+      .catch(err => {
+        logger.error('Failed to initialize memory system:', err);
+        logger.warn('Continuing with limited functionality');
+      });
   } else {
     logger.warn('Memory system has no initialize method, functionality will be limited');
   }
 } else {
   logger.info('Memory system is disabled, using in-memory message history only');
+  
+  // 無効でも安全に動作するようにフォールバックモジュールをグローバル変数にセット
+  global.botchiMemory = {
+    manager: null,
+    initialize: () => Promise.resolve({ status: 'disabled' }),
+    checkHealth: () => Promise.resolve({ status: 'disabled', message: 'Memory system is disabled' }),
+    resetUserConversations: () => Promise.resolve(false)
+  };
 }
 
 // Discordクライアントをセットアップして起動
