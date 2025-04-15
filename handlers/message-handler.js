@@ -55,23 +55,57 @@ function initializeAIService() {
 }
 
 async function handleMessage(message, client) {
-  if (!validateParameters(message, client)) return;
-  if (message.author?.bot) return;
+  try {
+    if (!validateParameters(message, client)) return;
+    if (message.author?.bot) return;
 
-  logIncomingMessage(message);
+    // 拡張ログ: メッセージ受信の詳細情報
+    const channelType = message.channel?.type;
+    const content = message.content || '[empty]';
+    
+    if (config.DEBUG) {
+      logger.debug(`Message received - Content: "${content}"`);
+      logger.debug(`From User: ${message.author.tag} (ID: ${message.author.id})`);
+      logger.debug(`Channel Type: ${channelType}`);
+      logger.debug(`Is Channel DM: ${channelType === ChannelType.DM}`);
+      logger.debug(`Channel ID: ${message.channel?.id}`);
+    } else {
+      logger.info(`Message from ${message.author.tag}: "${content.slice(0, 50)}${content.length > 50 ? '...' : ''}"`);
+    }
 
-  const isDM = message.channel?.type === ChannelType.DM;
-  const isMentioned = message.mentions?.has?.(client.user?.id);
+    // DM検出の拡張 - Discord.js v14との互換性確保
+    // ChannelType.DMは1であることを確認
+    const isDM = channelType === ChannelType.DM || channelType === 1;
+    const isMentioned = message.mentions?.has?.(client.user?.id);
 
-  if (await handleCommandIfPresent(message, client)) return;
+    if (isDM && config.DEBUG) {
+      logger.debug('DMメッセージを検出しました！');
+    }
 
-  await saveMessageToHistory(message);
+    if (await handleCommandIfPresent(message, client)) return;
 
-  const shouldRespond = await evaluateIntervention(message, client, isDM, isMentioned);
+    await saveMessageToHistory(message);
 
-  if (shouldRespond) {
-    const contextType = isDM ? 'direct_message' : (isMentioned ? 'mention' : 'intervention');
-    await handleAIResponse(message, client, contextType);
+    // DMまたはメンションの場合は常に応答
+    if (isDM || isMentioned) {
+      if (config.DEBUG) {
+        logger.debug(`応答トリガー: ${isDM ? 'DM' : 'メンション'}`);
+      }
+      const contextType = isDM ? 'direct_message' : 'mention';
+      await handleAIResponse(message, client, contextType);
+      return;
+    }
+
+    // それ以外の場合は通常の介入判断
+    const shouldIntervene = await evaluateIntervention(message, client, false, false);
+    if (shouldIntervene) {
+      await handleAIResponse(message, client, 'intervention');
+    }
+  } catch (error) {
+    logger.error('メッセージ処理中の未処理エラー:', error);
+    if (config.DEBUG) {
+      logger.debug(`エラー詳細: ${error.stack || '詳細なし'}`);
+    }
   }
 }
 
@@ -172,6 +206,10 @@ async function evaluateIntervention(message, client, isDM, isMentioned) {
 
 async function handleAIResponse(message, client, contextType) {
   try {
+    if (config.DEBUG) {
+      logger.debug(`AI応答処理開始: ${contextType}`);
+    }
+    
     await message.channel.sendTyping();
     const cleanContent = sanitizeMessage(message.content, contextType);
     const contextPrompt = await buildContextPrompt(message, cleanContent, contextType);
@@ -221,6 +259,9 @@ async function handleAIResponse(message, client, contextType) {
         }
       } else {
         // レガシーシステムの場合
+        if (config.DEBUG) {
+          logger.debug('レガシーAIシステムを使用');
+        }
         response = await aiService.getResponse(aiContext);
       }
     } catch (aiError) {
@@ -229,6 +270,10 @@ async function handleAIResponse(message, client, contextType) {
     }
 
     if (!response) throw new Error('AI応答がありません（空の応答）');
+
+    if (config.DEBUG) {
+      logger.debug(`AI応答取得成功: ${response.length}文字`);
+    }
 
     const replies = splitMessage(response);
     for (const chunk of replies) await message.reply(chunk);
