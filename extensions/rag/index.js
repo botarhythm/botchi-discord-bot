@@ -172,9 +172,123 @@ async function addDocument(title, content, metadata = {}) {
   }
   
   try {
-    return await knowledgeBase.addDocument(title, content, metadata);
+    const result = await knowledgeBase.addDocument(title, content, metadata);
+    // commands.jsとのインターフェース互換性のため、プロパティ名を調整
+    if (result.success && result.knowledgeId) {
+      return { 
+        ...result,
+        documentId: result.knowledgeId,
+        chunkCount: result.successfulChunks || 1
+      };
+    }
+    return result;
   } catch (error) {
     logger.error(`Failed to add document to knowledge base: ${error.message}`);
+    return { 
+      success: false, 
+      error: error.message
+    };
+  }
+}
+
+/**
+ * ナレッジベースのドキュメント一覧を取得する
+ * @returns {Promise<Array<Object>>} ドキュメント一覧
+ */
+async function listDocuments() {
+  if (!ragConfig.enabled || !state.initialized) {
+    return [];
+  }
+  
+  try {
+    // Supabaseクライアントを取得
+    const client = vectorStore.getClient ? vectorStore.getClient() : 
+                  require('../memory/supabase-client').getClient();
+    
+    // ナレッジベーステーブルからドキュメントを取得
+    const { data, error } = await client
+      .from(vectorStore.config.tables.knowledgeBase)
+      .select('*')
+      .order('updated_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    return data || [];
+  } catch (error) {
+    logger.error(`Failed to list documents: ${error.message}`);
+    return [];
+  }
+}
+
+/**
+ * ナレッジベースから特定のドキュメントを取得する
+ * @param {string} documentId ドキュメントID
+ * @returns {Promise<Object>} ドキュメント情報
+ */
+async function getDocument(documentId) {
+  if (!ragConfig.enabled || !state.initialized || !documentId) {
+    return null;
+  }
+  
+  try {
+    // Supabaseクライアントを取得
+    const client = vectorStore.getClient ? vectorStore.getClient() : 
+                  require('../memory/supabase-client').getClient();
+    
+    // ナレッジベーステーブルから特定のドキュメントを取得
+    const { data, error } = await client
+      .from(vectorStore.config.tables.knowledgeBase)
+      .select('*')
+      .eq('id', documentId)
+      .single();
+    
+    if (error) throw error;
+    
+    return data;
+  } catch (error) {
+    logger.error(`Failed to get document: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * ナレッジベースからドキュメントを削除する
+ * @param {string} documentId ドキュメントID
+ * @returns {Promise<Object>} 削除結果
+ */
+async function deleteDocument(documentId) {
+  if (!ragConfig.enabled || !state.initialized || !documentId) {
+    return { 
+      success: false, 
+      error: 'RAG system is not enabled or initialized, or invalid document ID'
+    };
+  }
+  
+  try {
+    // Supabaseクライアントを取得
+    const client = vectorStore.getClient ? vectorStore.getClient() : 
+                  require('../memory/supabase-client').getClient();
+    
+    // まず関連するチャンクを削除
+    const { error: chunksError } = await client
+      .from(vectorStore.config.tables.knowledgeChunks)
+      .delete()
+      .eq('knowledge_id', documentId);
+    
+    if (chunksError) throw chunksError;
+    
+    // 次にドキュメント自体を削除
+    const { error: docError } = await client
+      .from(vectorStore.config.tables.knowledgeBase)
+      .delete()
+      .eq('id', documentId);
+    
+    if (docError) throw docError;
+    
+    logger.info(`Document deleted: ${documentId}`);
+    return { success: true };
+  } catch (error) {
+    logger.error(`Failed to delete document: ${error.message}`);
     return { 
       success: false, 
       error: error.message
@@ -240,6 +354,14 @@ async function generateContextForPrompt(query, options = {}) {
 }
 
 /**
+ * RAGシステムが初期化されているかどうかを確認する
+ * @returns {boolean} 初期化状態
+ */
+function isInitialized() {
+  return state.initialized;
+}
+
+/**
  * レガシーインターフェース互換用のナレッジベース追加関数
  * @param {string} title ドキュメントのタイトル 
  * @param {string} content ドキュメントの内容
@@ -251,11 +373,23 @@ async function addToKnowledgeBase(title, content, metadata = {}) {
 }
 
 /**
- * RAGシステムが初期化されているかどうかを確認する
- * @returns {boolean} 初期化状態
+ * テキストクエリでナレッジベースを検索する（commands.js用）
+ * @param {string} query 検索クエリ
+ * @param {Object} options 検索オプション
+ * @returns {Promise<Array<Object>>} 検索結果
  */
-function isInitialized() {
-  return state.initialized;
+async function search(query, options = {}) {
+  if (!ragConfig.enabled || !state.initialized) {
+    return [];
+  }
+  
+  try {
+    const searchResult = await processMessage(query, options);
+    return searchResult.results || [];
+  } catch (error) {
+    logger.error(`Search failed: ${error.message}`);
+    return [];
+  }
 }
 
 module.exports = {
@@ -266,6 +400,12 @@ module.exports = {
   checkHealth,
   generateContextForPrompt, // メッセージハンドラー用の互換性メソッド
   isInitialized, // 初期化状態を確認するメソッド
+  // ナレッジベース管理関数
+  listDocuments,
+  getDocument,
+  deleteDocument,
+  search, // 検索用メソッド
+  // 設定と状態
   config: ragConfig,
   state, // 状態情報をエクスポート
   // サブモジュールへの直接アクセスも提供
