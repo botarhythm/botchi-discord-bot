@@ -609,9 +609,9 @@ async function buildContextPrompt(message, content, contextType, personalizedPre
       // システム指示を追加（AIモデル向け）- 日付のハルシネーション防止指示を追加
       prompt += `${displayName}さんとの会話です。文脈に応じて自然な形で対応し、必要に応じて適切なタイミングでのみ名前を使用してください。\n`;
       
-      // 日付のハルシネーション防止のための明示的な指示を追加
+      // 日付のハルシネーション防止のための自然な指示を追加
       const dateTimeStr = timeContext.getFormattedDateTime(true);
-      prompt += `重要: 現在の正確な日付と時刻は「${dateTimeStr}」です。この日付と時刻を使用し、別の日付を自分で生成しないでください。回答に日付/時刻を含める場合は、必ずこの正確な情報を使用してください。\n`;
+      prompt += `会話の中で今日の日付に言及する場合は「${dateTimeStr}」を使ってください。今日が${dateTimeStr}であることを念頭に置いて自然に会話を行ってください。\n`;
       
       return prompt;
     }
@@ -674,10 +674,6 @@ function postProcessResponseDates(response, correctDateTime) {
   if (!response) return response;
   
   try {
-    // 正規表現で日付パターンを検出
-    // 年月日のパターン (例: 2025年4月14日、2025年4月16日など)
-    const datePattern = /20\d{2}年\d{1,2}月\d{1,2}日/g;
-    
     // 現在の正しい日付情報を取得
     const currentYearMatch = correctDateTime.match(/(\d{4})年/);
     const currentMonthMatch = correctDateTime.match(/(\d{1,2})月/);
@@ -698,8 +694,33 @@ function postProcessResponseDates(response, correctDateTime) {
     // 日付部分を置換する
     let modifiedResponse = response;
     
-    // 誤った日付を検出して置換
-    const incorrectDates = response.match(datePattern);
+    // 相対日付表現を含むパターンを検出（これらは修正しない）
+    const relativeDatePattern = /(明日|昨日|一昨日|翌日|前日|来週|先週|今週|来月|先月|今月)(?:は|\s|の|に|が|を|)\s*?(?:20\d{2}年)?\d{1,2}月\d{1,2}日/g;
+    const relativeDateMatches = response.match(relativeDatePattern);
+    
+    // 相対日付表現があれば、それらをいったん一時的なプレースホルダーに置き換える
+    const placeholders = {};
+    if (relativeDateMatches) {
+      if (config.DEBUG) {
+        logger.debug(`相対日付パターンの検出: ${JSON.stringify(relativeDateMatches)}`);
+      }
+      
+      relativeDateMatches.forEach((match, index) => {
+        const placeholder = `__RELATIVE_DATE_${index}__`;
+        placeholders[placeholder] = match;
+        modifiedResponse = modifiedResponse.replace(match, placeholder);
+        
+        if (config.DEBUG) {
+          logger.debug(`相対日付を保護: "${match}" → "${placeholder}"`);
+        }
+      });
+    }
+    
+    // 年月日のパターン (例: 2025年4月14日、2025年4月16日など)
+    const datePattern = /20\d{2}年\d{1,2}月\d{1,2}日/g;
+    
+    // 誤った日付を検出して置換（相対日付は既にプレースホルダーに置き換えられている）
+    const incorrectDates = modifiedResponse.match(datePattern);
     if (incorrectDates) {
       // ログ出力
       if (config.DEBUG) {
@@ -710,26 +731,51 @@ function postProcessResponseDates(response, correctDateTime) {
       const correctDateShort = `${currentYear}年${currentMonth}月${currentDay}日`;
       incorrectDates.forEach(incorrectDate => {
         if (incorrectDate !== correctDateShort) {
-          // 誤った日付と確認できた場合のみ置換
-          modifiedResponse = modifiedResponse.replace(incorrectDate, correctDateShort);
-          if (config.DEBUG) {
-            logger.debug(`日付置換: "${incorrectDate}" → "${correctDateShort}"`);
+          // 文脈を考慮するため、明らかに「今日」を指している場合のみ置換する
+          const todayContext = /(今日|本日|現在|ただいま)(?:は|\s|の|に|が)?\s*?(?=20\d{2}年\d{1,2}月\d{1,2}日)/i;
+          const beforeText = modifiedResponse.split(incorrectDate)[0];
+          const hasBeforeTodayContext = todayContext.test(beforeText.slice(-20)); // 直前の20文字で判定
+          
+          if (hasBeforeTodayContext || incorrectDate === '2025年4月15日') {
+            // 「今日は〇月〇日」のようなパターンか、極めて一般的な間違いの場合のみ修正
+            modifiedResponse = modifiedResponse.replace(incorrectDate, correctDateShort);
+            if (config.DEBUG) {
+              logger.debug(`日付置換（文脈判断）: "${incorrectDate}" → "${correctDateShort}"`);
+            }
+          } else if (config.DEBUG) {
+            logger.debug(`日付置換を見送り（文脈上、修正不要と判断）: "${incorrectDate}"`);
           }
         }
       });
     }
     
-    // 曜日パターンも置換（単独で出現する場合）
+    // 曜日パターンも置換（単独で出現する場合）- 「今日」を表すコンテキストのみ
     const dayOfWeekPattern = /（(月|火|水|木|金|土|日)曜日）/g;
     const incorrectDaysOfWeek = modifiedResponse.match(dayOfWeekPattern);
     if (incorrectDaysOfWeek && currentDayOfWeek) {
       incorrectDaysOfWeek.forEach(incorrectDayOfWeek => {
         const correctDayOfWeekFull = `（${currentDayOfWeek}）`;
         if (incorrectDayOfWeek !== correctDayOfWeekFull) {
-          modifiedResponse = modifiedResponse.replace(incorrectDayOfWeek, correctDayOfWeekFull);
-          if (config.DEBUG) {
-            logger.debug(`曜日置換: "${incorrectDayOfWeek}" → "${correctDayOfWeekFull}"`);
+          // 曜日のコンテキストを確認
+          const beforeText = modifiedResponse.split(incorrectDayOfWeek)[0].slice(-30);
+          const isAboutToday = /今日|本日|現在/.test(beforeText);
+          
+          if (isAboutToday) {
+            modifiedResponse = modifiedResponse.replace(incorrectDayOfWeek, correctDayOfWeekFull);
+            if (config.DEBUG) {
+              logger.debug(`曜日置換: "${incorrectDayOfWeek}" → "${correctDayOfWeekFull}"`);
+            }
           }
+        }
+      });
+    }
+    
+    // プレースホルダーを元の相対日付に戻す
+    if (Object.keys(placeholders).length > 0) {
+      Object.entries(placeholders).forEach(([placeholder, originalText]) => {
+        modifiedResponse = modifiedResponse.replace(placeholder, originalText);
+        if (config.DEBUG) {
+          logger.debug(`相対日付を復元: "${placeholder}" → "${originalText}"`);
         }
       });
     }
