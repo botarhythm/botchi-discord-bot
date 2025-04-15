@@ -25,7 +25,7 @@ const config = syncUtil.safeRequire('./config/env', {
   AI_PROVIDER: process.env.AI_PROVIDER || 'openai',
   DM_MESSAGE_HANDLER: process.env.DM_MESSAGE_HANDLER || 'legacy',
   DEBUG: process.env.DEBUG === 'true',
-  BOT_VERSION: '1.3.1' // DMバグ修正版
+  BOT_VERSION: '1.3.1' // 安定性改善版
 });
 
 // Bocchyのバージョン情報を表示
@@ -63,6 +63,29 @@ if (typeof messageHistory.initialize === 'function') {
   logger.warn('Message history system has no initialize method, using fallback');
 }
 
+// メモリシステムの初期化（永続的会話履歴）
+if (process.env.MEMORY_ENABLED === 'true') {
+  logger.info('Memory system enabled, initializing...');
+  const memorySystem = syncUtil.safeRequire('./extensions/memory', {
+    initialize: () => Promise.resolve({ status: 'fallback' }),
+    manager: null,
+    checkHealth: () => Promise.resolve({ status: 'unhealthy', message: 'Memory module not loaded' })
+  });
+  
+  // メモリシステムを初期化
+  if (typeof memorySystem.initialize === 'function') {
+    memorySystem.initialize()
+      .then(result => {
+        logger.info('Memory system initialized successfully');
+      })
+      .catch(err => logger.error('Failed to initialize memory system:', err));
+  } else {
+    logger.warn('Memory system has no initialize method, functionality will be limited');
+  }
+} else {
+  logger.info('Memory system is disabled, using in-memory message history only');
+}
+
 // Discordクライアントをセットアップして起動
 logger.info('Setting up Discord client...');
 const { setupClient } = syncUtil.safeRequire('./core/discord-init', {
@@ -73,35 +96,6 @@ const { setupClient } = syncUtil.safeRequire('./core/discord-init', {
   }
 });
 const client = setupClient();
-
-// DMメッセージの監視用RAWイベントリスナー
-// 必ずDEBUG=trueの場合のみ有効にする（本番環境には影響させない）
-if (config.DEBUG) {
-  logger.info('DM検出のためのRAWイベントリスナーを有効化');
-  
-  // RAWイベントによるDM監視
-  client.on('raw', packet => {
-    if (packet.t === 'MESSAGE_CREATE' && packet.d && packet.d.channel_type === 1) {
-      logger.debug('DM RAW MESSAGE DETECTED:');
-      logger.debug(`- Content: ${packet.d.content || '[空]'}`);
-      logger.debug(`- Author: ${packet.d.author?.username || '不明'} (${packet.d.author?.id || '不明'})`);
-      logger.debug(`- Channel ID: ${packet.d.channel_id}`);
-      
-      // DMメッセージの場合の追加処理
-      // 他のイベントでメッセージが処理されなかった場合の保険
-      if (packet.d.author?.id !== client.user.id) { // 自分自身のメッセージは除外
-        try {
-          const { handleMessage } = syncUtil.safeRequire('./handlers/message-handler');
-          // ここでは何もしない（ログ出力のみ）
-        } catch (error) {
-          logger.error('DM処理中のエラー:', error);
-        }
-      }
-    }
-  });
-  
-  logger.info('DMモニタリングの強化を有効化しました');
-}
 
 // 未処理の例外ハンドラ
 process.on('uncaughtException', (error) => {
