@@ -59,8 +59,7 @@ function shouldIntervene(options) {
     // 処理時間モニタリング開始
     const startTime = Date.now();
     
-    // より詳細なデバッグ情報（システムのロガーがあれば利用、なければconsole.log）
-    // ロガーの準備（一度だけ宣言）
+    // ロガーの準備（モジュール全体で一度だけロードするべき）
     const logger = require('../system/logger') || console;
     
     logger.debug('[ANALYZER] Context analyzer called with options:', JSON.stringify({
@@ -238,12 +237,14 @@ function shouldIntervene(options) {
     
     return willIntervene;
   } catch (error) {
-    // ロガーにエラーを出力（できない場合はconsoleにフォールバック）
+    // ロガーにエラーを出力（定義済みのloggerが使えない場合はconsoleにフォールバック）
     try {
-      const logger = require('../system/logger');
-      logger.error('[ANALYZER] Error in context intervention analysis:', error);
+      // loggerが既に定義されていればそれを使用、未定義ならrequireする
+      const errorLogger = typeof logger !== 'undefined' ? logger : require('../system/logger');
+      errorLogger.error('[ANALYZER] Error in context intervention analysis:', error);
     } catch (e) {
       console.error('[ANALYZER] Error in context intervention analysis:', error);
+      console.error('[ANALYZER] Additionally failed to load logger:', e);
     }
     return false; // エラー時は安全に介入しない
   }
@@ -277,7 +278,13 @@ function isQuestionText(text) {
     
     return false;
   } catch (error) {
-    console.error('Error in question text analysis:', error);
+    // モジュールのロガーがあれば使用、なければconsoleにフォールバック
+    try {
+      const logger = require('../system/logger');
+      logger.error('[ANALYZER] Error in question text analysis:', error);
+    } catch (e) {
+      console.error('[ANALYZER] Error in question text analysis:', error);
+    }
     return false; // エラー時は安全に非質問と判定
   }
 }
@@ -297,7 +304,13 @@ function isAITopic(text) {
     // いずれかのキーワードが含まれるか確認
     return AI_KEYWORDS.some(keyword => lowerText.includes(keyword));
   } catch (error) {
-    console.error('Error in AI topic analysis:', error);
+    // モジュールのロガーがあれば使用、なければconsoleにフォールバック
+    try {
+      const logger = require('../system/logger');
+      logger.error('[ANALYZER] Error in AI topic analysis:', error);
+    } catch (e) {
+      console.error('[ANALYZER] Error in AI topic analysis:', error);
+    }
     return false; // エラー時は安全にAI関連でないと判定
   }
 }
@@ -317,7 +330,13 @@ function hasEmotionalExpression(text) {
     // いずれかのパターンが含まれるか確認
     return EMOTIONAL_PATTERNS.some(pattern => lowerText.includes(pattern));
   } catch (error) {
-    console.error('Error in emotional expression analysis:', error);
+    // モジュールのロガーがあれば使用、なければconsoleにフォールバック
+    try {
+      const logger = require('../system/logger');
+      logger.error('[ANALYZER] Error in emotional expression analysis:', error);
+    } catch (e) {
+      console.error('[ANALYZER] Error in emotional expression analysis:', error);
+    }
     return false; // エラー時は安全に感情表現なしと判定
   }
 }
@@ -433,7 +452,13 @@ function analyzeConversationContext(history) {
       topicConsistency
     };
   } catch (error) {
-    console.error('Error in conversation context analysis:', error);
+    // モジュールのロガーがあれば使用、なければconsoleにフォールバック
+    try {
+      const logger = require('../system/logger');
+      logger.error('[ANALYZER] Error in conversation context analysis:', error);
+    } catch (e) {
+      console.error('[ANALYZER] Error in conversation context analysis:', error);
+    }
     // エラー時のフォールバック値
     return { 
       probabilityModifier: 0,
@@ -460,7 +485,13 @@ function extractWords(text) {
       .split(/\s+/)
       .filter(word => word && word.length > 0);
   } catch (error) {
-    console.error('Error in word extraction:', error);
+    // モジュールのロガーがあれば使用、なければconsoleにフォールバック
+    try {
+      const logger = require('../system/logger');
+      logger.error('[ANALYZER] Error in word extraction:', error);
+    } catch (e) {
+      console.error('[ANALYZER] Error in word extraction:', error);
+    }
     return []; // エラー時は空配列を返す
   }
 }
@@ -510,7 +541,13 @@ function getResponseHint(context) {
     
     return hints;
   } catch (error) {
-    console.error('Error in response hint generation:', error);
+    // モジュールのロガーがあれば使用、なければconsoleにフォールバック
+    try {
+      const logger = require('../system/logger');
+      logger.error('[ANALYZER] Error in response hint generation:', error);
+    } catch (e) {
+      console.error('[ANALYZER] Error in response hint generation:', error);
+    }
     // エラー時のフォールバック値
     return {
       tone: 'neutral',
