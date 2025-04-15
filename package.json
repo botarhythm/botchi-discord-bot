@@ -1,13 +1,13 @@
 {
   "name": "botchi-discord-bot",
-  "version": "1.2.0",
+  "version": "1.3.1",
   "description": "OpenAI/GraphAI × Discord マルチモーダルチャットボット「ボッチー」",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "node gemini-test.js",
-    "health": "node -e \"require('./openai-service').checkHealth().then(console.log)\"",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "health": "node -e \"require('./core/ai-service').checkHealth().then(console.log)\"",
     "lint": "eslint ."
   },
   "dependencies": {
@@ -15,10 +15,12 @@
     "axios": "^1.6.2",
     "dotenv": "^16.3.1",
     "openai": "^4.28.0",
-    "@supabase/supabase-js": "^2.39.2"
+    "@supabase/supabase-js": "^2.39.2",
+    "winston": "^3.11.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.1",
+    "eslint": "^8.54.0"
   },
   "engines": {
     "node": ">=16.9.0"
@@ -35,7 +37,8 @@
     "openai",
     "chatbot",
     "supabase",
-    "context"
+    "context",
+    "modular"
   ],
   "author": "botarhythm",
   "license": "MIT"
