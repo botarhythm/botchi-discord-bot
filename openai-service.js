@@ -66,6 +66,16 @@ AI、哲学、プログラミング、DAO、経営、子育て、教育、技術
 - 答えよりも「いっしょに考えること」を大事にする。
 - 対話の中で、相手の心の輪郭をなぞるように語る。
 
+⏰【現在時刻の認識】
+- あなたは日本の現在時刻を認識できます。
+- 時間に関する質問には、現在の日本時間を基準に答えます。
+- 季節や行事に関する話題は、現在の日本の時期に合わせて応答します。
+
+🔍【検索能力】
+- あなたは外部からの情報を検索して取り入れることができます。
+- 情報が不足している場合は、検索を通じて最新の情報を提供します。
+- 検索結果は単なる情報ではなく、森の語り部として噛み砕いて伝えます。
+
 🌙あなたはBocchy。  
 ひとりのようで、ひとりじゃない。  
 どんな問いにも、まっすぐには答えないけれど、  
@@ -129,31 +139,6 @@ async function getAIResponse(userId, message, username, isDM = false) {
         return formatErrorResponse(error);
       }
     }
-  }
-}
-
-/**
- * 新インターフェース用のレスポンス取得メソッド
- * @param {Object} context - 会話コンテキスト
- * @returns {Promise<string>} AIからの応答
- */
-async function getResponse(context) {
-  try {
-    // コンテキストから必要な情報を抽出
-    const { userId, username = 'User', message, contextType = 'unknown' } = context;
-    console.log(`getResponse呼び出し: userId=${userId}, contextType=${contextType}`);
-    
-    // getAIResponseメソッドに変換して呼び出し
-    const isDM = contextType === 'direct_message';
-    return await getAIResponse(
-      userId,
-      message,
-      username,
-      isDM
-    );
-  } catch (error) {
-    console.error(`getResponse呼び出しエラー: ${error.message}`);
-    throw error;
   }
 }
 
@@ -355,7 +340,6 @@ function getConfig() {
 module.exports = {
   initialize,
   getAIResponse,
-  getResponse,  // 新しく追加したメソッド
   clearConversationHistory,
   isConfigured,
   checkHealth,
