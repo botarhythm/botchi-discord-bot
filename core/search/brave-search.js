@@ -16,7 +16,8 @@ const DEFAULT_CONFIG = {
   count: 3, // デフォルトの検索結果数
   maxLength: 200, // 各検索結果の最大文字数
   timeout: 5000, // タイムアウト (5秒)
-  isEnabled: (process.env.BRAVE_SEARCH_API_KEY || process.env.BRAVE_API_KEY) ? true : false
+  isEnabled: (process.env.BRAVE_SEARCH_API_KEY || process.env.BRAVE_API_KEY) ? true : false,
+  commandPrefix: process.env.PREFIX || '!' // !search コマンドのプレフィックス
 };
 
 /**
@@ -39,6 +40,7 @@ class BraveSearchClient {
       logger.info('Brave Search client initialized');
       if (process.env.DEBUG === 'true') {
         logger.debug(`Using API key: ${this.apiKey ? this.apiKey.substring(0, 3) + '...' : 'none'}`);
+        logger.debug(`Search command prefix: ${this.config.commandPrefix}search`);
       }
     }
   }
