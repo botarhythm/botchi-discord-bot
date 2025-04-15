@@ -12,6 +12,10 @@ const logger = require('../system/logger');
 const config = require('../config/env');
 const syncUtil = require('../local-sync-utility');
 
+// ユーティリティをインポート
+const userDisplay = require('../core/utils/user-display');
+const timeContext = require('../core/utils/time-context');
+
 // AIサービスの初期化
 const aiService = initializeAIService();
 
@@ -121,6 +125,21 @@ async function handleMessage(message, client) {
   if (await handleCommandIfPresent(message, client)) return;
 
   await saveMessageToHistory(message);
+
+  // ユーザーコンテキストの保存 - メッセージの内容をトピックとして保存
+  // 実際のプロダクションでは、意味解析などで要約したキーワードを使用すると良い
+  if (message.author?.id && message.content) {
+    // 簡易的なメッセージ要約 - 長さ制限と非ASCII文字の除去
+    const simplifiedContent = message.content
+      .replace(/[^\x00-\x7F]/g, '') // 非ASCII文字除去
+      .trim().slice(0, 50);  // 50文字に制限
+      
+    timeContext.saveUserContext(message.author.id, simplifiedContent);
+    
+    if (config.DEBUG) {
+      logger.debug(`ユーザーコンテキスト保存: ${message.author.id}, トピック: ${simplifiedContent}`);
+    }
+  }
 
   const shouldRespond = await evaluateIntervention(message, client, isDM, isMentioned);
 
@@ -357,16 +376,51 @@ async function handleAIResponse(message, client, contextType) {
       // 続行 - タイピング表示は重要ではない
     }
     
+    // 表示名の取得
+    const displayName = userDisplay.getMessageAuthorDisplayName(message);
+    
+    // 時間帯に基づく挨拶の生成
+    const timeGreeting = timeContext.getTimeBasedGreeting();
+    
+    // 日付と時刻の生成
+    const dateTimeStr = timeContext.getFormattedDateTime(true);
+    
+    // ユーザーコンテキストからの継続性メッセージの生成
+    const continuityMsg = timeContext.generateContinuityMessage(message.author.id);
+    
     // AI応答用のコンテキスト準備
     const cleanContent = sanitizeMessage(message.content, contextType);
-    const contextPrompt = await buildContextPrompt(message, cleanContent, contextType);
+    
+    // パーソナライズされたプロンプトの作成
+    let personalizedPrefix = '';
+    
+    // タイムベースの挨拶を追加
+    personalizedPrefix += `${timeGreeting}、${displayName}さん。`;
+    
+    // 会話の継続性があれば追加
+    if (continuityMsg) {
+      personalizedPrefix += ` ${continuityMsg}`;
+    }
+    
+    // 時間情報を追加（オプション）
+    if (config.SHOW_DATETIME) {
+      personalizedPrefix += ` 今日は${dateTimeStr}です。`;
+    }
+    
+    // AI応答のためのコンテキストプロンプトを構築
+    const contextPrompt = await buildContextPrompt(message, cleanContent, contextType, personalizedPrefix);
 
+    // AI応答用コンテキスト構築
     const aiContext = {
       userId: message.author.id,
-      username: message.author.username,
+      username: displayName,  // 表示名を使用
       message: contextPrompt,
       contextType,
-      isDM // DMかどうかの情報を追加
+      isDM, // DMかどうかの情報を追加
+      displayName, // 表示名を追加
+      timeGreeting, // 時間帯の挨拶
+      dateTime: dateTimeStr, // 日付と時刻
+      continuityContext: continuityMsg // 会話継続コンテキスト
     };
 
     // レスポンス取得処理の堅牢化
@@ -513,17 +567,61 @@ function sanitizeMessage(content, contextType) {
   return content;
 }
 
-async function buildContextPrompt(message, content, contextType) {
-  if (contextType !== 'intervention') return content;
-
+/**
+ * コンテキストプロンプトを構築する
+ * @param {Object} message - Discordメッセージオブジェクト
+ * @param {string} content - メッセージ内容
+ * @param {string} contextType - コンテキストタイプ ('direct_message', 'mention', 'intervention')
+ * @param {string} personalizedPrefix - パーソナライズされた挨拶プレフィックス（オプション）
+ * @returns {Promise<string>} 構築されたプロンプト
+ */
+async function buildContextPrompt(message, content, contextType, personalizedPrefix = '') {
   try {
-    const recentMessages = messageHistory.getRecentMessages(message.channelId, 5) || [];
-    const lines = recentMessages.map(msg => `${msg.author?.username || 'ユーザー'}: ${msg.content}`);
-    lines.push(`${message.author?.username || 'ユーザー'}: ${content}`);
-
-    return `（以下は会話の文脈です。必要であれば自然に参加してください）\n\n${lines.join('\n')}\n\n自然な会話の流れに沿って返答してください。`;
+    // パーソナライズされたプレフィックスがあれば、DMや直接メンションの時に使用
+    if (personalizedPrefix && (contextType === 'direct_message' || contextType === 'mention')) {
+      // ユーザーの表示名を取得 (念のため)
+      const displayName = userDisplay.getMessageAuthorDisplayName(message);
+      
+      // プロンプトの先頭にパーソナライズされたプレフィックスを追加
+      let prompt = `${personalizedPrefix}\n\n`;
+      
+      // ユーザーメッセージを追加
+      prompt += `${displayName}さん: ${content}\n\n`;
+      
+      return prompt;
+    }
+    
+    // 文脈介入の場合は従来通りの処理
+    if (contextType === 'intervention') {
+      const recentMessages = messageHistory.getRecentMessages(message.channelId, 5) || [];
+      
+      // 表示名を使用して文脈メッセージを構築
+      const lines = recentMessages.map(msg => {
+        // メッセージのauthorがオブジェクトの場合（履歴からの取得）
+        if (typeof msg.author === 'object') {
+          const authorName = msg.author?.username || 'ユーザー';
+          return `${authorName}: ${msg.content}`;
+        } else {
+          // 文字列の場合
+          return `${msg.author || 'ユーザー'}: ${msg.content}`;
+        }
+      });
+      
+      // 現在のメッセージを追加
+      const authorDisplayName = userDisplay.getMessageAuthorDisplayName(message);
+      lines.push(`${authorDisplayName}: ${content}`);
+      
+      return `（以下は会話の文脈です。必要であれば自然に参加してください）\n\n${lines.join('\n')}\n\n自然な会話の流れに沿って返答してください。`;
+    }
+    
+    // それ以外の場合は単純にコンテンツを返す
+    return content;
   } catch (error) {
     logger.error('文脈プロンプト生成エラー:', error);
+    // エラーの場合、パーソナライズされたプレフィックスがあればそれを追加
+    if (personalizedPrefix) {
+      return `${personalizedPrefix}\n\n${content}`;
+    }
     return content;
   }
 }
