@@ -17,10 +17,6 @@ const syncUtil = require('./local-sync-utility');
 // ロガーを初期化
 const logger = syncUtil.safeRequire('./system/logger', syncUtil.createSimpleLogger());
 
-// Discordの基本要素を読み込み
-const { Client, GatewayIntentBits, Events, Partials, ActivityType } = require('discord.js');
-const { handleMessage } = require('./handlers/message-handler');
-
 // 設定を読み込み
 const config = syncUtil.safeRequire('./config/env', {
   INTERVENTION_MODE: process.env.INTERVENTION_MODE || 'balanced',
@@ -39,6 +35,13 @@ logger.info(`Discord.js Version: ${require('discord.js').version}`);
 logger.info(`Context intervention mode: ${config.INTERVENTION_MODE || 'balanced'}`);
 logger.info(`Running environment: ${syncUtil.isRailwayEnvironment ? 'Railway' : 'Local'}`);
 logger.info(`Application root: ${syncUtil.appRoot}`);
+
+// 検索API機能の状態確認
+if (config.BRAVE_API_KEY) {
+  logger.info(`Brave Search API is configured (key: ${config.BRAVE_API_KEY.substring(0, 3)}...)`);
+} else {
+  logger.warn('Brave Search API is not configured - search functionality will be disabled');
+}
 
 // ヘルスチェックサーバーを起動
 try {
@@ -172,67 +175,13 @@ if (process.env.RAG_ENABLED === 'true') {
 
 // Discordクライアントをセットアップして起動
 logger.info('Setting up Discord client...');
-
-// *** インライン実装 - discord-init.js の内部コード ***
-function setupClient() {
-  try {
-    // Discordクライアントを初期化
-    const client = new Client({
-      intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.DirectMessages,
-        GatewayIntentBits.DirectMessageReactions
-      ],
-      partials: [
-        Partials.Channel,  // DMチャンネル用
-        Partials.Message,  // DMメッセージ用
-        Partials.User      // DMユーザー用
-      ]
-    });
-
-    // Ready Event
-    client.once(Events.ClientReady, (readyClient) => {
-      logger.info(`Ready! Logged in as ${readyClient.user.tag}`);
-      logger.info(`Bot ID: ${readyClient.user.id}`);
-      
-      // ステータス設定
-      client.user.setActivity('森の奥で静かに待機中 🌿', { type: ActivityType.Playing });
-    });
-
-    // Message Event
-    client.on(Events.MessageCreate, async (message) => {
-      try {
-        await handleMessage(message, client);
-      } catch (error) {
-        logger.error('Message event error:', error);
-      }
-    });
-
-    // Error Handling
-    client.on('error', (error) => {
-      logger.error('Discord.js error:', error);
-    });
-
-    // Login
-    client.login(process.env.DISCORD_TOKEN)
-      .then(() => {
-        logger.info('Bot login successful');
-      })
-      .catch(err => {
-        logger.error('Bot login failed:', err);
-      });
-
-    return client;
-  } catch (error) {
-    logger.error('Failed to setup Discord client:', error);
-    process.exit(1); // 致命的なエラーのため終了
+const { setupClient } = syncUtil.safeRequire('./core/discord-init', {
+  setupClient: () => {
+    logger.error('Critical error: Discord client setup module not found');
+    process.exit(1); // ここだけは致命的なため終了
+    return null;
   }
-}
-
-// クライアントの初期化
+});
 const client = setupClient();
 
 // 未処理の例外ハンドラ
