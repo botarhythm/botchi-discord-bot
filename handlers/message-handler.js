@@ -35,10 +35,41 @@ function initializeAIService() {
       });
     } else {
       // レガシーシステムの使用
-      if (config.AI_PROVIDER === 'openai') {
-        return syncUtil.safeRequire('../openai-service');
-      } else {
-        return syncUtil.safeRequire('../gemini-service');
+      try {
+        let service = null;
+        if (config.AI_PROVIDER === 'openai') {
+          service = syncUtil.safeRequire('../openai-service');
+        } else {
+          service = syncUtil.safeRequire('../gemini-service');
+        }
+        
+        // 読み込んだサービスがAPI関数を持っているか確認
+        if (service && typeof service.getAIResponse === 'function') {
+          // レガシーインターフェースのラッパー作成
+          logger.debug(`AIサービスをロード: ${config.AI_PROVIDER} (レガシーインターフェース対応)`);
+          return {
+            ...service,
+            getResponse: async (context) => {
+              // contextオブジェクトをレガシーパラメータに変換
+              const userId = context.userId || 'unknown';
+              const username = context.username || 'User';
+              const message = context.message || '';
+              const isDM = context.isDM || context.contextType === 'direct_message';
+              
+              // レガシーメソッドを呼び出し
+              return await service.getAIResponse(userId, message, username, isDM);
+            }
+          };
+        }
+        
+        return service;
+      } catch (error) {
+        logger.error(`レガシーAIサービスロードエラー: ${error.message}`, error);
+        // フォールバックオブジェクト
+        return {
+          getResponse: async () => 'AIサービスが正しく初期化されませんでした。',
+          isConfigured: () => false
+        };
       }
     }
   } catch (error) {
