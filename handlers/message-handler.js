@@ -55,57 +55,34 @@ function initializeAIService() {
 }
 
 async function handleMessage(message, client) {
-  try {
-    if (!validateParameters(message, client)) return;
-    if (message.author?.bot) return;
+  if (!validateParameters(message, client)) return;
+  if (message.author?.bot) return;
 
-    // 拡張ログ: メッセージ受信の詳細情報
-    const channelType = message.channel?.type;
-    const content = message.content || '[empty]';
-    
-    if (config.DEBUG) {
-      logger.debug(`Message received - Content: "${content}"`);
-      logger.debug(`From User: ${message.author.tag} (ID: ${message.author.id})`);
-      logger.debug(`Channel Type: ${channelType}`);
-      logger.debug(`Is Channel DM: ${channelType === ChannelType.DM}`);
-      logger.debug(`Channel ID: ${message.channel?.id}`);
-    } else {
-      logger.info(`Message from ${message.author.tag}: "${content.slice(0, 50)}${content.length > 50 ? '...' : ''}"`);
-    }
+  logIncomingMessage(message);
 
-    // DM検出の拡張 - Discord.js v14との互換性確保
-    // ChannelType.DMは1であることを確認
-    const isDM = channelType === ChannelType.DM || channelType === 1;
-    const isMentioned = message.mentions?.has?.(client.user?.id);
+  // チャンネルタイプの判定を統一（数値型と文字列型の両方をチェック）
+  const channelType = typeof message.channel?.type === 'number' ? message.channel.type : 
+                     (message.channel?.type === 'DM' ? 1 : 0);
+  const isDM = channelType === 1 || message.channel?.type === 'DM';
+  
+  // デバッグログの追加
+  if (config.DEBUG) {
+    logger.debug(`メッセージチャンネルタイプ: ${message.channel?.type} (${typeof message.channel?.type})`);
+    logger.debug(`計算されたチャンネルタイプ: ${channelType}`);
+    logger.debug(`DMチャンネル判定: ${isDM}`);
+  }
+  
+  const isMentioned = message.mentions?.has?.(client.user?.id);
 
-    if (isDM && config.DEBUG) {
-      logger.debug('DMメッセージを検出しました！');
-    }
+  if (await handleCommandIfPresent(message, client)) return;
 
-    if (await handleCommandIfPresent(message, client)) return;
+  await saveMessageToHistory(message);
 
-    await saveMessageToHistory(message);
+  const shouldRespond = await evaluateIntervention(message, client, isDM, isMentioned);
 
-    // DMまたはメンションの場合は常に応答
-    if (isDM || isMentioned) {
-      if (config.DEBUG) {
-        logger.debug(`応答トリガー: ${isDM ? 'DM' : 'メンション'}`);
-      }
-      const contextType = isDM ? 'direct_message' : 'mention';
-      await handleAIResponse(message, client, contextType);
-      return;
-    }
-
-    // それ以外の場合は通常の介入判断
-    const shouldIntervene = await evaluateIntervention(message, client, false, false);
-    if (shouldIntervene) {
-      await handleAIResponse(message, client, 'intervention');
-    }
-  } catch (error) {
-    logger.error('メッセージ処理中の未処理エラー:', error);
-    if (config.DEBUG) {
-      logger.debug(`エラー詳細: ${error.stack || '詳細なし'}`);
-    }
+  if (shouldRespond) {
+    const contextType = isDM ? 'direct_message' : (isMentioned ? 'mention' : 'intervention');
+    await handleAIResponse(message, client, contextType);
   }
 }
 
@@ -149,7 +126,16 @@ async function handleCommandIfPresent(message, client) {
 }
 
 async function saveMessageToHistory(message) {
-  if (message.channel?.type !== ChannelType.GuildText || !messageHistory?.addMessageToHistory) return;
+  // チャンネルタイプの判定を統一
+  const channelType = typeof message.channel?.type === 'number' ? message.channel.type : 
+                     (message.channel?.type === 'DM' ? 1 : 0);
+  const isDM = channelType === 1 || message.channel?.type === 'DM';
+  
+  // DMチャンネルの場合は履歴に保存しない
+  if (isDM || !messageHistory?.addMessageToHistory) return;
+  
+  // GuildTextチャンネルかもチェック（数値と文字列の両方に対応）
+  if (channelType !== 0 && message.channel?.type !== 'GUILD_TEXT') return;
 
   try {
     const entry = {
@@ -206,11 +192,22 @@ async function evaluateIntervention(message, client, isDM, isMentioned) {
 
 async function handleAIResponse(message, client, contextType) {
   try {
+    // チャンネルタイプの判定を統一
+    const channelType = typeof message.channel?.type === 'number' ? message.channel.type : 
+                       (message.channel?.type === 'DM' ? 1 : 0);
+    const isDM = channelType === 1 || message.channel?.type === 'DM';
+    
     if (config.DEBUG) {
-      logger.debug(`AI応答処理開始: ${contextType}`);
+      logger.debug(`AI応答処理: チャンネルタイプ=${message.channel?.type}, channelType=${channelType}, isDM=${isDM}`);
     }
     
-    await message.channel.sendTyping();
+    try {
+      await message.channel.sendTyping();
+    } catch (typingError) {
+      logger.debug('タイピング状態の設定に失敗しました:', typingError);
+      // 続行 - タイピング表示は重要ではない
+    }
+    
     const cleanContent = sanitizeMessage(message.content, contextType);
     const contextPrompt = await buildContextPrompt(message, cleanContent, contextType);
 
@@ -218,7 +215,8 @@ async function handleAIResponse(message, client, contextType) {
       userId: message.author.id,
       username: message.author.username,
       message: contextPrompt,
-      contextType
+      contextType,
+      isDM // DMかどうかの情報を追加
     };
 
     // レスポンス取得処理の堅牢化
@@ -241,7 +239,7 @@ async function handleAIResponse(message, client, contextType) {
               aiContext.userId,
               aiContext.message,
               aiContext.username,
-              contextType === 'direct_message'
+              isDM // 直接isDMを渡す
             );
           } else if (typeof aiService.getResponse === 'function') {
             // フォールバック: プロバイダーマネージャー自体のgetResponseを使用
@@ -259,9 +257,6 @@ async function handleAIResponse(message, client, contextType) {
         }
       } else {
         // レガシーシステムの場合
-        if (config.DEBUG) {
-          logger.debug('レガシーAIシステムを使用');
-        }
         response = await aiService.getResponse(aiContext);
       }
     } catch (aiError) {
@@ -271,12 +266,35 @@ async function handleAIResponse(message, client, contextType) {
 
     if (!response) throw new Error('AI応答がありません（空の応答）');
 
-    if (config.DEBUG) {
-      logger.debug(`AI応答取得成功: ${response.length}文字`);
-    }
-
+    // DMチャンネルとサーバーチャンネルで異なる応答処理
     const replies = splitMessage(response);
-    for (const chunk of replies) await message.reply(chunk);
+    
+    if (isDM) {
+      // DMの場合はchannnel.sendを使用
+      try {
+        for (const chunk of replies) {
+          await message.channel.send(chunk);
+        }
+        logger.debug('DMに応答を送信しました');
+      } catch (dmError) {
+        logger.error('DMでの応答送信エラー:', dmError);
+        // フォールバックとしてreplyを試す
+        try {
+          await message.channel.send('DMへの応答に問題が発生しました。通常の返信で試します...');
+          for (const chunk of replies) {
+            await message.reply(chunk);
+          }
+        } catch (fallbackError) {
+          logger.error('フォールバック応答も失敗:', fallbackError);
+          throw new Error('DMおよびフォールバックでの応答が失敗しました');
+        }
+      }
+    } else {
+      // 通常チャンネルでは従来通りreplyを使用
+      for (const chunk of replies) {
+        await message.reply(chunk);
+      }
+    }
 
     // 全ての応答パターンでメッセージ時間を更新する（DMでなくても）
     messageHistory?.updateLastBotMessageTime?.(message.channelId, client.user?.id);
@@ -293,7 +311,18 @@ async function handleAIResponse(message, client, contextType) {
     }
     
     try {
-      await message.reply('応答の生成中にエラーが発生しました。しばらく経ってからお試しください。');
+      // チャンネルタイプの判定を再度行う
+      const channelType = typeof message.channel?.type === 'number' ? message.channel.type : 
+                         (message.channel?.type === 'DM' ? 1 : 0);
+      const isDM = channelType === 1 || message.channel?.type === 'DM';
+      
+      if (isDM) {
+        // DMではchannel.sendを使用
+        await message.channel.send('応答の生成中にエラーが発生しました。しばらく経ってからお試しください。');
+      } else {
+        // 通常チャンネルではreplyを使用
+        await message.reply('応答の生成中にエラーが発生しました。しばらく経ってからお試しください。');
+      }
     } catch (e) {
       logger.error('エラーメッセージ送信失敗:', e);
     }
