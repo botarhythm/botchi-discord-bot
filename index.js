@@ -17,6 +17,10 @@ const syncUtil = require('./local-sync-utility');
 // ロガーを初期化
 const logger = syncUtil.safeRequire('./system/logger', syncUtil.createSimpleLogger());
 
+// Discordの基本要素を読み込み
+const { Client, GatewayIntentBits, Events, Partials, ActivityType } = require('discord.js');
+const { handleMessage } = require('./handlers/message-handler');
+
 // 設定を読み込み
 const config = syncUtil.safeRequire('./config/env', {
   INTERVENTION_MODE: process.env.INTERVENTION_MODE || 'balanced',
@@ -111,15 +115,124 @@ if (config.MEMORY_ENABLED === true) {
   };
 }
 
+// RAGシステムの初期化（ナレッジベースと埋め込み検索）
+if (process.env.RAG_ENABLED === 'true') {
+  logger.info('RAG system enabled, initializing...');
+  const ragSystem = syncUtil.safeRequire('./extensions/rag', {
+    initialize: () => Promise.resolve({ success: false, message: 'RAG module not loaded' }),
+    checkHealth: () => Promise.resolve({ status: 'unhealthy', message: 'RAG module not loaded' }),
+    search: () => Promise.resolve([]),
+    addToKnowledgeBase: () => Promise.resolve({ success: false }),
+    generateContextForPrompt: () => Promise.resolve('')
+  });
+  
+  // グローバル変数として保存し、他のモジュールからアクセス可能に
+  global.botchiRAG = ragSystem;
+  
+  // RAGシステムを初期化
+  if (typeof ragSystem.initialize === 'function') {
+    ragSystem.initialize()
+      .then(result => {
+        if (result.success) {
+          logger.info('RAG system initialized successfully');
+          
+          // RAGシステムの健全性を確認
+          return ragSystem.checkHealth();
+        } else {
+          throw new Error(result.message || 'Unknown error during RAG initialization');
+        }
+      })
+      .then(health => {
+        if (health && health.status === 'healthy') {
+          logger.info(`RAG system health check passed: ${health.message || 'OK'}`);
+        } else {
+          logger.warn(`RAG system health check warning: ${health.message || 'Unknown issue'}`);
+        }
+      })
+      .catch(err => {
+        logger.error('Failed to initialize RAG system:', err);
+        logger.warn('Continuing with limited RAG functionality');
+      });
+  } else {
+    logger.warn('RAG system has no initialize method, functionality will be limited');
+  }
+} else {
+  logger.info('RAG system is disabled');
+  
+  // 無効でも安全に動作するようにフォールバックモジュールをグローバル変数にセット
+  global.botchiRAG = {
+    initialize: () => Promise.resolve({ success: false, message: 'RAG system is disabled' }),
+    checkHealth: () => Promise.resolve({ status: 'disabled', message: 'RAG system is disabled' }),
+    search: () => Promise.resolve([]),
+    addToKnowledgeBase: () => Promise.resolve({ success: false }),
+    generateContextForPrompt: () => Promise.resolve(''),
+    isInitialized: () => false
+  };
+}
+
 // Discordクライアントをセットアップして起動
 logger.info('Setting up Discord client...');
-const { setupClient } = syncUtil.safeRequire('./core/discord-init', {
-  setupClient: () => {
-    logger.error('Critical error: Discord client setup module not found');
-    process.exit(1); // ここだけは致命的なため終了
-    return null;
+
+// *** インライン実装 - discord-init.js の内部コード ***
+function setupClient() {
+  try {
+    // Discordクライアントを初期化
+    const client = new Client({
+      intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.DirectMessageReactions
+      ],
+      partials: [
+        Partials.Channel,  // DMチャンネル用
+        Partials.Message,  // DMメッセージ用
+        Partials.User      // DMユーザー用
+      ]
+    });
+
+    // Ready Event
+    client.once(Events.ClientReady, (readyClient) => {
+      logger.info(`Ready! Logged in as ${readyClient.user.tag}`);
+      logger.info(`Bot ID: ${readyClient.user.id}`);
+      
+      // ステータス設定
+      client.user.setActivity('森の奥で静かに待機中 🌿', { type: ActivityType.Playing });
+    });
+
+    // Message Event
+    client.on(Events.MessageCreate, async (message) => {
+      try {
+        await handleMessage(message, client);
+      } catch (error) {
+        logger.error('Message event error:', error);
+      }
+    });
+
+    // Error Handling
+    client.on('error', (error) => {
+      logger.error('Discord.js error:', error);
+    });
+
+    // Login
+    client.login(process.env.DISCORD_TOKEN)
+      .then(() => {
+        logger.info('Bot login successful');
+      })
+      .catch(err => {
+        logger.error('Bot login failed:', err);
+      });
+
+    return client;
+  } catch (error) {
+    logger.error('Failed to setup Discord client:', error);
+    process.exit(1); // 致命的なエラーのため終了
   }
-});
+}
+
+// クライアントの初期化
 const client = setupClient();
 
 // 未処理の例外ハンドラ
