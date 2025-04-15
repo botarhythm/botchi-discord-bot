@@ -472,6 +472,21 @@ async function handleAIResponse(message, client, contextType) {
     }
 
     if (!response) throw new Error('AI応答がありません（空の応答）');
+    
+    // 日付のハルシネーション修正 - レスポンス後処理
+    try {
+      const correctDateTime = timeContext.getFormattedDateTime(true);
+      // 間違った日付パターンを検出して修正する
+      // 例：「2025年4月14日」や「2025年4月16日」などの誤った日付を検出
+      response = postProcessResponseDates(response, correctDateTime);
+      
+      if (config.DEBUG) {
+        logger.debug(`日付後処理適用後のレスポンス長: ${response.length}文字`);
+      }
+    } catch (postProcessError) {
+      logger.error(`日付後処理エラー: ${postProcessError.message}`, postProcessError);
+      // エラー時は元のレスポンスを使用（処理を継続）
+    }
 
     // DMチャンネルとサーバーチャンネルで異なる応答処理
     const replies = splitMessage(response);
@@ -591,8 +606,12 @@ async function buildContextPrompt(message, content, contextType, personalizedPre
       // ユーザーメッセージを追加（名前は付けない - より自然な会話に）
       prompt += `${content}\n\n`;
       
-      // システム指示を追加（AIモデル向け）
+      // システム指示を追加（AIモデル向け）- 日付のハルシネーション防止指示を追加
       prompt += `${displayName}さんとの会話です。文脈に応じて自然な形で対応し、必要に応じて適切なタイミングでのみ名前を使用してください。\n`;
+      
+      // 日付のハルシネーション防止のための明示的な指示を追加
+      const dateTimeStr = timeContext.getFormattedDateTime(true);
+      prompt += `重要: 現在の正確な日付と時刻は「${dateTimeStr}」です。この日付と時刻を使用し、別の日付を自分で生成しないでください。回答に日付/時刻を含める場合は、必ずこの正確な情報を使用してください。\n`;
       
       return prompt;
     }
@@ -642,6 +661,85 @@ function splitMessage(text, maxLength = 2000) {
   }
   if (remaining.length > 0) chunks.push(remaining);
   return chunks;
+}
+
+/**
+ * 日付のハルシネーション修正 - レスポンスの後処理を行う
+ * AIが誤った日付を生成した場合、正しい日付に置き換える
+ * @param {string} response - AIからの応答テキスト
+ * @param {string} correctDateTime - 正しい日付時刻文字列（「2025年4月15日（火曜日）、15時30分」形式）
+ * @returns {string} 修正後のテキスト
+ */
+function postProcessResponseDates(response, correctDateTime) {
+  if (!response) return response;
+  
+  try {
+    // 正規表現で日付パターンを検出
+    // 年月日のパターン (例: 2025年4月14日、2025年4月16日など)
+    const datePattern = /20\d{2}年\d{1,2}月\d{1,2}日/g;
+    
+    // 現在の正しい日付情報を取得
+    const currentYearMatch = correctDateTime.match(/(\d{4})年/);
+    const currentMonthMatch = correctDateTime.match(/(\d{1,2})月/);
+    const currentDayMatch = correctDateTime.match(/(\d{1,2})日/);
+    const currentDayOfWeekMatch = correctDateTime.match(/（([^）]+)）/);
+    
+    if (!currentYearMatch || !currentMonthMatch || !currentDayMatch) {
+      // 正しい日付の解析に失敗した場合、元のレスポンスを返す
+      logger.error('正しい日付情報の解析に失敗しました');
+      return response;
+    }
+    
+    const currentYear = currentYearMatch[1];
+    const currentMonth = currentMonthMatch[1];
+    const currentDay = currentDayMatch[1];
+    const currentDayOfWeek = currentDayOfWeekMatch ? currentDayOfWeekMatch[1] : '';
+    
+    // 日付部分を置換する
+    let modifiedResponse = response;
+    
+    // 誤った日付を検出して置換
+    const incorrectDates = response.match(datePattern);
+    if (incorrectDates) {
+      // ログ出力
+      if (config.DEBUG) {
+        logger.debug(`検出された日付パターン: ${JSON.stringify(incorrectDates)}`);
+      }
+      
+      // 正しい日付と異なる日付のみ置換する
+      const correctDateShort = `${currentYear}年${currentMonth}月${currentDay}日`;
+      incorrectDates.forEach(incorrectDate => {
+        if (incorrectDate !== correctDateShort) {
+          // 誤った日付と確認できた場合のみ置換
+          modifiedResponse = modifiedResponse.replace(incorrectDate, correctDateShort);
+          if (config.DEBUG) {
+            logger.debug(`日付置換: "${incorrectDate}" → "${correctDateShort}"`);
+          }
+        }
+      });
+    }
+    
+    // 曜日パターンも置換（単独で出現する場合）
+    const dayOfWeekPattern = /（(月|火|水|木|金|土|日)曜日）/g;
+    const incorrectDaysOfWeek = modifiedResponse.match(dayOfWeekPattern);
+    if (incorrectDaysOfWeek && currentDayOfWeek) {
+      incorrectDaysOfWeek.forEach(incorrectDayOfWeek => {
+        const correctDayOfWeekFull = `（${currentDayOfWeek}）`;
+        if (incorrectDayOfWeek !== correctDayOfWeekFull) {
+          modifiedResponse = modifiedResponse.replace(incorrectDayOfWeek, correctDayOfWeekFull);
+          if (config.DEBUG) {
+            logger.debug(`曜日置換: "${incorrectDayOfWeek}" → "${correctDayOfWeekFull}"`);
+          }
+        }
+      });
+    }
+    
+    return modifiedResponse;
+  } catch (error) {
+    logger.error(`日付後処理エラー: ${error.message}`, error);
+    // エラーが発生した場合は元のレスポンスを返す
+    return response;
+  }
 }
 
 module.exports = { handleMessage };
