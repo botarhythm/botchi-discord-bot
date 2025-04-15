@@ -18,6 +18,13 @@ const DM_MESSAGE_HANDLER = process.env.DM_MESSAGE_HANDLER || 'legacy';
 // メモリシステム設定
 const MEMORY_ENABLED = process.env.MEMORY_ENABLED === 'true';
 
+// RAGシステム設定
+const RAG_ENABLED = process.env.RAG_ENABLED === 'true';
+
+// 検索API設定
+const BRAVE_API_KEY = process.env.BRAVE_SEARCH_API_KEY || process.env.BRAVE_API_KEY;
+const SEARCH_ENABLED = !!BRAVE_API_KEY;
+
 // デバッグモード
 const DEBUG = process.env.DEBUG === 'true';
 
@@ -54,5 +61,12 @@ module.exports = {
   PREFIX,
   
   // メモリシステム設定
-  MEMORY_ENABLED
+  MEMORY_ENABLED,
+  
+  // RAGシステム設定
+  RAG_ENABLED,
+  
+  // 検索API設定
+  BRAVE_API_KEY,
+  SEARCH_ENABLED
 };
