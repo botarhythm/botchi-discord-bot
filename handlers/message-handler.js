@@ -12,10 +12,6 @@ const logger = require('../system/logger');
 const config = require('../config/env');
 const syncUtil = require('../local-sync-utility');
 
-// ユーティリティをインポート
-const userDisplay = require('../core/utils/user-display');
-const timeContext = require('../core/utils/time-context');
-
 // AIサービスの初期化
 const aiService = initializeAIService();
 
@@ -126,21 +122,6 @@ async function handleMessage(message, client) {
 
   await saveMessageToHistory(message);
 
-  // ユーザーコンテキストの保存 - メッセージの内容をトピックとして保存
-  // 実際のプロダクションでは、意味解析などで要約したキーワードを使用すると良い
-  if (message.author?.id && message.content) {
-    // 簡易的なメッセージ要約 - 長さ制限と非ASCII文字の除去
-    const simplifiedContent = message.content
-      .replace(/[^\x00-\x7F]/g, '') // 非ASCII文字除去
-      .trim().slice(0, 50);  // 50文字に制限
-      
-    timeContext.saveUserContext(message.author.id, simplifiedContent);
-    
-    if (config.DEBUG) {
-      logger.debug(`ユーザーコンテキスト保存: ${message.author.id}, トピック: ${simplifiedContent}`);
-    }
-  }
-
   const shouldRespond = await evaluateIntervention(message, client, isDM, isMentioned);
 
   if (shouldRespond) {
@@ -196,12 +177,8 @@ async function saveMessageToHistory(message) {
   const isDMByString = message.channel?.type === 'DM';
   const isDM = isDMByInstance || isDMByEnum || isDMByValue || isDMByString;
   
-  // DMチャンネルの場合は履歴に保存しない（一時的な履歴システムのみ）
-  if (isDM || !messageHistory?.addMessageToHistory) {
-    // DMの場合でも永続メモリシステムには保存する
-    await saveToMemorySystem(message, isDM);
-    return;
-  }
+  // DMチャンネルの場合は履歴に保存しない
+  if (isDM || !messageHistory?.addMessageToHistory) return;
   
   // GuildTextチャンネルかもチェック（数値と文字列の両方に対応）
   // Discord.js v14では ChannelType.GuildText を使う
@@ -209,15 +186,10 @@ async function saveMessageToHistory(message) {
                      message.channel?.type === 0 || 
                      message.channel?.type === 'GUILD_TEXT';
                      
-  // GuildTextチャンネル以外は処理しない（一時的な履歴システムのみ）
-  if (!isGuildText) {
-    // 永続メモリシステムには保存する
-    await saveToMemorySystem(message, isDM);
-    return;
-  }
+  // GuildTextチャンネル以外は処理しない
+  if (!isGuildText) return;
 
   try {
-    // 一時的な履歴システムに保存
     const entry = {
       id: message.id,
       content: message.content || '',
@@ -230,74 +202,8 @@ async function saveMessageToHistory(message) {
     };
     messageHistory.addMessageToHistory(message.channelId, entry);
     if (config.DEBUG) logger.debug(`Message saved to history: ${message.channelId}`);
-    
-    // 永続メモリシステムにも保存
-    await saveToMemorySystem(message, isDM);
   } catch (error) {
     logger.error(`履歴保存エラー: ${error.message}`, error);
-  }
-}
-
-/**
- * メッセージを永続メモリシステムに保存する
- * @param {Object} message - Discord.jsのメッセージオブジェクト
- * @param {boolean} isDM - DMチャンネルかどうか
- * @returns {Promise<Object|null>} 保存された会話コンテキスト、または失敗した場合はnull
- */
-async function saveToMemorySystem(message, isDM) {
-  // メモリシステムが有効かつロードされている場合、メッセージを永続化
-  const memoryEnabled = config.MEMORY_ENABLED;
-  if (!memoryEnabled) return null;
-  
-  try {
-    // グローバル変数からメモリシステムを取得
-    const memorySystem = global.botchiMemory || require('../extensions/memory');
-    
-    if (!memorySystem || !memorySystem.manager) {
-      if (config.DEBUG) logger.debug('メモリシステムが初期化されていません');
-      return null;
-    }
-    
-    const userInfo = {
-      userId: message.author?.id,
-      channelId: message.channelId,
-      guildId: message.guildId
-    };
-    
-    // システムメッセージが指定されている場合は追加
-    if (message.systemMessage) {
-      userInfo.systemMessage = message.systemMessage;
-    }
-    
-    // 会話コンテキストを取得または作成
-    const conversationContext = await memorySystem.manager.getOrCreateConversationContext(userInfo);
-    
-    // メッセージをメモリシステムに追加
-    await memorySystem.manager.addMessageToConversation(
-      conversationContext.conversationId,
-      'user',
-      message.content || '',
-      {
-        messageId: message.id,
-        timestamp: message.createdTimestamp || Date.now(),
-        isDM: isDM
-      }
-    );
-    
-    if (config.DEBUG) {
-      logger.debug(`Message saved to memory system: user ${message.author?.id}, conversation ${conversationContext.conversationId}`);
-    }
-    
-    // 成功した場合は会話コンテキストを返す
-    return conversationContext;
-  } catch (error) {
-    logger.error(`メモリシステム保存エラー: ${error.message}`, error);
-    // エラーの詳細をデバッグ出力
-    if (config.DEBUG) {
-      logger.debug(`保存エラー詳細: ${error.stack || 'スタック情報なし'}`);
-    }
-    // エラー時も既存の処理は継続（フォールバックとして）
-    return null;
   }
 }
 
@@ -351,65 +257,28 @@ async function safeSendDM(message, content, useFallback = true) {
   
   if (config.DEBUG) {
     logger.debug(`DM送信試行: ${content.slice(0, 30)}...`);
-    // 診断用情報を追加
-    logger.debug(`DM診断: message.author=${!!message.author}, message.channel=${!!message.channel}`);
-    if (message.author) {
-      logger.debug(`DM診断: author.id=${message.author.id}, author.send=${typeof message.author.send}`);
-    }
-    if (message.channel) {
-      logger.debug(`DM診断: channel.id=${message.channel.id}, channel.send=${typeof message.channel.send}`);
-    }
   }
   
   try {
     // 方法1: author.send() による直接送信
     if (message.author && typeof message.author.send === 'function') {
-      try {
-        await message.author.send(content);
-        logger.debug('DMをauthor.send()で送信成功');
-        return true;
-      } catch (authorError) {
-        logger.warn(`author.send()失敗: ${authorError.message}`);
-        // 詳細なエラー情報をデバッグモードで記録
-        if (config.DEBUG) {
-          logger.debug(`author.send()エラー詳細: ${authorError.code || 'コードなし'}, ${authorError.name}`);
-          logger.debug(`author.send()スタック: ${authorError.stack?.slice(0, 200) || 'なし'}`);
-        }
-        // 次の方法にフォールバック
-      }
+      await message.author.send(content);
+      logger.debug('DMをauthor.send()で送信成功');
+      return true;
     }
     
     // 方法2: channel.send() によるチャンネル経由送信
     if (message.channel && typeof message.channel.send === 'function') {
-      try {
-        await message.channel.send(content);
-        logger.debug('DMをchannel.send()で送信成功');
-        return true;
-      } catch (channelError) {
-        logger.warn(`channel.send()失敗: ${channelError.message}`);
-        // 詳細なエラー情報をデバッグモードで記録
-        if (config.DEBUG) {
-          logger.debug(`channel.send()エラー詳細: ${channelError.code || 'コードなし'}, ${channelError.name}`);
-          logger.debug(`channel.send()スタック: ${channelError.stack?.slice(0, 200) || 'なし'}`);
-        }
-        // 次の方法にフォールバック
-      }
+      await message.channel.send(content);
+      logger.debug('DMをchannel.send()で送信成功');
+      return true;
     }
     
     // 方法3: reply() によるフォールバック送信（最終手段）
     if (useFallback && typeof message.reply === 'function') {
-      try {
-        await message.reply(content);
-        logger.debug('DMをreply()でフォールバック送信成功');
-        return true;
-      } catch (replyError) {
-        logger.error(`reply()によるフォールバック送信も失敗: ${replyError.message}`);
-        if (config.DEBUG) {
-          logger.debug(`reply()エラー詳細: ${replyError.code || 'コードなし'}, ${replyError.name}`);
-          logger.debug(`reply()スタック: ${replyError.stack?.slice(0, 200) || 'なし'}`);
-        }
-        return false;
-      }
+      await message.reply(content);
+      logger.debug('DMをreply()でフォールバック送信成功');
+      return true;
     }
     
     // すべての方法が失敗した場合
@@ -420,8 +289,7 @@ async function safeSendDM(message, content, useFallback = true) {
     
     // エラー詳細をデバッグログに出力
     if (config.DEBUG) {
-      logger.debug(`DM送信エラー詳細: ${error.code || 'コードなし'}, ${error.name}`);
-      logger.debug(`DM送信スタック: ${error.stack?.slice(0, 200) || 'なし'}`);
+      logger.debug(`DM送信エラー詳細: ${error.stack || '詳細なし'}`);
     }
     
     // フォールバックが有効な場合は別の方法を試す
@@ -432,9 +300,6 @@ async function safeSendDM(message, content, useFallback = true) {
         return true;
       } catch (fallbackError) {
         logger.error(`フォールバックDM送信も失敗: ${fallbackError.message}`);
-        if (config.DEBUG) {
-          logger.debug(`フォールバックエラー詳細: ${fallbackError.code || 'コードなし'}, ${fallbackError.name}`);
-        }
         return false;
       }
     }
@@ -492,55 +357,187 @@ async function handleAIResponse(message, client, contextType) {
       // 続行 - タイピング表示は重要ではない
     }
     
-    // 表示名の取得
-    const displayName = userDisplay.getMessageAuthorDisplayName(message);
-    
-    // 時間帯に基づく挨拶の生成
-    const timeGreeting = timeContext.getTimeBasedGreeting();
-    
-    // 日付と時刻の生成
-    const dateTimeStr = timeContext.getFormattedDateTime(true);
-    
-    // ユーザーコンテキストからの継続性メッセージの生成
-    const continuityMsg = timeContext.generateContinuityMessage(message.author.id);
-    
     // AI応答用のコンテキスト準備
     const cleanContent = sanitizeMessage(message.content, contextType);
-    
-    // パーソナライズされたプロンプトを作成（自然な会話をAIモデルに促す）
-    let personalizedPrefix = '';
-    
-    // タイムベースの挨拶を追加（名前は控えめに）
-    personalizedPrefix += `${timeGreeting}。`;
-    
-    // 会話の継続性があれば追加
-    if (continuityMsg) {
-      personalizedPrefix += ` ${continuityMsg}`;
-    }
-    
-    // 時間情報を追加（オプション）
-    if (config.SHOW_DATETIME) {
-      personalizedPrefix += ` 今日は${dateTimeStr}です。`;
-    }
-    
-    // ユーザー名は表示しないがコンテキストには含める
-    // AIモデルがユーザー名を必要に応じて自然に使えるように
-    
-    // AI応答のためのコンテキストプロンプトを構築
-    const contextPrompt = await buildContextPrompt(message, cleanContent, contextType, personalizedPrefix);
+    const contextPrompt = await buildContextPrompt(message, cleanContent, contextType);
 
-    // AI応答用コンテキスト構築
     const aiContext = {
       userId: message.author.id,
-      username: displayName,  // 表示名を使用
+      username: message.author.username,
       message: contextPrompt,
       contextType,
-      isDM, // DMかどうかの情報を追加
-      displayName, // 表示名を追加
-      timeGreeting, // 時間帯の挨拶
-      dateTime: dateTimeStr, // 日付と時刻
-      continuityContext: continuityMsg // 会話継続コンテキスト
+      isDM // DMかどうかの情報を追加
     };
 
     // レスポンス取得処理の堅牢化
     let response;
+    
+    try {
+      // 新プロバイダーシステムのチェック
+      if (config.DM_MESSAGE_HANDLER === 'new' && aiService.getProvider) {
+        const provider = aiService.getProvider();
+        if (provider) {
+          if (config.DEBUG) {
+            logger.debug(`プロバイダー ${aiService.getProviderName?.() || 'unknown'} を使用`);
+          }
+          
+          // プロバイダーのメソッドを確認
+          if (typeof provider.getResponse === 'function') {
+            response = await provider.getResponse(aiContext);
+          } else if (typeof provider.getAIResponse === 'function') {
+            response = await provider.getAIResponse(
+              aiContext.userId,
+              aiContext.message,
+              aiContext.username,
+              isDM // 直接isDMを渡す
+            );
+          } else if (typeof aiService.getResponse === 'function') {
+            // フォールバック: プロバイダーマネージャー自体のgetResponseを使用
+            response = await aiService.getResponse(aiContext);
+          } else {
+            throw new Error('使用可能なAI応答取得メソッドがありません');
+          }
+        } else {
+          // プロバイダーが取得できない場合はaiServiceに直接問い合わせ
+          if (typeof aiService.getResponse === 'function') {
+            response = await aiService.getResponse(aiContext);
+          } else {
+            throw new Error('AIサービスに応答取得メソッドがありません');
+          }
+        }
+      } else {
+        // レガシーシステムの場合
+        response = await aiService.getResponse(aiContext);
+      }
+    } catch (aiError) {
+      logger.error('AI応答取得エラー:', aiError);
+      throw new Error(`AI応答の取得に失敗しました: ${aiError.message}`);
+    }
+
+    if (!response) throw new Error('AI応答がありません（空の応答）');
+
+    // DMチャンネルとサーバーチャンネルで異なる応答処理
+    const replies = splitMessage(response);
+    
+    if (isDM) {
+      // DMの場合は安全送信ヘルパーを使用
+      let allSucceeded = true;
+      for (const chunk of replies) {
+        const success = await safeSendDM(message, chunk, true);
+        if (!success) {
+          allSucceeded = false;
+          logger.error(`DM応答の一部送信に失敗: ${chunk.slice(0, 30)}...`);
+        }
+      }
+      
+      if (allSucceeded) {
+        logger.debug('すべてのDM応答を送信成功');
+      } else {
+        // 少なくとも一部の送信が失敗した場合、最後にもう一度通知を試みる
+        try {
+          await safeSendDM(message, '一部のメッセージが正しく送信できなかった可能性があります。', true);
+        } catch (notifyError) {
+          logger.error('DMエラー通知の送信にも失敗:', notifyError);
+        }
+      }
+    } else {
+      // 通常チャンネルでは従来通りreplyを使用
+      try {
+        for (const chunk of replies) {
+          await message.reply(chunk);
+        }
+      } catch (replyError) {
+        logger.error('通常チャンネルでの応答送信エラー:', replyError);
+        
+        // フォールバックとしてchannel.sendを試す
+        try {
+          for (const chunk of replies) {
+            await message.channel.send(chunk);
+          }
+          logger.debug('チャンネル応答をchannel.sendでフォールバック送信成功');
+        } catch (fallbackError) {
+          logger.error('フォールバック応答も失敗:', fallbackError);
+          throw new Error('チャンネル応答送信が失敗しました');
+        }
+      }
+    }
+
+    // 全ての応答パターンでメッセージ時間を更新する（DMでなくても）
+    messageHistory?.updateLastBotMessageTime?.(message.channelId, client.user?.id);
+    if (config.DEBUG) {
+      logger.debug(`メッセージ履歴の時間更新: ${message.channelId}`);
+    }
+
+    logger.info(`AI応答完了（${contextType}）: ${response.length}文字`);
+  } catch (error) {
+    logger.error('AI応答処理エラー:', error);
+    // 詳細なエラー情報をデバッグ出力
+    if (config.DEBUG) {
+      logger.debug(`応答エラー詳細: ${error.stack || 'スタック情報なし'}`);
+    }
+    
+    try {
+      // DMチャンネル判定（エラーハンドリング用）- 簡略化バージョン
+      const isDM = message.channel instanceof DMChannel || 
+                  message.channel?.type === ChannelType.DM || 
+                  message.channel?.type === 1 || 
+                  message.channel?.type === 'DM' ||
+                  Boolean(message.channel?.recipient || message.recipient);
+      
+      // エラーメッセージは安全送信ヘルパーを使用
+      const errorMessage = '応答の生成中にエラーが発生しました。しばらく経ってからお試しください。';
+      
+      if (isDM) {
+        await safeSendDM(message, errorMessage, true);
+      } else {
+        // 通常チャンネルではreplyを使用し、失敗したらchannel.sendを試す
+        try {
+          await message.reply(errorMessage);
+        } catch (replyError) {
+          try {
+            await message.channel.send(errorMessage);
+          } catch (sendError) {
+            logger.error('エラーメッセージの送信にも失敗:', sendError);
+          }
+        }
+      }
+    } catch (e) {
+      logger.error('エラーメッセージ送信失敗:', e);
+    }
+  }
+}
+
+function sanitizeMessage(content, contextType) {
+  if (!content) return 'こんにちは';
+  if (contextType === 'mention') return content.replace(/<@!?[\d]+>/g, '').trim() || 'こんにちは';
+  return content;
+}
+
+async function buildContextPrompt(message, content, contextType) {
+  if (contextType !== 'intervention') return content;
+
+  try {
+    const recentMessages = messageHistory.getRecentMessages(message.channelId, 5) || [];
+    const lines = recentMessages.map(msg => `${msg.author?.username || 'ユーザー'}: ${msg.content}`);
+    lines.push(`${message.author?.username || 'ユーザー'}: ${content}`);
+
+    return `（以下は会話の文脈です。必要であれば自然に参加してください）\n\n${lines.join('\n')}\n\n自然な会話の流れに沿って返答してください。`;
+  } catch (error) {
+    logger.error('文脈プロンプト生成エラー:', error);
+    return content;
+  }
+}
+
+function splitMessage(text, maxLength = 2000) {
+  if (!text) return [];
+  const chunks = [];
+  let remaining = text;
+  while (remaining.length > maxLength) {
+    chunks.push(remaining.slice(0, maxLength));
+    remaining = remaining.slice(maxLength);
+  }
+  if (remaining.length > 0) chunks.push(remaining);
+  return chunks;
+}
+
+module.exports = { handleMessage };
