@@ -28,16 +28,46 @@ if (config.DM_MESSAGE_HANDLER === 'new') {
  */
 async function shouldIntervene(message, client) {
   try {
+    // デバッグ情報を出力
+    if (config.DEBUG) {
+      logger.debug(`Context intervention check for message: "${message.content.substring(0, 50)}..."`);
+      logger.debug(`Channel: ${message.channel.name || message.channelId}, User: ${message.author.username}`);
+      logger.debug(`Intervention mode: ${process.env.INTERVENTION_MODE || config.INTERVENTION_MODE || 'not set'}`);
+    }
+    
     // メンションがある場合は介入しない（メインハンドラーでメンション処理するため）
     if (message.mentions.has(client.user.id)) {
+      if (config.DEBUG) logger.debug('Skipping intervention check: Message has mention');
       return false;
     }
     
     // メッセージ履歴を取得
     const recentMessages = messageHistory.getRecentMessages(message.channelId, 10);
     
-    // 文脈分析を実行
-    const shouldIntervene = contextAnalyzer.shouldIntervene({
+    if (config.DEBUG) {
+      logger.debug(`Recent message history count: ${recentMessages ? recentMessages.length : 0}`);
+    }
+    
+    // 最後の介入時間を取得
+    const lastInterventionTime = messageHistory.getLastBotMessageTime ? 
+                               messageHistory.getLastBotMessageTime(message.channelId, client.user.id) : 0;
+    
+    if (config.DEBUG) {
+      logger.debug(`Last intervention time: ${new Date(lastInterventionTime).toISOString()}`);
+      logger.debug(`Cooldown period: ${config.INTERVENTION_COOLDOWN} seconds`);
+      
+      // クールダウン残り時間を計算（デバッグ用）
+      const now = Date.now();
+      const cooldownRemaining = Math.max(0, (lastInterventionTime + (config.INTERVENTION_COOLDOWN * 1000) - now) / 1000);
+      if (cooldownRemaining > 0) {
+        logger.debug(`Cooldown remaining: ${cooldownRemaining.toFixed(1)} seconds`);
+      } else {
+        logger.debug('No cooldown active');
+      }
+    }
+    
+    // 文脈分析パラメータを構築
+    const analysisParams = {
       message: {
         content: message.content,
         channel: { id: message.channelId, name: message.channel.name },
@@ -50,14 +80,29 @@ async function shouldIntervene(message, client) {
       history: recentMessages,
       mode: process.env.INTERVENTION_MODE || config.INTERVENTION_MODE,
       keywords: config.INTERVENTION_KEYWORDS,
-      lastInterventionTime: messageHistory.getLastBotMessageTime ? 
-                           messageHistory.getLastBotMessageTime(message.channelId, client.user.id) : 0,
+      lastInterventionTime: lastInterventionTime,
       cooldownSeconds: config.INTERVENTION_COOLDOWN
-    });
+    };
     
-    if (shouldIntervene && config.DEBUG) {
-      logger.debug(`Context intervention triggered in channel ${message.channel.name || message.channelId}`);
-      logger.debug(`Trigger message: "${message.content.substring(0, 50)}..."`);
+    if (config.DEBUG) {
+      logger.debug(`Context analysis parameters: ${JSON.stringify({
+        messageLength: message.content.length,
+        mode: analysisParams.mode,
+        keywordsCount: Array.isArray(config.INTERVENTION_KEYWORDS) ? config.INTERVENTION_KEYWORDS.length : 0,
+        historySize: recentMessages.length
+      })}`);
+    }
+    
+    // 文脈分析を実行
+    const shouldIntervene = contextAnalyzer.shouldIntervene(analysisParams);
+    
+    if (config.DEBUG) {
+      if (shouldIntervene) {
+        logger.debug(`INTERVENTION TRIGGERED in channel ${message.channel.name || message.channelId}`);
+        logger.debug(`Trigger message: "${message.content.substring(0, 100)}..."`);
+      } else {
+        logger.debug(`No intervention triggered for this message`);
+      }
     }
     
     return shouldIntervene;
