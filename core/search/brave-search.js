@@ -16,7 +16,7 @@ const DEFAULT_CONFIG = {
   count: 3, // デフォルトの検索結果数
   maxLength: 200, // 各検索結果の最大文字数
   timeout: 5000, // タイムアウト (5秒)
-  isEnabled: true, // 常に有効に設定（環境変数の問題を回避）
+  isEnabled: process.env.BRAVE_SEARCH_ENABLED === 'true' || false, // 環境変数によるトグル制御
   commandPrefix: process.env.PREFIX || '!' // !search コマンドのプレフィックス
 };
 
@@ -38,6 +38,14 @@ class BraveSearchClient {
                  config.BRAVE_API_KEY || 
                  'BSAThZH8RcPF6tqem02e4zuVp1j9Yja'; // 最終フォールバック値
     
+    // 機能トグルを環境変数で制御
+    this.isEnabled = this.config.isEnabled;
+    if (process.env.BRAVE_SEARCH_ENABLED === 'true') {
+      this.isEnabled = true;
+    } else if (process.env.BRAVE_SEARCH_ENABLED === 'false') {
+      this.isEnabled = false;
+    }
+    
     // 常に設定完了済みとする
     this.isConfigured = true;
     
@@ -53,6 +61,7 @@ class BraveSearchClient {
       const keySource = process.env.BRAVE_API_KEY ? 'BRAVE_API_KEY' : 
                         process.env.BRAVE_SEARCH_API_KEY ? 'BRAVE_SEARCH_API_KEY' : 
                         config.BRAVE_API_KEY ? 'config.BRAVE_API_KEY' : 'fallback value';
+      logger.debug(`機能トグル状態: BRAVE_SEARCH_ENABLED=${process.env.BRAVE_SEARCH_ENABLED}, isEnabled=${this.isEnabled}`);
       
       // APIキーの存在確認（セキュリティのため先頭数文字のみ表示）
       const keyPreview = this.apiKey ? this.apiKey.substring(0, 3) + '...' : 'none';
@@ -71,6 +80,12 @@ class BraveSearchClient {
   async search(query, options = {}) {
     // APIキーは常に設定済みとみなす
     const count = options.count || this.config.count;
+
+    // 機能トグルチェック - 無効な場合は早期リターン
+    if (!this.isEnabled) {
+      logger.warn('Brave Search API is disabled. Enable it with BRAVE_SEARCH_ENABLED=true');
+      return { success: false, error: 'Search feature is disabled', results: [] };
+    }
     
     // リクエスト前の詳細ログ（デバッグ時のみ）
     if (config.DEBUG) {
@@ -167,6 +182,12 @@ class BraveSearchClient {
   async localSearch(query, options = {}) {
     // APIキーは常に設定済みとみなす
     const count = options.count || this.config.count;
+
+    // 機能トグルチェック - 無効な場合は早期リターン
+    if (!this.isEnabled) {
+      logger.warn('Brave Search API is disabled. Enable it with BRAVE_SEARCH_ENABLED=true');
+      return { success: false, error: 'Search feature is disabled', results: [] };
+    }
     
     // リクエスト前の詳細ログ（デバッグ時のみ）
     if (config.DEBUG) {
@@ -405,7 +426,8 @@ class BraveSearchClient {
    * @returns {boolean} 設定済みかどうか
    */
   isReady() {
-    // 常に準備完了として返す
+    // 機能が無効の場合はfalseを返す
+    if (!this.isEnabled) return false;
     return true;
   }
 }
