@@ -8,9 +8,14 @@ const path = require('path');
 const messageHistory = require('../extensions/message-history');
 const contextAnalyzer = require('../extensions/context-analyzer');
 const commands = require('./commands');
+const searchHandler = require('./search-handler'); // Brave Search機能を追加
 const logger = require('../system/logger');
 const config = require('../config/env');
 const syncUtil = require('../local-sync-utility');
+
+// ユーティリティをインポート
+const userDisplay = require('../core/utils/user-display');
+const timeContext = require('../core/utils/time-context');
 
 // AIサービスの初期化
 const aiService = initializeAIService();
@@ -118,9 +123,55 @@ async function handleMessage(message, client) {
   
   const isMentioned = message.mentions?.has?.(client.user?.id);
 
+  // コマンドを処理（コマンドが実行された場合は終了）
   if (await handleCommandIfPresent(message, client)) return;
+  
+  // 検索トリガーを処理（検索が実行された場合は終了）
+  if (config.DEBUG) {
+    logger.debug(`検索トリガーチェック開始: "${message.content?.substring(0, 30) || '内容なし'}..."`);
+    logger.debug(`BRAVE_API_KEY設定状態: ${!!config.BRAVE_API_KEY ? '設定済み' : '未設定'}`);
+    logger.debug(`SEARCH_ENABLED設定状態: ${config.SEARCH_ENABLED ? '有効' : '無効'}`);
+  }
+  
+  try {
+    const searchTriggered = await searchHandler.handleSearchIfTriggered(message);
+    
+    if (config.DEBUG) {
+      logger.debug(`検索トリガー結果: ${searchTriggered ? '検索実行' : '検索なし'}`);
+    }
+    
+    if (searchTriggered) {
+      // 検索が実行された場合はメッセージを履歴に保存して終了
+      await saveMessageToHistory(message);
+      if (config.DEBUG) {
+        logger.debug('検索処理完了、メッセージハンドラー終了');
+      }
+      return;
+    }
+  } catch (searchError) {
+    logger.error(`検索処理中にエラー発生: ${searchError.message}`, searchError);
+    if (config.DEBUG) {
+      logger.debug(`検索エラー詳細: ${searchError.stack || 'スタックトレースなし'}`);
+    }
+    // エラーが発生しても処理は継続
+  }
 
   await saveMessageToHistory(message);
+
+  // ユーザーコンテキストの保存 - メッセージの内容をトピックとして保存
+  // 実際のプロダクションでは、意味解析などで要約したキーワードを使用すると良い
+  if (message.author?.id && message.content) {
+    // 簡易的なメッセージ要約 - 長さ制限と非ASCII文字の除去
+    const simplifiedContent = message.content
+      .replace(/[^\x00-\x7F]/g, '') // 非ASCII文字除去
+      .trim().slice(0, 50);  // 50文字に制限
+      
+    timeContext.saveUserContext(message.author.id, simplifiedContent);
+    
+    if (config.DEBUG) {
+      logger.debug(`ユーザーコンテキスト保存: ${message.author.id}, トピック: ${simplifiedContent}`);
+    }
+  }
 
   const shouldRespond = await evaluateIntervention(message, client, isDM, isMentioned);
 
@@ -177,8 +228,12 @@ async function saveMessageToHistory(message) {
   const isDMByString = message.channel?.type === 'DM';
   const isDM = isDMByInstance || isDMByEnum || isDMByValue || isDMByString;
   
-  // DMチャンネルの場合は履歴に保存しない
-  if (isDM || !messageHistory?.addMessageToHistory) return;
+  // DMチャンネルの場合は履歴に保存しない（一時的な履歴システムのみ）
+  if (isDM || !messageHistory?.addMessageToHistory) {
+    // DMの場合でも永続メモリシステムには保存する
+    await saveToMemorySystem(message, isDM);
+    return;
+  }
   
   // GuildTextチャンネルかもチェック（数値と文字列の両方に対応）
   // Discord.js v14では ChannelType.GuildText を使う
@@ -186,10 +241,15 @@ async function saveMessageToHistory(message) {
                      message.channel?.type === 0 || 
                      message.channel?.type === 'GUILD_TEXT';
                      
-  // GuildTextチャンネル以外は処理しない
-  if (!isGuildText) return;
+  // GuildTextチャンネル以外は処理しない（一時的な履歴システムのみ）
+  if (!isGuildText) {
+    // 永続メモリシステムには保存する
+    await saveToMemorySystem(message, isDM);
+    return;
+  }
 
   try {
+    // 一時的な履歴システムに保存
     const entry = {
       id: message.id,
       content: message.content || '',
@@ -202,8 +262,74 @@ async function saveMessageToHistory(message) {
     };
     messageHistory.addMessageToHistory(message.channelId, entry);
     if (config.DEBUG) logger.debug(`Message saved to history: ${message.channelId}`);
+    
+    // 永続メモリシステムにも保存
+    await saveToMemorySystem(message, isDM);
   } catch (error) {
     logger.error(`履歴保存エラー: ${error.message}`, error);
+  }
+}
+
+/**
+ * メッセージを永続メモリシステムに保存する
+ * @param {Object} message - Discord.jsのメッセージオブジェクト
+ * @param {boolean} isDM - DMチャンネルかどうか
+ * @returns {Promise<Object|null>} 保存された会話コンテキスト、または失敗した場合はnull
+ */
+async function saveToMemorySystem(message, isDM) {
+  // メモリシステムが有効かつロードされている場合、メッセージを永続化
+  const memoryEnabled = config.MEMORY_ENABLED;
+  if (!memoryEnabled) return null;
+  
+  try {
+    // グローバル変数からメモリシステムを取得
+    const memorySystem = global.botchiMemory || require('../extensions/memory');
+    
+    if (!memorySystem || !memorySystem.manager) {
+      if (config.DEBUG) logger.debug('メモリシステムが初期化されていません');
+      return null;
+    }
+    
+    const userInfo = {
+      userId: message.author?.id,
+      channelId: message.channelId,
+      guildId: message.guildId
+    };
+    
+    // システムメッセージが指定されている場合は追加
+    if (message.systemMessage) {
+      userInfo.systemMessage = message.systemMessage;
+    }
+    
+    // 会話コンテキストを取得または作成
+    const conversationContext = await memorySystem.manager.getOrCreateConversationContext(userInfo);
+    
+    // メッセージをメモリシステムに追加
+    await memorySystem.manager.addMessageToConversation(
+      conversationContext.conversationId,
+      'user',
+      message.content || '',
+      {
+        messageId: message.id,
+        timestamp: message.createdTimestamp || Date.now(),
+        isDM: isDM
+      }
+    );
+    
+    if (config.DEBUG) {
+      logger.debug(`Message saved to memory system: user ${message.author?.id}, conversation ${conversationContext.conversationId}`);
+    }
+    
+    // 成功した場合は会話コンテキストを返す
+    return conversationContext;
+  } catch (error) {
+    logger.error(`メモリシステム保存エラー: ${error.message}`, error);
+    // エラーの詳細をデバッグ出力
+    if (config.DEBUG) {
+      logger.debug(`保存エラー詳細: ${error.stack || 'スタック情報なし'}`);
+    }
+    // エラー時も既存の処理は継続（フォールバックとして）
+    return null;
   }
 }
 
@@ -257,28 +383,65 @@ async function safeSendDM(message, content, useFallback = true) {
   
   if (config.DEBUG) {
     logger.debug(`DM送信試行: ${content.slice(0, 30)}...`);
+    // 診断用情報を追加
+    logger.debug(`DM診断: message.author=${!!message.author}, message.channel=${!!message.channel}`);
+    if (message.author) {
+      logger.debug(`DM診断: author.id=${message.author.id}, author.send=${typeof message.author.send}`);
+    }
+    if (message.channel) {
+      logger.debug(`DM診断: channel.id=${message.channel.id}, channel.send=${typeof message.channel.send}`);
+    }
   }
   
   try {
     // 方法1: author.send() による直接送信
     if (message.author && typeof message.author.send === 'function') {
-      await message.author.send(content);
-      logger.debug('DMをauthor.send()で送信成功');
-      return true;
+      try {
+        await message.author.send(content);
+        logger.debug('DMをauthor.send()で送信成功');
+        return true;
+      } catch (authorError) {
+        logger.warn(`author.send()失敗: ${authorError.message}`);
+        // 詳細なエラー情報をデバッグモードで記録
+        if (config.DEBUG) {
+          logger.debug(`author.send()エラー詳細: ${authorError.code || 'コードなし'}, ${authorError.name}`);
+          logger.debug(`author.send()スタック: ${authorError.stack?.slice(0, 200) || 'なし'}`);
+        }
+        // 次の方法にフォールバック
+      }
     }
     
     // 方法2: channel.send() によるチャンネル経由送信
     if (message.channel && typeof message.channel.send === 'function') {
-      await message.channel.send(content);
-      logger.debug('DMをchannel.send()で送信成功');
-      return true;
+      try {
+        await message.channel.send(content);
+        logger.debug('DMをchannel.send()で送信成功');
+        return true;
+      } catch (channelError) {
+        logger.warn(`channel.send()失敗: ${channelError.message}`);
+        // 詳細なエラー情報をデバッグモードで記録
+        if (config.DEBUG) {
+          logger.debug(`channel.send()エラー詳細: ${channelError.code || 'コードなし'}, ${channelError.name}`);
+          logger.debug(`channel.send()スタック: ${channelError.stack?.slice(0, 200) || 'なし'}`);
+        }
+        // 次の方法にフォールバック
+      }
     }
     
     // 方法3: reply() によるフォールバック送信（最終手段）
     if (useFallback && typeof message.reply === 'function') {
-      await message.reply(content);
-      logger.debug('DMをreply()でフォールバック送信成功');
-      return true;
+      try {
+        await message.reply(content);
+        logger.debug('DMをreply()でフォールバック送信成功');
+        return true;
+      } catch (replyError) {
+        logger.error(`reply()によるフォールバック送信も失敗: ${replyError.message}`);
+        if (config.DEBUG) {
+          logger.debug(`reply()エラー詳細: ${replyError.code || 'コードなし'}, ${replyError.name}`);
+          logger.debug(`reply()スタック: ${replyError.stack?.slice(0, 200) || 'なし'}`);
+        }
+        return false;
+      }
     }
     
     // すべての方法が失敗した場合
@@ -289,7 +452,8 @@ async function safeSendDM(message, content, useFallback = true) {
     
     // エラー詳細をデバッグログに出力
     if (config.DEBUG) {
-      logger.debug(`DM送信エラー詳細: ${error.stack || '詳細なし'}`);
+      logger.debug(`DM送信エラー詳細: ${error.code || 'コードなし'}, ${error.name}`);
+      logger.debug(`DM送信スタック: ${error.stack?.slice(0, 200) || 'なし'}`);
     }
     
     // フォールバックが有効な場合は別の方法を試す
@@ -300,6 +464,9 @@ async function safeSendDM(message, content, useFallback = true) {
         return true;
       } catch (fallbackError) {
         logger.error(`フォールバックDM送信も失敗: ${fallbackError.message}`);
+        if (config.DEBUG) {
+          logger.debug(`フォールバックエラー詳細: ${fallbackError.code || 'コードなし'}, ${fallbackError.name}`);
+        }
         return false;
       }
     }
@@ -357,16 +524,54 @@ async function handleAIResponse(message, client, contextType) {
       // 続行 - タイピング表示は重要ではない
     }
     
+    // 表示名の取得
+    const displayName = userDisplay.getMessageAuthorDisplayName(message);
+    
+    // 時間帯に基づく挨拶の生成
+    const timeGreeting = timeContext.getTimeBasedGreeting();
+    
+    // 日付と時刻の生成
+    const dateTimeStr = timeContext.getFormattedDateTime(true);
+    
+    // ユーザーコンテキストからの継続性メッセージの生成
+    const continuityMsg = timeContext.generateContinuityMessage(message.author.id);
+    
     // AI応答用のコンテキスト準備
     const cleanContent = sanitizeMessage(message.content, contextType);
-    const contextPrompt = await buildContextPrompt(message, cleanContent, contextType);
+    
+    // パーソナライズされたプロンプトを作成（自然な会話をAIモデルに促す）
+    let personalizedPrefix = '';
+    
+    // タイムベースの挨拶を追加（名前は控えめに）
+    personalizedPrefix += `${timeGreeting}。`;
+    
+    // 会話の継続性があれば追加
+    if (continuityMsg) {
+      personalizedPrefix += ` ${continuityMsg}`;
+    }
+    
+    // 時間情報を追加（オプション）
+    if (config.SHOW_DATETIME) {
+      personalizedPrefix += ` 今日は${dateTimeStr}です。`;
+    }
+    
+    // ユーザー名は表示しないがコンテキストには含める
+    // AIモデルがユーザー名を必要に応じて自然に使えるように
+    
+    // AI応答のためのコンテキストプロンプトを構築
+    const contextPrompt = await buildContextPrompt(message, cleanContent, contextType, personalizedPrefix);
 
+    // AI応答用コンテキスト構築
     const aiContext = {
       userId: message.author.id,
-      username: message.author.username,
+      username: displayName,  // 表示名を使用
       message: contextPrompt,
       contextType,
-      isDM // DMかどうかの情報を追加
+      isDM, // DMかどうかの情報を追加
+      displayName, // 表示名を追加
+      timeGreeting, // 時間帯の挨拶
+      dateTime: dateTimeStr, // 日付と時刻
+      continuityContext: continuityMsg // 会話継続コンテキスト
     };
 
     // レスポンス取得処理の堅牢化
@@ -415,6 +620,25 @@ async function handleAIResponse(message, client, contextType) {
     }
 
     if (!response) throw new Error('AI応答がありません（空の応答）');
+    
+    // 日付のハルシネーション修正 - 必要な場合のみレスポンス後処理
+    try {
+      // 日付表現を含む場合のみ処理（処理負荷軽減）
+      if (response.includes('年') && response.includes('月') && response.includes('日')) {
+        const correctDateTime = timeContext.getFormattedDateTime(true);
+        // 間違った日付パターンを検出して修正する
+        response = postProcessResponseDates(response, correctDateTime);
+        
+        if (config.DEBUG) {
+          logger.debug(`日付後処理適用後のレスポンス長: ${response.length}文字`);
+        }
+      } else if (config.DEBUG) {
+        logger.debug(`日付表現なしと判断、後処理をスキップ`);
+      }
+    } catch (postProcessError) {
+      logger.error(`日付後処理エラー: ${postProcessError.message}`, postProcessError);
+      // エラー時は元のレスポンスを使用（処理を継続）
+    }
 
     // DMチャンネルとサーバーチャンネルで異なる応答処理
     const replies = splitMessage(response);
@@ -422,11 +646,40 @@ async function handleAIResponse(message, client, contextType) {
     if (isDM) {
       // DMの場合は安全送信ヘルパーを使用
       let allSucceeded = true;
+      
+      // 診断用に応答前にDMチャンネル状態をログ
+      if (config.DEBUG) {
+        logger.debug(`DM応答処理前診断情報: isDM=${isDM}, メッセージ分割=${replies.length}件`);
+        logger.debug(`DM診断: message.channel.constructor=${message.channel?.constructor?.name || 'なし'}`);
+        logger.debug(`DM診断: message.author=${message.author ? '存在' : 'なし'}`);
+        
+        // DMChannel固有のプロパティをチェック
+        if (message.channel) {
+          const hasRecipient = Boolean(message.channel.recipient);
+          logger.debug(`DM診断: channel.recipient=${hasRecipient}, recipientId=${message.channel.recipient?.id || 'なし'}`);
+          logger.debug(`DM診断: channel.type=${message.channel.type}, DMValue=${ChannelType.DM}`);
+          
+          // DMChannelに特有のプロパティ一覧
+          const channelKeys = Object.keys(message.channel)
+            .filter(k => !k.startsWith('_') && typeof message.channel[k] !== 'function')
+            .join(', ');
+          logger.debug(`DMチャンネルプロパティ: ${channelKeys}`);
+        }
+      }
+      
+      // レスポンスの送信を試みる
       for (const chunk of replies) {
         const success = await safeSendDM(message, chunk, true);
         if (!success) {
           allSucceeded = false;
           logger.error(`DM応答の一部送信に失敗: ${chunk.slice(0, 30)}...`);
+          
+          // 詳細な診断情報をログに出力
+          if (config.DEBUG) {
+            logger.debug(`失敗した送信チャンク: "${chunk.slice(0, 50)}..."`);
+            logger.debug(`送信失敗時の作業ディレクトリ: ${process.cwd()}`);
+            logger.debug(`送信失敗時の環境変数: NODE_ENV=${process.env.NODE_ENV}`);
+          }
         }
       }
       
@@ -435,7 +688,29 @@ async function handleAIResponse(message, client, contextType) {
       } else {
         // 少なくとも一部の送信が失敗した場合、最後にもう一度通知を試みる
         try {
-          await safeSendDM(message, '一部のメッセージが正しく送信できなかった可能性があります。', true);
+          // より積極的なフォールバックを試みる
+          if (config.DEBUG) {
+            logger.debug('DM送信失敗後のフォールバック戦略を実行');
+          }
+          
+          // まず通常のsafeSendDMを試す
+          let fallbackSuccess = await safeSendDM(message, '一部のメッセージが正しく送信できなかった可能性があります。', true);
+          
+          // 失敗した場合は、直接メソッドを呼び出してみる
+          if (!fallbackSuccess && message.author && typeof message.author.send === 'function') {
+            try {
+              await message.author.send('メッセージの送信に問題が発生しました。');
+              logger.debug('DM通知を直接author.sendで送信成功');
+              fallbackSuccess = true;
+            } catch (directError) {
+              logger.warn(`直接のauthor.send通知も失敗: ${directError.message}`);
+            }
+          }
+          
+          // どちらも失敗した場合はログに記録
+          if (!fallbackSuccess) {
+            logger.error('すべてのDM送信方法が失敗しました。ユーザーへメッセージを届けられません。');
+          }
         } catch (notifyError) {
           logger.error('DMエラー通知の送信にも失敗:', notifyError);
         }
@@ -459,6 +734,51 @@ async function handleAIResponse(message, client, contextType) {
           logger.error('フォールバック応答も失敗:', fallbackError);
           throw new Error('チャンネル応答送信が失敗しました');
         }
+      }
+    }
+
+    // AIの応答をメモリシステムに保存
+    if (config.MEMORY_ENABLED) {
+      try {
+        // グローバル変数からメモリシステムを取得
+        const memorySystem = global.botchiMemory || require('../extensions/memory');
+        
+        if (memorySystem && memorySystem.manager) {
+          const userInfo = {
+            userId: message.author.id,
+            channelId: message.channelId, 
+            guildId: message.guildId
+          };
+          
+          // 既存の会話コンテキストを取得、または新規作成
+          const conversationContext = await memorySystem.manager.getOrCreateConversationContext(userInfo);
+          
+          if (conversationContext) {
+            // AIの応答をメモリシステムに追加
+            await memorySystem.manager.addMessageToConversation(
+              conversationContext.conversationId,
+              'assistant',
+              response,
+              {
+                timestamp: Date.now(),
+                contextType: contextType,
+                messageLength: response.length
+              }
+            );
+            
+            if (config.DEBUG) {
+              const msgCount = conversationContext.messageCount || 0;
+              logger.debug(`AI応答をメモリシステムに保存: ${conversationContext.conversationId} (メッセージ数: ${msgCount + 1})`);
+            }
+          }
+        }
+      } catch (memoryError) {
+        logger.error(`メモリ保存エラー: ${memoryError.message}`);
+        // エラーの詳細をデバッグ出力
+        if (config.DEBUG) {
+          logger.debug(`AI応答保存エラー詳細: ${memoryError.stack || 'スタック情報なし'}`);
+        }
+        // エラーが発生しても応答処理は続行
       }
     }
 
@@ -513,17 +833,265 @@ function sanitizeMessage(content, contextType) {
   return content;
 }
 
-async function buildContextPrompt(message, content, contextType) {
-  if (contextType !== 'intervention') return content;
-
+/**
+ * コンテキストプロンプトを構築する
+ * @param {Object} message - Discordメッセージオブジェクト
+ * @param {string} content - メッセージ内容
+ * @param {string} contextType - コンテキストタイプ ('direct_message', 'mention', 'intervention')
+ * @param {string} personalizedPrefix - パーソナライズされた挨拶プレフィックス（オプション）
+ * @returns {Promise<string>} 構築されたプロンプト
+ */
+async function buildContextPrompt(message, content, contextType, personalizedPrefix = '') {
   try {
-    const recentMessages = messageHistory.getRecentMessages(message.channelId, 5) || [];
-    const lines = recentMessages.map(msg => `${msg.author?.username || 'ユーザー'}: ${msg.content}`);
-    lines.push(`${message.author?.username || 'ユーザー'}: ${content}`);
-
-    return `（以下は会話の文脈です。必要であれば自然に参加してください）\n\n${lines.join('\n')}\n\n自然な会話の流れに沿って返答してください。`;
+    // パーソナライズされたプレフィックスがあれば、DMや直接メンションの時に使用
+    if (personalizedPrefix && (contextType === 'direct_message' || contextType === 'mention')) {
+      // ユーザーの表示名を取得 (コンテキスト用)
+      const displayName = userDisplay.getMessageAuthorDisplayName(message);
+      
+      // プロンプトの先頭にパーソナライズされたプレフィックスを追加
+      let prompt = `${personalizedPrefix}\n\n`;
+      
+      // メモリシステムからの会話履歴取得（メモリシステムが有効な場合）
+      let memoryMessages = [];
+      const memoryEnabled = config.MEMORY_ENABLED;
+      
+      if (memoryEnabled && (contextType === 'direct_message' || contextType === 'mention')) {
+        try {
+          // グローバル変数からメモリシステムを取得
+          const memorySystem = global.botchiMemory || require('../extensions/memory');
+          
+          if (memorySystem && memorySystem.manager) {
+            const userInfo = {
+              userId: message.author?.id,
+              channelId: message.channelId,
+              guildId: message.guildId
+            };
+            
+            // 会話コンテキストを取得
+            const conversationContext = await memorySystem.manager.getOrCreateConversationContext(userInfo);
+            
+            // 会話履歴を取得（取得数を増やして文脈の理解を深める）
+            if (conversationContext && conversationContext.conversationId) {
+              memoryMessages = await memorySystem.manager.getContextMessages(
+                conversationContext.conversationId, 
+                10 // 直近10件のメッセージを取得（会話の文脈をより深く理解）
+              );
+              
+              if (config.DEBUG) {
+                logger.debug(`会話履歴を ${memoryMessages.length} 件取得: ${conversationContext.conversationId}`);
+                if (memoryMessages.length > 0) {
+                  logger.debug(`最新メッセージ: "${memoryMessages[memoryMessages.length-1]?.content?.slice(0, 30)}..."`);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          logger.error(`会話履歴取得エラー: ${error.message}`, error);
+          // エラーの詳細をデバッグ出力
+          if (config.DEBUG) {
+            logger.debug(`履歴取得エラー詳細: ${error.stack || 'スタック情報なし'}`);
+          }
+          // エラー時は履歴なしで続行
+        }
+      }
+      
+      // 会話履歴がある場合はプロンプトに追加（更に改良：自然な会話を促進）
+      if (memoryMessages.length > 0) {
+        // 最新のメッセージを取得（直近3件と少し前の重要なもの）
+        const recentMessages = memoryMessages.slice(-3); // 直近3件
+        const olderRelevantMessages = memoryMessages.slice(0, -3); // それ以前
+        
+        // 過去の会話から重要なものだけ選択（例：質問と回答のペア）
+        let relevantOlderMessages = [];
+        if (olderRelevantMessages.length > 0) {
+          // 質問と回答のペアを特定する簡易ロジック
+          for (let i = 0; i < olderRelevantMessages.length - 1; i++) {
+            const msg = olderRelevantMessages[i];
+            const nextMsg = olderRelevantMessages[i + 1];
+            
+            // ユーザーの質問とボットの回答のペアを見つける
+            if (msg.role === 'user' && nextMsg.role === 'assistant') {
+              // 質問文の特徴（疑問符や質問っぽい言葉を含む）をチェック
+              const isQuestion = msg.content.includes('？') || 
+                               msg.content.includes('?') || 
+                               msg.content.includes('教えて') ||
+                               msg.content.includes('わからない') ||
+                               msg.content.includes('どう') ||
+                               msg.content.includes('何');
+              
+              if (isQuestion) {
+                relevantOlderMessages.push(msg);
+                relevantOlderMessages.push(nextMsg);
+                i++; // ペアをスキップ
+              }
+            }
+          }
+          
+          // 重要な会話が見つからない場合は、最初の会話と最後の会話を含める
+          if (relevantOlderMessages.length === 0 && olderRelevantMessages.length >= 2) {
+            // 会話の開始点
+            relevantOlderMessages.push(olderRelevantMessages[0]);
+            // 少し前の会話のコンテキスト
+            relevantOlderMessages.push(olderRelevantMessages[olderRelevantMessages.length - 1]);
+          }
+        }
+        
+        // 自然な形で会話履歴を提示（区切りを最小限に）
+        prompt += '過去の会話内容：\n';
+        
+        // 関連性の高い過去の会話を表示（量を絞る）
+        if (relevantOlderMessages.length > 0) {
+          for (const msg of relevantOlderMessages) {
+            const roleName = msg.role === 'user' ? displayName : 'Bocchy';
+            prompt += `${roleName}: ${msg.content}\n`;
+          }
+          prompt += '\n--- 最近の会話 ---\n';
+        }
+        
+        // 直近の会話を表示
+        for (const msg of recentMessages) {
+          const roleName = msg.role === 'user' ? displayName : 'Bocchy';
+          prompt += `${roleName}: ${msg.content}\n`;
+        }
+        prompt += '\n';
+        
+        // 自然な連続性を促す指示（より短く自然に）
+        prompt += '上記の会話の流れと文脈を自然に引き継いで会話を続けてください。\n\n';
+      }
+      
+      // RAGシステムが有効かつ初期化されている場合、関連コンテキストをプロンプトに追加
+      let ragContext = '';
+      const ragEnabled = process.env.RAG_ENABLED === 'true';
+      
+      if (ragEnabled) {
+        try {
+          // グローバル変数からRAGシステムを取得
+          const ragSystem = global.botchiRAG;
+          
+          if (ragSystem) {
+            // RAGシステムが初期化されているか確認
+            const isInitialized = typeof ragSystem.isInitialized === 'function' 
+              ? ragSystem.isInitialized() 
+              : (ragSystem.state && ragSystem.state.initialized);
+            
+            if (isInitialized) {
+              if (config.DEBUG) {
+                logger.debug(`RAGシステムを使用して関連コンテキストを検索: "${content.substring(0, 30)}..."`);
+              }
+              
+              // ユーザーの質問に関連する情報をRAGシステムから検索
+              if (typeof ragSystem.processMessage === 'function') {
+                // 新しいRAGモジュールインターフェースを使用
+                const searchResult = await ragSystem.processMessage(content, {
+                  similarityThreshold: parseFloat(process.env.RAG_SIMILARITY_THRESHOLD || '0.75'),
+                  maxResults: parseInt(process.env.RAG_MAX_RESULTS || '3', 10)
+                });
+                
+                if (searchResult && searchResult.context) {
+                  ragContext = searchResult.context;
+                  
+                  if (config.DEBUG) {
+                    logger.debug(`RAGコンテキスト取得成功: ${ragContext.length}文字, ${searchResult.results.length}件の結果`);
+                    if (searchResult.results.length > 0) {
+                      logger.debug(`最も関連性の高い結果: "${searchResult.results[0].content.substring(0, 50)}..." (類似度: ${searchResult.results[0].similarity.toFixed(2)})`);
+                    }
+                  }
+                }
+              } else if (typeof ragSystem.generateContextForPrompt === 'function') {
+                // 互換性のためのレガシーインターフェース
+                ragContext = await ragSystem.generateContextForPrompt(content, {
+                  similarityThreshold: 0.75,
+                  limit: 3 // 最大3つの関連情報
+                });
+                
+                if (config.DEBUG && ragContext) {
+                  logger.debug(`レガシーRAGインターフェースからコンテキスト取得: ${ragContext.length}文字`);
+                }
+              } else if (typeof ragSystem.search === 'function') {
+                // 直接検索インターフェースのフォールバック
+                try {
+                  const searchResults = await ragSystem.search(content);
+                  if (searchResults && searchResults.length > 0) {
+                    ragContext = '参考資料：\n\n';
+                    searchResults.forEach((result, index) => {
+                      const title = result.metadata && result.metadata.title 
+                        ? result.metadata.title 
+                        : `情報 ${index + 1}`;
+                      
+                      ragContext += `[${title}]\n${result.content}\n\n`;
+                    });
+                    
+                    if (config.DEBUG) {
+                      logger.debug(`直接検索インターフェースからコンテキスト生成: ${ragContext.length}文字, ${searchResults.length}件の結果`);
+                    }
+                  }
+                } catch (searchError) {
+                  logger.error(`RAG直接検索エラー: ${searchError.message}`);
+                }
+              }
+              
+              // 取得したRAGコンテキストをプロンプトに追加
+              if (ragContext && ragContext.trim().length > 0) {
+                prompt += `${ragContext}\n\n`;
+              }
+            } else if (config.DEBUG) {
+              logger.debug('RAGシステムは有効ですが初期化されていません');
+            }
+          }
+        } catch (ragError) {
+          logger.error(`RAGコンテキスト取得エラー: ${ragError.message}`, ragError);
+          // エラーの詳細をデバッグ出力
+          if (config.DEBUG) {
+            logger.debug(`RAGエラー詳細: ${ragError.stack || 'スタック情報なし'}`);
+          }
+          // RAGエラー時も処理を続行
+        }
+      }
+      
+      // ユーザーメッセージを追加（名前は付けない - より自然な会話に）
+      prompt += `${content}\n\n`;
+      
+      // システム指示を追加（AIモデル向け）- 日付のハルシネーション防止指示を追加
+      prompt += `${displayName}さんとの会話です。文脈に応じて自然な形で対応し、必要に応じて適切なタイミングでのみ名前を使用してください。\n`;
+      
+      // 日付のハルシネーション防止のための指示（シンプル化）
+      const dateTimeStr = timeContext.getFormattedDateTime(true);
+      prompt += `今日の日付は ${dateTimeStr} です。\n`;
+      
+      return prompt;
+    }
+    
+    // 文脈介入の場合は従来通りの処理
+    if (contextType === 'intervention') {
+      const recentMessages = messageHistory.getRecentMessages(message.channelId, 5) || [];
+      
+      // 表示名を使用して文脈メッセージを構築
+      const lines = recentMessages.map(msg => {
+        // メッセージのauthorがオブジェクトの場合（履歴からの取得）
+        if (typeof msg.author === 'object') {
+          const authorName = msg.author?.username || 'ユーザー';
+          return `${authorName}: ${msg.content}`;
+        } else {
+          // 文字列の場合
+          return `${msg.author || 'ユーザー'}: ${msg.content}`;
+        }
+      });
+      
+      // 現在のメッセージを追加
+      const authorDisplayName = userDisplay.getMessageAuthorDisplayName(message);
+      lines.push(`${authorDisplayName}: ${content}`);
+      
+      return `（以下は会話の文脈です。必要であれば自然に参加してください）\n\n${lines.join('\n')}\n\n自然な会話の流れに沿って返答してください。`;
+    }
+    
+    // それ以外の場合は単純にコンテンツを返す
+    return content;
   } catch (error) {
     logger.error('文脈プロンプト生成エラー:', error);
+    // エラーの場合、パーソナライズされたプレフィックスがあればそれを追加
+    if (personalizedPrefix) {
+      return `${personalizedPrefix}\n\n${content}`;
+    }
     return content;
   }
 }
@@ -538,6 +1106,38 @@ function splitMessage(text, maxLength = 2000) {
   }
   if (remaining.length > 0) chunks.push(remaining);
   return chunks;
+}
+
+/**
+ * シンプル化された日付ハルシネーション修正
+ * 明らかに誤った年の日付のみを修正
+ * @param {string} response - AIからの応答テキスト
+ * @param {string} correctDateTime - 正しい日付時刻文字列（「2025年4月15日（火曜日）、15時30分」形式）
+ * @returns {string} 修正後のテキスト
+ */
+function postProcessResponseDates(response, correctDateTime) {
+  if (!response) return response;
+  
+  try {
+    // 現在の正しい日付情報を取得
+    const currentYearMatch = correctDateTime.match(/(\d{4})年/);
+    const currentMonthMatch = correctDateTime.match(/(\d{1,2})月/);
+    const currentDayMatch = correctDateTime.match(/(\d{1,2})日/);
+    
+    if (!currentYearMatch || !currentMonthMatch || !currentDayMatch) {
+      return response; // 解析に失敗した場合は修正せず
+    }
+    
+    const currentYear = currentYearMatch[1];
+    const correctDateShort = `${currentYear}年${currentMonthMatch[1]}月${currentDayMatch[1]}日`;
+    
+    // 明らかに誤った年の日付（2024年以前）のみを置換
+    const wrongYearPattern = /20(?:1\d|2[0-4])年\d{1,2}月\d{1,2}日/g;
+    return response.replace(wrongYearPattern, correctDateShort);
+  } catch (error) {
+    logger.error('日付後処理エラー:', error);
+    return response; // エラー時は元のレスポンスを返す
+  }
 }
 
 module.exports = { handleMessage };
