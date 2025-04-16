@@ -21,6 +21,9 @@ const MEMORY_ENABLED = process.env.MEMORY_ENABLED === 'true';
 // RAGシステム設定
 const RAG_ENABLED = process.env.RAG_ENABLED === 'true';
 
+// 日時表示設定 - DMと通常チャンネルの一貫性確保用
+const SHOW_DATETIME = process.env.SHOW_DATETIME === 'true';
+
 // Web検索API設定 - BRAVE_API_KEYに統一
 // 環境変数から直接読み込み、APIキーが存在すればその値を使用
 // APIキーは 'BSA' で始まる32文字程度の文字列
@@ -84,5 +87,8 @@ module.exports = {
   // 検索API設定
   BRAVE_API_KEY,
   BRAVE_SEARCH_ENABLED,
-  SEARCH_ENABLED
+  SEARCH_ENABLED,
+  
+  // 日時表示設定
+  SHOW_DATETIME
 };
