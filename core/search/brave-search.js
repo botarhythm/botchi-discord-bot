@@ -32,42 +32,74 @@ class BraveSearchClient {
     this.config = { ...DEFAULT_CONFIG, ...options };
     
     // 環境変数からAPIキーを取得 - 優先順位を明確化
+    // 1. process.env.BRAVE_API_KEY (最優先)
+    // 2. process.env.BRAVE_SEARCH_API_KEY (互換性のため)
+    // 3. config.BRAVE_API_KEY (設定ファイルから)
+    // 4. コードのハードコード値 (最終フォールバック)
     this.apiKey = process.env.BRAVE_API_KEY || 
                   process.env.BRAVE_SEARCH_API_KEY || 
                   config.BRAVE_API_KEY || 
                   config.BRAVE_SEARCH_API_KEY ||
                   'BSAThZH8RcPF6tqem02e4zuVp1j9Yja'; // 最終フォールバック値
     
-    // 機能トグルを環境変数で制御
-    this.isEnabled = this.config.isEnabled || config.BRAVE_SEARCH_ENABLED;
+    // 適切なAPIキーが設定されているか検証
+    const apiKeyValid = Boolean(this.apiKey) && this.apiKey.length > 10 && this.apiKey.startsWith('BSA');
+    
+    // 機能トグルを環境変数で制御 - 明示的な設定を優先
+    // process.env.BRAVE_SEARCH_ENABLED が 'true' または 'false' で設定されている場合はその値を使用
+    // それ以外の場合は config から取得し、デフォルトで有効にする
     if (process.env.BRAVE_SEARCH_ENABLED === 'true') {
       this.isEnabled = true;
     } else if (process.env.BRAVE_SEARCH_ENABLED === 'false') {
       this.isEnabled = false;
+    } else {
+      this.isEnabled = this.config.isEnabled || config.BRAVE_SEARCH_ENABLED !== false;
     }
     
-    // 常に設定完了済みとする
-    this.isConfigured = Boolean(this.apiKey);
+    // APIキーが無効な場合は自動的に機能を無効化
+    if (!apiKeyValid && this.isEnabled) {
+      logger.warn('Brave Search API key appears to be invalid. Search functionality will be disabled.');
+      this.isEnabled = false;
+    }
+    
+    // APIキーの検証結果を設定
+    this.isConfigured = apiKeyValid;
     
     // 起動時のログ出力
-    logger.info('Brave Search client initialized');
+    logger.info(`Brave Search client initialized - Status: ${this.isEnabled ? 'enabled' : 'disabled'}`);
     
     // 詳細な診断ログを追加（デバッグモード時）
     if (config.DEBUG === true || process.env.DEBUG === 'true') {
-      // 環境変数の診断情報
-      logger.debug(`環境変数診断: BRAVE_API_KEY=${Boolean(process.env.BRAVE_API_KEY)}, BRAVE_SEARCH_API_KEY=${Boolean(process.env.BRAVE_SEARCH_API_KEY)}, config.BRAVE_API_KEY=${Boolean(config.BRAVE_API_KEY)}`);
+      // 環境変数の詳細な診断情報
+      logger.debug(`API環境変数診断:
+- BRAVE_API_KEY設定状況: ${Boolean(process.env.BRAVE_API_KEY)}
+- BRAVE_SEARCH_API_KEY設定状況: ${Boolean(process.env.BRAVE_SEARCH_API_KEY)}
+- config.BRAVE_API_KEY設定状況: ${Boolean(config.BRAVE_API_KEY)}
+- config.BRAVE_SEARCH_API_KEY設定状況: ${Boolean(config.BRAVE_SEARCH_API_KEY)}
+- 最終API_KEY有効性: ${apiKeyValid} (${this.apiKey ? 'キー存在' : 'キーなし'})
+- キー長: ${this.apiKey ? this.apiKey.length : 0}文字`);
+      
+      // トグル状態の詳細な診断情報
+      logger.debug(`機能トグル診断:
+- process.env.BRAVE_SEARCH_ENABLED=${process.env.BRAVE_SEARCH_ENABLED || '未設定'}
+- config.BRAVE_SEARCH_ENABLED=${config.BRAVE_SEARCH_ENABLED}
+- this.config.isEnabled=${this.config.isEnabled}
+- 最終状態(isEnabled)=${this.isEnabled}`);
       
       // APIキーの取得元を特定
-      const keySource = process.env.BRAVE_API_KEY ? 'BRAVE_API_KEY' : 
-                        process.env.BRAVE_SEARCH_API_KEY ? 'BRAVE_SEARCH_API_KEY' : 
+      const keySource = process.env.BRAVE_API_KEY ? 'process.env.BRAVE_API_KEY' : 
+                        process.env.BRAVE_SEARCH_API_KEY ? 'process.env.BRAVE_SEARCH_API_KEY' : 
                         config.BRAVE_API_KEY ? 'config.BRAVE_API_KEY' : 
-                        config.BRAVE_SEARCH_API_KEY ? 'config.BRAVE_SEARCH_API_KEY' : 'fallback value';
-      logger.debug(`機能トグル状態: BRAVE_SEARCH_ENABLED=${process.env.BRAVE_SEARCH_ENABLED}, isEnabled=${this.isEnabled}`);
+                        config.BRAVE_SEARCH_API_KEY ? 'config.BRAVE_SEARCH_API_KEY' : 'デフォルト値';
       
       // APIキーの存在確認（セキュリティのため先頭数文字のみ表示）
-      const keyPreview = this.apiKey ? this.apiKey.substring(0, 3) + '...' : 'none';
-      logger.debug(`Brave Search API initialized with key from ${keySource} (${keyPreview}), key length: ${this.apiKey ? this.apiKey.length : 0}`);
-      logger.debug(`Search command: ${this.config.commandPrefix}search, Status: ${this.isEnabled ? 'enabled' : 'disabled'}`);
+      const keyPreview = this.apiKey ? this.apiKey.substring(0, 4) + '...' + this.apiKey.substring(this.apiKey.length - 2) : 'none';
+      logger.debug(`Brave Search API初期化詳細: 
+- APIキーソース: ${keySource}
+- APIキー一部: ${keyPreview}
+- 検索コマンド: ${this.config.commandPrefix}search
+- ベースURL: ${this.config.baseUrl}
+- タイムアウト: ${this.config.timeout}ms`);
     }
   }
   
@@ -79,20 +111,42 @@ class BraveSearchClient {
    * @returns {Promise<Object>} 検索結果
    */
   async search(query, options = {}) {
-    // APIキーは常に設定済みとみなす
+    // クエリが空の場合は早期リターン
+    if (!query || query.trim().length === 0) {
+      logger.warn('Empty search query provided');
+      return { 
+        success: false, 
+        error: 'Empty search query', 
+        results: [],
+        query: query || ''
+      };
+    }
+    
     const count = options.count || this.config.count;
 
     // 機能トグルチェック - 無効な場合は早期リターン
     if (!this.isEnabled) {
-      logger.warn('Brave Search API is disabled. Enable it with BRAVE_SEARCH_ENABLED=true');
-      return { success: false, error: 'Search feature is disabled', results: [] };
+      logger.warn('Brave Search API is disabled. Set BRAVE_SEARCH_ENABLED=true to enable it');
+      return { success: false, error: 'Search feature is disabled', results: [], query: query };
+    }
+    
+    // 適切なAPIキーが設定されていない場合
+    if (!this.isConfigured) {
+      logger.warn('Brave Search API is not properly configured. Check API key');
+      return { 
+        success: false, 
+        error: 'API key is invalid or not properly configured', 
+        results: [],
+        query: query
+      };
     }
     
     // リクエスト前の詳細ログ（デバッグ時のみ）
     if (config.DEBUG) {
       logger.debug(`検索リクエスト準備: "${query}" (count=${count})`);
       logger.debug(`API URL: ${this.config.baseUrl}/web/search`);
-      logger.debug(`APIキー状態: ${this.apiKey ? '設定済み' : '未設定'} (長さ: ${this.apiKey ? this.apiKey.length : 0})`);
+      logger.debug(`APIキー状態: ${this.isConfigured ? '有効' : '無効'} (長さ: ${this.apiKey ? this.apiKey.length : 0}文字)`);
+      logger.debug(`検索パラメータ: 言語=ja, 国=JP, タイムアウト=${this.config.timeout}ms`);
     }
     
     try {
@@ -173,7 +227,8 @@ class BraveSearchClient {
       return {
         success: false,
         error: error.message,
-        results: []
+        results: [],
+        query: query
       };
     }
   }
