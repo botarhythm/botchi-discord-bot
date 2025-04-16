@@ -25,7 +25,7 @@ const config = syncUtil.safeRequire('./config/env', {
   AI_PROVIDER: process.env.AI_PROVIDER || 'openai',
   DM_MESSAGE_HANDLER: process.env.DM_MESSAGE_HANDLER || 'legacy',
   DEBUG: process.env.DEBUG === 'true',
-  BOT_VERSION: '1.3.1' // 安定性改善版
+  BOT_VERSION: '1.3.5' // 安定性改善版
 });
 
 // Bocchyのバージョン情報を表示
@@ -173,16 +173,47 @@ if (process.env.RAG_ENABLED === 'true') {
   };
 }
 
-// Discordクライアントをセットアップして起動
+// ===== 修正された初期化フロー =====
+
+// 1. Discordクライアントモジュール読み込み
 logger.info('Setting up Discord client...');
-const { setupClient } = syncUtil.safeRequire('./core/discord-init', {
-  setupClient: () => {
-    logger.error('Critical error: Discord client setup module not found');
+const discordInit = syncUtil.safeRequire('./core/discord-init', {
+  initializeClient: () => {
+    logger.error('Critical error: Discord client initialization module not found');
     process.exit(1); // ここだけは致命的なため終了
     return null;
+  },
+  registerMessageHandler: () => {},
+  loginClient: () => Promise.reject(new Error('Discord login module not found'))
+});
+
+// 2. クライアントを初期化（メッセージハンドラーの登録なし）
+const client = discordInit.initializeClient();
+if (!client) {
+  logger.error('Failed to initialize Discord client');
+  process.exit(1);
+}
+
+// 3. メッセージハンドラーの読み込み（循環参照を解消）
+const messageHandlerModule = syncUtil.safeRequire('./handlers/message-handler', {
+  handleMessage: () => {
+    logger.error('Message handler module not found or invalid');
+    return Promise.resolve();
   }
 });
-const client = setupClient();
+
+// 4. メッセージハンドラーをクライアントに登録
+discordInit.registerMessageHandler(client, messageHandlerModule.handleMessage);
+
+// 5. クライアントにログイン
+discordInit.loginClient(client)
+  .then(() => {
+    logger.info('Bocchy Discord Bot is ready!');
+  })
+  .catch(error => {
+    logger.error('Failed to start Bocchy Discord Bot:', error);
+    process.exit(1);
+  });
 
 // 未処理の例外ハンドラ
 process.on('uncaughtException', (error) => {
