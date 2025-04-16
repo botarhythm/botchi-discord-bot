@@ -21,9 +21,12 @@ const MEMORY_ENABLED = process.env.MEMORY_ENABLED === 'true';
 // RAGシステム設定
 const RAG_ENABLED = process.env.RAG_ENABLED === 'true';
 
-// Web検索API設定 - BRAVE_API_KEY を推奨
-const BRAVE_API_KEY = process.env.BRAVE_API_KEY || process.env.BRAVE_SEARCH_API_KEY;
-const SEARCH_ENABLED = !!BRAVE_API_KEY;
+// Web検索API設定 - BRAVE_API_KEYに統一
+// フォールバックとしてBRAVE_SEARCH_API_KEYも読み込むが、優先順位はBRAVE_API_KEY
+const BRAVE_API_KEY = process.env.BRAVE_API_KEY || 
+                      process.env.BRAVE_SEARCH_API_KEY || 
+                      'BSAThZH8RcPF6tqem02e4zuVp1j9Yja'; // フォールバック値として追加
+const SEARCH_ENABLED = true; // 常に有効（APIキーがフォールバック値として設定されるため）
 
 // デバッグモード
 const DEBUG = process.env.DEBUG === 'true';
