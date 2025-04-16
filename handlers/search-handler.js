@@ -14,25 +14,35 @@ const SEARCH_TRIGGERS = {
   ja: [
     // 直接的なトリガー
     '検索', 'けんさく', 'さがして', '調べて', 'しらべて', 
-    'ググって', 'ぐぐって', '教えて', 'おしえて',
+    'ググって', 'ぐぐって', '教えて', 'おしえて', 'ネットで調べて',
     // 丁寧な依頼フレーズ
     '検索して', 'さがしてください', '調べてください', '検索してくれる', 
     '調べてくれる', 'おしえてくれる', '教えてくれる', '検索してほしい',
+    '調べてくれますか', '検索してくれますか', 'おしえてくれませんか',
     // 質問形式
     'について教えて', 'とは何', 'って何', 'を知りたい', 'を調べて', 
-    'について知りたい', 'について調べて', 'についておしえて'
+    'について知りたい', 'について調べて', 'についておしえて',
+    'について検索', 'について最新', 'の最新情報', '最新ニュース',
+    // 最新情報を求めるフレーズ
+    '最新', '今日の', '昨日の', '今週の', '今月の', '現在の',
+    '速報', 'ニュース', '最近の', '今の', '今年の'
   ],
   // 英語
   en: [
     // 直接的なトリガー
-    'search', 'find', 'look up', 'lookup', 'google', 
-    'tell me about', 'what is', 'what are',
+    'search', 'find', 'look up', 'lookup', 'google', 'search online',
+    'tell me about', 'what is', 'what are', 'check', 'browse for',
     // 丁寧な依頼フレーズ
     'can you search', 'please search', 'could you look up',
     'can you find', 'please tell me about', 'search for',
+    'would you search', 'could you check', 'can you tell me if',
     // 質問形式
     'do you know what', 'do you know about', 'can you tell me about',
-    'i want to know about', 'i need information on', 'how can I find'
+    'i want to know about', 'i need information on', 'how can I find',
+    'who is', 'where is', 'when is', 'why is', 'how to',
+    // 最新情報を求めるフレーズ
+    'latest', 'recent', 'today\'s', 'current', 'newest',
+    'update on', 'news about', 'this week\'s', 'this year\'s'
   ]
 };
 
@@ -65,25 +75,38 @@ const LOCAL_SEARCH_TRIGGERS = {
  * @returns {boolean} 検索が有効な場合はtrue
  */
 function isSearchEnabled() {
-  // 常に有効化する - フォールバックAPIキーが設定されているため
-  // config.SEARCH_ENABLEDをチェックするが、通常はtrueになっている
-  const enabled = config.SEARCH_ENABLED === true;
+  // デフォルトは有効、明示的に無効化されているときのみfalseを返す
+  // config.SEARCH_ENABLEDは有効かどうかのブール値
+  const enabled = config.SEARCH_ENABLED !== false;
+  
+  // APIキーが設定されているかどうかも確認
+  const apiKeyStatus = Boolean(process.env.BRAVE_API_KEY || 
+                              process.env.BRAVE_SEARCH_API_KEY || 
+                              config.BRAVE_API_KEY);
+                           
+  // APIキーが設定されていなければ機能は無効
+  const isAvailable = enabled && apiKeyStatus;
   
   // 詳細なデバッグログ
   if (config.DEBUG) {
-    const apiKeyStatus = Boolean(process.env.BRAVE_API_KEY || 
-                                process.env.BRAVE_SEARCH_API_KEY || 
-                                config.BRAVE_API_KEY);
-    logger.debug(`検索機能有効確認: ${enabled ? '有効' : '無効'}, APIキー設定有無: ${apiKeyStatus}`);
+    logger.debug(`検索機能ステータス: ${isAvailable ? '有効' : '無効'} (機能スイッチ: ${enabled ? 'ON' : 'OFF'}, APIキー: ${apiKeyStatus ? '設定済み' : '未設定'})`);
     
     // APIキーのソースを診断
     const keySource = process.env.BRAVE_API_KEY ? 'process.env.BRAVE_API_KEY' : 
                      process.env.BRAVE_SEARCH_API_KEY ? 'process.env.BRAVE_SEARCH_API_KEY' : 
                      config.BRAVE_API_KEY ? 'config.BRAVE_API_KEY' : 'なし';
-    logger.debug(`検索APIキーソース: ${keySource}`);
+    
+    // 環境変数の状態も詳細に出力
+    logger.debug(`環境変数: BRAVE_SEARCH_ENABLED=${process.env.BRAVE_SEARCH_ENABLED || 'undefined'}, config.BRAVE_SEARCH_ENABLED=${config.BRAVE_SEARCH_ENABLED}`);
+    logger.debug(`APIキー状態: ソース=${keySource}, キー長=${config.BRAVE_API_KEY ? config.BRAVE_API_KEY.length : 0}文字`);
+    
+    // APIキーが設定されていないときの警告
+    if (!apiKeyStatus) {
+      logger.warn('Brave Search APIキーが設定されていないため、検索機能は使用できません');
+    }
   }
   
-  return enabled;
+  return isAvailable;
 }
 
 /**
@@ -117,14 +140,16 @@ function detectSearchTrigger(content) {
       if (config.DEBUG) {
         logger.debug(`検索コマンド検出: "${searchQuery}"`);
       }
-      return { trigger: 'search', query: searchQuery };
+      return { trigger: 'search', query: searchQuery, commandTriggered: true };
     }
   }
   
   // 否定表現を含むメッセージは除外
   const negativePatterns = [
     'しなくて', 'してない', 'しないで', 'やめて', 'いらない',
-    "don't", "dont", "not", "stop", "can't", "cant", "quit"
+    'しなくていい', 'する必要ない', '結構です', 'けっこうです',
+    "don't", "dont", "not", "stop", "can't", "cant", "quit",
+    "no need to", "unnecessary", "won't be necessary"
   ];
   
   for (const pattern of negativePatterns) {
@@ -136,6 +161,59 @@ function detectSearchTrigger(content) {
     }
   }
   
+  // 改良版クエリ抽出: 特に「〇〇を検索して」のパターンをより正確に処理
+  // 「〜を検索して」パターン専用の抽出処理
+  const searchPatterns = [
+    // 「〜を検索して」パターン - キャプチャグループを変更して「を検索して」の前の部分を取得
+    // (.*)(を|に関して|について|の|に)(検索|調べて|調査して|サーチして|探して)(下さい|ください|ね|よ|くれる|くれません)?$
+    {
+      pattern: /(.*?)(を|に関して|について|の|に)(検索|調べて|調査して|サーチして|探して)(下さい|ください|ね|よ|くれる|くれません)?$/,
+      extractIndex: 1 // 最初のキャプチャグループ
+    },
+    // 「〜は？」「〜って？」パターン
+    {
+      pattern: /(.*?)(は|って|とは|ってなに|はなに|なの|ですか|何|だれ|誰|いつ|どこ)(\?|？)?$/,
+      extractIndex: 1
+    },
+    // 時間要素を含むパターン（今日の〜、明日の〜など）
+    {
+      pattern: /(今日|明日|昨日|今週|来週|今月|来月)(の|は|の中で|における)(.+?)$/,
+      extractIndex: 3,
+      timePrefix: true,
+      timeIndex: 1,
+      connectIndex: 2
+    }
+  ];
+
+  // パターンを順に試す
+  for (const patternObj of searchPatterns) {
+    const match = content.match(patternObj.pattern);
+    if (match) {
+      // パターンにマッチした場合
+      let query = match[patternObj.extractIndex].trim();
+      
+      // 時間要素がある場合は、それも含める
+      if (patternObj.timePrefix && match[patternObj.timeIndex]) {
+        const timeElement = match[patternObj.timeIndex];
+        const connector = match[patternObj.connectIndex];
+        query = `${timeElement}${connector}${query}`;
+      }
+      
+      // クエリが空でなければ検索トリガーとして検出
+      if (query) {
+        if (config.DEBUG) {
+          logger.debug(`パターンマッチによる検索クエリ抽出: "${query}" (パターン: ${patternObj.pattern})`);
+        }
+        return { 
+          trigger: match[0], 
+          query: query,
+          score: 80, // 高いスコア
+          isExplicitSearch: true
+        };
+      }
+    }
+  }
+  
   // 言語別トリガーの検索（改良版）
   const allTriggers = [];
   
@@ -144,18 +222,52 @@ function detectSearchTrigger(content) {
     for (const trigger of SEARCH_TRIGGERS[lang]) {
       if (contentLower.includes(trigger.toLowerCase())) {
         const triggerIndex = contentLower.indexOf(trigger.toLowerCase());
-        const afterTrigger = content.substring(triggerIndex + trigger.length).trim();
+        
+        // ここが重要な改善ポイント: トリガーの前の部分をクエリとして優先的に抽出
+        let queryText = '';
+        
+        // トリガーが文末に近い場合、トリガーの前にある内容をクエリとみなす
+        if (triggerIndex > 0 && triggerIndex > contentLower.length * 0.5) {
+          queryText = content.substring(0, triggerIndex).trim();
+        } 
+        // それ以外の場合は従来通りトリガーの後の部分を使用
+        else {
+          queryText = content.substring(triggerIndex + trigger.length).trim();
+        }
         
         // クエリが存在し、かつ妥当な長さ（2-100文字）である場合のみ候補に追加
-        if (afterTrigger && afterTrigger.length >= 2 && afterTrigger.length <= 100) {
-          // トリガーの品質スコアを計算（長いトリガーほど誤検出の可能性が低い）
-          const score = trigger.length * 2 + afterTrigger.length;
+        if (queryText && queryText.length >= 2 && queryText.length <= 100) {
+          // スコアリングロジックを改良
+          // 1. トリガーの長さ - 長いトリガーほど意図的なものである可能性が高い
+          const triggerLengthScore = trigger.length * 2;
+          
+          // 2. クエリの長さ - 適切な長さのクエリは良い傾向がある
+          const queryLengthScore = Math.min(queryText.length, 50); // 上限を設定
+          
+          // 3. 位置補正 - 文末に近いトリガーほど重要（例: 「〜を検索して」）
+          const positionScore = triggerIndex > contentLower.length * 0.5 ? 40 : 10;
+          
+          // 4. 最新情報フレーズボーナス - 「最新」「今日の」などを含む場合は高いスコア
+          const recentInfoPatterns = ['最新', '今日', '昨日', '今週', '最近', 'latest', 'recent', 'today', 'news', 'current'];
+          const hasRecentInfoPattern = recentInfoPatterns.some(p => trigger.includes(p) || queryText.includes(p));
+          const recentInfoBonus = hasRecentInfoPattern ? 30 : 0;
+          
+          // 5. 明示的な検索フレーズボーナス - 「検索」「調べて」などの明示的な単語を含む場合
+          const explicitSearchPatterns = ['検索', '調べ', 'search', 'find', 'look up'];
+          const hasExplicitSearchPattern = explicitSearchPatterns.some(p => trigger.includes(p));
+          const explicitSearchBonus = hasExplicitSearchPattern ? 40 : 0;
+          
+          // 合計スコアを計算
+          const score = triggerLengthScore + queryLengthScore + positionScore + recentInfoBonus + explicitSearchBonus;
           
           allTriggers.push({
             trigger,
-            query: afterTrigger,
+            query: queryText,
             score,
-            index: triggerIndex  // 文中の位置（先頭に近いほど優先）
+            index: triggerIndex,  // 文中の位置
+            hasRecentInfoPattern,
+            hasExplicitSearchPattern,
+            isPreTrigger: triggerIndex > contentLower.length * 0.5 // トリガーの前をクエリに使ったか
           });
         }
       }
@@ -174,15 +286,31 @@ function detectSearchTrigger(content) {
       return b.score - a.score;
     }
     
-    // 優先度2: 文中の出現位置（早いほど良い）
+    // 優先度2: 文中の出現位置（トリガーの前をクエリに使った場合は優先）
+    if (a.isPreTrigger !== b.isPreTrigger) {
+      return a.isPreTrigger ? -1 : 1;
+    }
+    
+    // 優先度3: トリガーの位置
     return a.index - b.index;
   });
   
   // 最も信頼性の高いトリガーを選択
   const bestMatch = allTriggers[0];
   
+  // 最低スコアのしきい値を設定 - 偶発的なトリガーを防止
+  const MINIMUM_SCORE_THRESHOLD = 30;
+  if (bestMatch.score < MINIMUM_SCORE_THRESHOLD) {
+    if (config.DEBUG) {
+      logger.debug(`検索トリガースコアが低すぎるため無視: ${bestMatch.score} < ${MINIMUM_SCORE_THRESHOLD} (トリガー: "${bestMatch.trigger}")`);
+    }
+    return null;
+  }
+  
   if (config.DEBUG) {
     logger.debug(`検索トリガー検出 (Score=${bestMatch.score}): "${bestMatch.trigger}", クエリ="${bestMatch.query}"`);
+    logger.debug(`検出詳細: 位置=${bestMatch.index}, 最新情報フレーズ=${bestMatch.hasRecentInfoPattern}, 明示的検索フレーズ=${bestMatch.hasExplicitSearchPattern}, 前置きクエリ=${bestMatch.isPreTrigger}`);
+    
     if (allTriggers.length > 1) {
       logger.debug(`他の候補: ${allTriggers.length - 1}件（最大スコア: ${allTriggers[0].score}, 最小スコア: ${allTriggers[allTriggers.length - 1].score}）`);
     }
@@ -191,7 +319,9 @@ function detectSearchTrigger(content) {
   return { 
     trigger: bestMatch.trigger, 
     query: bestMatch.query,
-    score: bestMatch.score  // デバッグ用にスコアも返す
+    score: bestMatch.score,  // デバッグ用にスコアも返す
+    isRecentInfoQuery: bestMatch.hasRecentInfoPattern,  // 最新情報クエリかどうか
+    isExplicitSearch: bestMatch.hasExplicitSearchPattern  // 明示的な検索リクエストかどうか
   };
 }
 
