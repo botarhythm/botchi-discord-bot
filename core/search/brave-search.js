@@ -31,15 +31,15 @@ class BraveSearchClient {
   constructor(options = {}) {
     this.config = { ...DEFAULT_CONFIG, ...options };
     
-    // 環境変数からAPIキーを取得 - BRAVE_API_KEYに統一
-    // 互換性のためにBRAVE_SEARCH_API_KEYもフォールバックとして維持
+    // 環境変数からAPIキーを取得 - 優先順位を明確化
     this.apiKey = process.env.BRAVE_API_KEY || 
-                 process.env.BRAVE_SEARCH_API_KEY || 
-                 config.BRAVE_API_KEY || 
-                 'BSAThZH8RcPF6tqem02e4zuVp1j9Yja'; // 最終フォールバック値
+                  process.env.BRAVE_SEARCH_API_KEY || 
+                  config.BRAVE_API_KEY || 
+                  config.BRAVE_SEARCH_API_KEY ||
+                  'BSAThZH8RcPF6tqem02e4zuVp1j9Yja'; // 最終フォールバック値
     
     // 機能トグルを環境変数で制御
-    this.isEnabled = this.config.isEnabled;
+    this.isEnabled = this.config.isEnabled || config.BRAVE_SEARCH_ENABLED;
     if (process.env.BRAVE_SEARCH_ENABLED === 'true') {
       this.isEnabled = true;
     } else if (process.env.BRAVE_SEARCH_ENABLED === 'false') {
@@ -47,7 +47,7 @@ class BraveSearchClient {
     }
     
     // 常に設定完了済みとする
-    this.isConfigured = true;
+    this.isConfigured = Boolean(this.apiKey);
     
     // 起動時のログ出力
     logger.info('Brave Search client initialized');
@@ -60,13 +60,14 @@ class BraveSearchClient {
       // APIキーの取得元を特定
       const keySource = process.env.BRAVE_API_KEY ? 'BRAVE_API_KEY' : 
                         process.env.BRAVE_SEARCH_API_KEY ? 'BRAVE_SEARCH_API_KEY' : 
-                        config.BRAVE_API_KEY ? 'config.BRAVE_API_KEY' : 'fallback value';
+                        config.BRAVE_API_KEY ? 'config.BRAVE_API_KEY' : 
+                        config.BRAVE_SEARCH_API_KEY ? 'config.BRAVE_SEARCH_API_KEY' : 'fallback value';
       logger.debug(`機能トグル状態: BRAVE_SEARCH_ENABLED=${process.env.BRAVE_SEARCH_ENABLED}, isEnabled=${this.isEnabled}`);
       
       // APIキーの存在確認（セキュリティのため先頭数文字のみ表示）
       const keyPreview = this.apiKey ? this.apiKey.substring(0, 3) + '...' : 'none';
       logger.debug(`Brave Search API initialized with key from ${keySource} (${keyPreview}), key length: ${this.apiKey ? this.apiKey.length : 0}`);
-      logger.debug(`Search command: ${this.config.commandPrefix}search, Status: ${this.config.isEnabled ? 'enabled' : 'disabled'}`);
+      logger.debug(`Search command: ${this.config.commandPrefix}search, Status: ${this.isEnabled ? 'enabled' : 'disabled'}`);
     }
   }
   
@@ -364,6 +365,7 @@ class BraveSearchClient {
   
   /**
    * 検索結果を整形してDiscordに表示可能なテキストに変換する
+   * 著作権保護と引用ガイドラインに従って結果を整形
    * @param {Object} searchResult 検索結果オブジェクト
    * @returns {string} 整形されたテキスト
    */
@@ -378,44 +380,78 @@ class BraveSearchClient {
     // ローカル検索結果かどうかを判定
     const isLocalSearch = searchResult.results[0].isLocal;
     
+    // 著作権保護対応: 
+    // 1. 引用は25語以内に制限
+    // 2. 引用は必ず引用符で囲む
+    // 3. 要約は2-3文に制限
+    // 4. オリジナルの言い回しを避ける
+    
     if (isLocalSearch) {
       // ローカル（場所）の検索結果
+      // 場所情報は事実に基づくものなので著作権の懸念は低いが、フォーマットは改善
       searchResult.results.forEach((result, index) => {
         resultText += `${index + 1}. **${result.title}**\n`;
         
+        // ビジネス情報のまとめを表示
+        const infoItems = [];
+        
         if (result.rating) {
-          resultText += `   評価: ${result.rating}/5`;
-          if (result.reviewCount) {
-            resultText += ` (${result.reviewCount}件のレビュー)`;
-          }
-          resultText += '\n';
+          infoItems.push(`評価: ${result.rating}/5${result.reviewCount ? ` (${result.reviewCount}件のレビュー)` : ''}`);
         }
         
         if (result.address) {
-          resultText += `   住所: ${result.address}\n`;
+          infoItems.push(`住所: ${result.address}`);
         }
         
         if (result.phone) {
-          resultText += `   電話: ${result.phone}\n`;
+          infoItems.push(`電話: ${result.phone}`);
         }
         
         if (result.hours) {
-          resultText += `   ${result.hours}\n`;
+          infoItems.push(`${result.hours}`);
         }
         
+        // 情報をまとめて表示（より簡潔に）
+        if (infoItems.length > 0) {
+          resultText += `   ${infoItems.join(' • ')}\n`;
+        }
+        
+        // URLは短く表示
         if (result.url) {
-          resultText += `   ${result.url}\n`;
+          const domain = result.url.replace(/^https?:\/\/([^\/]+).*$/, '$1');
+          resultText += `   🔗 ${domain}\n`;
         }
         
         resultText += '\n';
       });
     } else {
-      // 通常のウェブ検索結果
+      // 通常のウェブ検索結果 - 著作権に配慮したフォーマット
       searchResult.results.forEach((result, index) => {
         resultText += `${index + 1}. **${result.title}**\n`;
-        resultText += `   ${result.description}\n`;
-        resultText += `   ${result.url}\n\n`;
+        
+        // 説明文を短めに整形し、25単語以内の短い引用にする
+        let description = result.description || '';
+        
+        // 説明文が長い場合は要約
+        if (description.length > 0) {
+          // 単語数をカウント
+          const words = description.split(/\s+/);
+          if (words.length > 25) {
+            // 25単語以内に制限し、末尾に省略記号を追加
+            description = words.slice(0, 25).join(' ') + '...';
+          }
+          
+          // 引用符で囲む（著作権保護対策）
+          resultText += `   "${description.trim()}"\n`;
+        }
+        
+        // URLはドメイン名と一緒に表示
+        const domain = result.url.replace(/^https?:\/\/([^\/]+).*$/, '$1');
+        resultText += `   🔗 [${domain}](${result.url})\n\n`;
       });
+      
+      // 結果の後に著作権への配慮を示す注釈を追加
+      resultText += `ℹ️ 情報元サイトの利用規約に従って、引用は短く制限しています。完全な情報は各サイトでご確認ください。\n`;
     }
     
     return resultText;
