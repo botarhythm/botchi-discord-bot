@@ -29,11 +29,24 @@ const LOCAL_SEARCH_TRIGGERS = {
 };
 
 /**
+ * 検索が有効かどうかをチェックする
+ * @returns {boolean} 検索が有効な場合はtrue
+ */
+function isSearchEnabled() {
+  // 主にBRAVE_API_KEYを使用し、他の変数もフォールバックとして使用
+  return Boolean(process.env.BRAVE_API_KEY || 
+                process.env.BRAVE_SEARCH_API_KEY || 
+                config.BRAVE_API_KEY || 
+                config.SEARCH_ENABLED);
+}
+
+/**
  * メッセージから検索トリガーを検出する
  * @param {string} content メッセージの内容
  * @returns {Object|null} 検出された場合は {trigger, query} 形式のオブジェクト、検出されなかった場合はnull
  */
 function detectSearchTrigger(content) {
+  // 基本的な検証
   if (!content || typeof content !== 'string') {
     if (config.DEBUG) {
       logger.debug(`検索トリガー検出: 無効なコンテンツ "${content}"`);
@@ -41,76 +54,48 @@ function detectSearchTrigger(content) {
     return null;
   }
   
-  // 検索機能が有効かチェック
-  if (!config.SEARCH_ENABLED) {
+  // 検索機能が有効かチェック - isSearchEnabled関数を使用
+  if (!isSearchEnabled()) {
     if (config.DEBUG) {
-      logger.debug('検索機能が無効です（BRAVE_API_KEYが設定されていません）');
-      // API key状態も詳細に出力
-      logger.debug(`BRAVE_API_KEY状態: ${config.BRAVE_API_KEY ? '設定あり' : '設定なし'}`);
-      logger.debug(`SEARCH_ENABLED状態: ${config.SEARCH_ENABLED}`);
+      logger.debug('検索機能が無効です - isSearchEnabled()がfalseを返しました');
     }
-    // 検索機能が無効でも検出だけは行う（ユーザーにフィードバックするため）
+    return null;
   }
   
   const contentLower = content.toLowerCase();
-  let detectedTrigger = null;
-  let query = null;
-  
-  if (config.DEBUG) {
-    logger.debug(`検索トリガー検出開始: "${contentLower.substring(0, 30)}..."`);
-    
-    // 利用可能なトリガーをログに出力（デバッグ用）
-    const allTriggers = {};
-    for (const lang of Object.keys(SEARCH_TRIGGERS)) {
-      allTriggers[lang] = SEARCH_TRIGGERS[lang];
-    }
-    logger.debug(`利用可能な検索トリガー: ${JSON.stringify(allTriggers)}`);
-  }
   
   // 明示的な検索コマンドをまず確認（例: !search）
   if (contentLower.startsWith(`${config.PREFIX}search`)) {
     const searchQuery = content.substring((config.PREFIX + 'search').length).trim();
     if (searchQuery) {
       if (config.DEBUG) {
-        logger.debug(`明示的な検索コマンド検出: クエリ "${searchQuery}"`);
+        logger.debug(`検索コマンド検出: "${searchQuery}"`);
       }
       return { trigger: 'search', query: searchQuery };
     }
   }
   
-  // 全ての言語のトリガーをチェック
+  // 言語別トリガーの検索（シンプル化）
   for (const lang of Object.keys(SEARCH_TRIGGERS)) {
-    // その言語の全トリガーをチェック
     for (const trigger of SEARCH_TRIGGERS[lang]) {
-      // "検索 クエリ" または "検索：クエリ" または "検索:クエリ" パターンを検出
-      const patterns = [
-        new RegExp(`${trigger}[\\s:：]+(.*?)(?=$|\\n)`, 'i'),
-        new RegExp(`${trigger}(.*?)(?=$|\\n)`, 'i') // スペースなしのケースもカバー
-      ];
-      
-      for (const pattern of patterns) {
-        const match = contentLower.match(pattern);
-        if (match && match[1] && match[1].trim()) {
-          detectedTrigger = trigger;
-          query = match[1].trim();
-          
+      // トリガーキーワードが含まれているか確認
+      if (contentLower.includes(trigger.toLowerCase())) {
+        const triggerIndex = contentLower.indexOf(trigger.toLowerCase());
+        // トリガーの後ろの部分をクエリとして取得
+        const afterTrigger = content.substring(triggerIndex + trigger.length).trim();
+        
+        // クエリが存在する場合のみ検出成功
+        if (afterTrigger && afterTrigger.length > 0) {
           if (config.DEBUG) {
-            logger.debug(`検索トリガー検出成功: 言語=${lang}, トリガー="${trigger}", パターン="${pattern}", クエリ="${query}"`);
+            logger.debug(`検索トリガー検出: "${trigger}", クエリ="${afterTrigger}"`);
           }
-          
-          return { trigger: detectedTrigger, query: query };
-        } else if (config.DEBUG && match) {
-          // 部分的なマッチがあった場合のデバッグ情報
-          logger.debug(`検索トリガー部分マッチ: "${trigger}", マッチ結果=${JSON.stringify(match)}`);
+          return { trigger, query: afterTrigger };
         }
       }
     }
   }
   
-  if (config.DEBUG) {
-    logger.debug(`検索トリガー検出: トリガーなし (content="${contentLower.substring(0, 30)}...")`);
-  }
-  
+  // トリガー検出なし
   return null;
 }
 
@@ -158,23 +143,13 @@ async function processMessage(message) {
     return null; // 検索トリガーが見つからない場合
   }
   
-  // 詳細なデバッグログ（検索クライアント状態）
-  if (config.DEBUG) {
-    logger.debug(`検索トリガー検出成功: "${triggerInfo.query}"`);
-    logger.debug(`検索クライアント準備状態: ${braveSearch.isReady()}`);
-    logger.debug(`環境変数状態: BRAVE_API_KEY=${!!config.BRAVE_API_KEY}, SEARCH_ENABLED=${config.SEARCH_ENABLED}`);
-  }
-  
   // 検索クライアントが設定されているか確認
   if (!braveSearch.isReady()) {
     logger.warn('Search was triggered but Brave Search API is not configured.');
-    
-    // ユーザーにも通知できるようにエラー情報を返す
     return {
       success: false,
       error: 'Brave Search API is not configured',
-      results: [],
-      query: triggerInfo.query
+      results: []
     };
   }
   
@@ -202,23 +177,9 @@ async function processMessage(message) {
       searchResult = await braveSearch.search(triggerInfo.query);
     }
     
-    // 詳細な結果ログ（デバッグ用）
-    if (config.DEBUG) {
-      logger.debug(`検索結果取得: success=${searchResult.success}, 結果数=${searchResult.results?.length || 0}`);
-      
-      if (!searchResult.success) {
-        logger.debug(`検索エラー詳細: ${searchResult.error || '不明なエラー'}`);
-      }
-    }
-    
     return searchResult;
   } catch (error) {
     logger.error(`検索処理エラー: ${error.message}`);
-    
-    // 詳細なエラーログ
-    if (config.DEBUG) {
-      logger.debug(`検索処理エラー詳細: ${error.stack || 'スタック情報なし'}`);
-    }
     
     return {
       success: false,
@@ -244,40 +205,15 @@ async function sendSearchResult(message, searchResult) {
     // 検索結果をテキスト形式に変換
     const resultText = braveSearch.formatSearchResultText(searchResult);
     
-    if (config.DEBUG) {
-      logger.debug(`検索結果フォーマット完了: 長さ=${resultText?.length || 0}文字`);
-    }
-    
     // 結果をDiscordに送信
     if (resultText) {
       await message.reply(resultText);
-      
-      if (config.DEBUG) {
-        logger.debug('検索結果を送信成功');
-      }
-      
-      return true;
-    }
-    
-    // 結果がない場合のエラーメッセージ
-    if (config.DEBUG) {
-      logger.debug('検索結果が空のため送信せず');
-    }
-    
-    // 結果がない場合はエラーメッセージを送信
-    if (searchResult && searchResult.query) {
-      await message.reply(`「${searchResult.query}」の検索結果が見つかりませんでした。`);
       return true;
     }
     
     return false;
   } catch (error) {
     logger.error(`検索結果送信エラー: ${error.message}`);
-    
-    // エラー詳細のデバッグログ
-    if (config.DEBUG) {
-      logger.debug(`送信エラー詳細: ${error.stack || 'スタック情報なし'}`);
-    }
     
     // エラー時にシンプルなメッセージを送信
     try {
@@ -296,6 +232,7 @@ async function sendSearchResult(message, searchResult) {
  * @returns {Promise<boolean>} 検索が実行された場合はtrue
  */
 async function handleSearchIfTriggered(message) {
+  // 基本的な検証
   if (!message || !message.content) {
     if (config.DEBUG) {
       logger.debug('検索ハンドラー: 無効なメッセージオブジェクト');
@@ -303,69 +240,40 @@ async function handleSearchIfTriggered(message) {
     return false;
   }
   
-  // 検索機能が有効かどうかのチェックをより正確に行う
-  const searchEnabled = config.SEARCH_ENABLED;
-  const braveApiKeyExists = !!config.BRAVE_API_KEY;
-  const braveSearchReady = braveSearch.isReady();
-  
-  // デバッグログを追加（検索機能の状態診断）
-  if (config.DEBUG) {
-    logger.debug(`検索ハンドラー診断: SEARCH_ENABLED=${searchEnabled}, API_KEY存在=${braveApiKeyExists}, CLIENT_READY=${braveSearchReady}`);
-    logger.debug(`検索ハンドラー: メッセージを処理 "${message.content.substring(0, 30)}..."`);
+  // 検索機能が無効な場合は早期リターン
+  if (!isSearchEnabled()) {
+    if (config.DEBUG) {
+      logger.debug('検索機能は無効です');
+    }
+    return false;
   }
   
-  // 検索機能が無効な場合は早期リターン
-  if (!searchEnabled) {
-    if (config.DEBUG) {
-      logger.debug('検索ハンドラー: 検索機能が無効');
-    }
-    
-    // それでも検索トリガーがあるか確認（ユーザーに通知するため）
-    const triggerInfo = detectSearchTrigger(message.content);
-    if (triggerInfo) {
-      try {
-        await message.reply('申し訳ありませんが、検索機能は現在利用できません。');
-        return true; // 応答したのでtrueを返す
-      } catch (error) {
-        logger.error(`検索無効通知エラー: ${error.message}`);
-      }
-    }
-    
-    return false;
+  // 基本的なデバッグ情報
+  if (config.DEBUG) {
+    logger.debug(`検索ハンドラー: メッセージを処理 "${message.content.substring(0, 30)}..."`);
   }
   
   try {
     // 検索を処理
     const searchResult = await processMessage(message);
     
+    // 検索結果がない場合
     if (!searchResult) {
       if (config.DEBUG) {
-        logger.debug('検索ハンドラー: 検索トリガーなし、またはクエリが処理されなかった');
+        logger.debug('検索トリガー検出なし、またはクエリが処理されなかった');
       }
-      return false; // 検索が実行されなかった場合
+      return false;
     }
     
+    // 検索結果の簡易ログ
     if (config.DEBUG) {
-      logger.debug(`検索ハンドラー: 検索結果取得 (success=${searchResult.success}, results=${searchResult.results?.length || 0}件)`);
-      
-      if (!searchResult.success) {
-        logger.debug(`検索エラー: ${searchResult.error || 'unknown error'}`);
-      }
+      logger.debug(`検索結果: ${searchResult.success ? '成功' : '失敗'}, ${searchResult.results?.length || 0}件`);
     }
     
-    // 検索結果を送信
-    const sent = await sendSearchResult(message, searchResult);
-    
-    if (config.DEBUG) {
-      logger.debug(`検索結果送信: ${sent ? '成功' : '失敗'}`);
-    }
-    
-    return sent;
+    // 検索結果を送信して結果を返す
+    return await sendSearchResult(message, searchResult);
   } catch (error) {
     logger.error(`検索ハンドラーエラー: ${error.message}`);
-    if (config.DEBUG) {
-      logger.debug(`検索ハンドラー詳細エラー: ${error.stack || 'スタック情報なし'}`);
-    }
     return false;
   }
 }
