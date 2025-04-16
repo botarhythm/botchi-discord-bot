@@ -2,7 +2,7 @@
 
 GraphAI × Discord マルチモーダルチャットボット「Bocchy」- 静かでやわらかな知の伴走者
 
-![Version](https://img.shields.io/badge/version-1.2.0-blue)
+![Version](https://img.shields.io/badge/version-1.3.5-blue)
 ![Node](https://img.shields.io/badge/node-%3E%3D16.9.0-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
@@ -26,6 +26,7 @@ Bocchyは森の奥にひっそりと佇む案内人のような存在。静か�
 - **マルチチャネル**: サーバーのメンションとDMの両方で対話可能
 - **ステータス表示**: 詩的な表現で現在の状態を伝える
 - **メモリ管理**: トークン消費を最適化する自動圧縮機能（v1.2.0～）
+- **Web検索機能**: 会話中の質問に対してWeb検索を実行し情報を提供（v1.3.5～）
 
 ## 🌱 コマンド一覧
 
@@ -35,8 +36,10 @@ Bocchyは森の奥にひっそりと佇む案内人のような存在。静か�
 - `!status` - 森の案内人の様子を知る
 - `!about` - Bocchyについての詳細を確認
 - `!help` - 道標（コマンド一覧）を表示
+- `!search [クエリ]` - 指定したキーワードでWeb検索を実行
 - `@Bocchy [メッセージ]` - 対話の始まり
 - ダイレクトメッセージでの一対一の対話
+- 「〇〇を検索して」など自然言語での検索リクエスト
 
 ## 🌲 セットアップ
 
@@ -45,6 +48,7 @@ Bocchyは森の奥にひっそりと佇む案内人のような存在。静か�
 - Discord Bot Token
 - OpenAI API Key
 - Supabase URL と Key（オプション、v1.2.0～）
+- Brave Search API Key（オプション、v1.3.5～）
 
 ### インストール手順
 
@@ -74,6 +78,9 @@ Bocchyは森の奥にひっそりと佇む案内人のような存在。静か�
    # Supabase設定（オプション）
    SUPABASE_URL=your_supabase_url
    SUPABASE_KEY=your_supabase_key
+   
+   # Brave Search API設定（オプション、v1.3.5～）
+   BRAVE_API_KEY=your_brave_search_api_key
    
    DEBUG=false
    ```
@@ -148,12 +155,14 @@ Railway を使用してデプロイすることを推奨します。Railway ダ�
 - `OPENAI_MODEL`
 - `SUPABASE_URL`（オプション）
 - `SUPABASE_KEY`（オプション）
+- `BRAVE_API_KEY`（オプション、v1.3.5～）
 - `DEBUG`（オプション）
 
 ## 🪺 開発ロードマップ
 
 - ✅ コンテキスト管理モジュールの導入（v1.2.0）
 - ✅ Supabaseを使用したデータ永続化（v1.2.0）
+- ✅ Brave Search APIを使用したWeb検索機能の導入（v1.3.5）
 - メンション外の受動的学習機能（予定）
 - トリガーワードの柔軟化（予定）
 - マルチモーダル機能（画像・音声）の実装（予定）
