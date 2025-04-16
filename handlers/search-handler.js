@@ -8,24 +8,56 @@ const braveSearch = require('../core/search/brave-search');
 const logger = require('../system/logger');
 const config = require('../config/env');
 
-// 検索トリガーフレーズ
+// 検索トリガーフレーズ - より自然な表現を含める
 const SEARCH_TRIGGERS = {
   // 日本語
   ja: [
+    // 直接的なトリガー
     '検索', 'けんさく', 'さがして', '調べて', 'しらべて', 
-    'ググって', 'ぐぐって', '教えて', 'おしえて'
+    'ググって', 'ぐぐって', '教えて', 'おしえて',
+    // 丁寧な依頼フレーズ
+    '検索して', 'さがしてください', '調べてください', '検索してくれる', 
+    '調べてくれる', 'おしえてくれる', '教えてくれる', '検索してほしい',
+    // 質問形式
+    'について教えて', 'とは何', 'って何', 'を知りたい', 'を調べて', 
+    'について知りたい', 'について調べて', 'についておしえて'
   ],
   // 英語
   en: [
+    // 直接的なトリガー
     'search', 'find', 'look up', 'lookup', 'google', 
-    'tell me about', 'what is', 'what are'
+    'tell me about', 'what is', 'what are',
+    // 丁寧な依頼フレーズ
+    'can you search', 'please search', 'could you look up',
+    'can you find', 'please tell me about', 'search for',
+    // 質問形式
+    'do you know what', 'do you know about', 'can you tell me about',
+    'i want to know about', 'i need information on', 'how can I find'
   ]
 };
 
-// ローカル検索（場所）のトリガーフレーズ
+// ローカル検索（場所）のトリガーフレーズ - より多くの位置表現を含む
 const LOCAL_SEARCH_TRIGGERS = {
-  ja: ['近く', '周辺', '付近', '場所', 'どこ', 'どこで', 'お店', '店', 'レストラン', 'カフェ', 'コンビニ'],
-  en: ['near', 'nearby', 'around', 'location', 'where', 'where is', 'store', 'shop', 'restaurant', 'cafe']
+  ja: [
+    // 位置表現
+    '近く', '周辺', '付近', '場所', 'どこ', 'どこで', 'どこに', 'どの辺',
+    // 施設
+    'お店', '店', 'レストラン', 'カフェ', 'コンビニ', '病院', '駅', '銀行',
+    '薬局', 'スーパー', '美容院', '映画館', 'ホテル', '旅館',
+    // 位置検索フレーズ
+    'まで何分', 'までの距離', 'の行き方', 'への道', 'の場所', 'はどこ',
+    '地図で見せて', '地図で表示'
+  ],
+  en: [
+    // 位置表現
+    'near', 'nearby', 'around', 'location', 'where', 'where is', 'close to',
+    // 施設
+    'store', 'shop', 'restaurant', 'cafe', 'hospital', 'station', 'bank',
+    'pharmacy', 'supermarket', 'hotel', 'theater', 'cinema',
+    // 位置検索フレーズ
+    'how to get to', 'directions to', 'map of', 'distance to', 'find on map',
+    'show me on map', 'address of', 'located at'
+  ]
 };
 
 /**
@@ -33,11 +65,25 @@ const LOCAL_SEARCH_TRIGGERS = {
  * @returns {boolean} 検索が有効な場合はtrue
  */
 function isSearchEnabled() {
-  // 主にBRAVE_API_KEYを使用し、他の変数もフォールバックとして使用
-  return Boolean(process.env.BRAVE_API_KEY || 
-                process.env.BRAVE_SEARCH_API_KEY || 
-                config.BRAVE_API_KEY || 
-                config.SEARCH_ENABLED);
+  // 常に有効化する - フォールバックAPIキーが設定されているため
+  // config.SEARCH_ENABLEDをチェックするが、通常はtrueになっている
+  const enabled = config.SEARCH_ENABLED === true;
+  
+  // 詳細なデバッグログ
+  if (config.DEBUG) {
+    const apiKeyStatus = Boolean(process.env.BRAVE_API_KEY || 
+                                process.env.BRAVE_SEARCH_API_KEY || 
+                                config.BRAVE_API_KEY);
+    logger.debug(`検索機能有効確認: ${enabled ? '有効' : '無効'}, APIキー設定有無: ${apiKeyStatus}`);
+    
+    // APIキーのソースを診断
+    const keySource = process.env.BRAVE_API_KEY ? 'process.env.BRAVE_API_KEY' : 
+                     process.env.BRAVE_SEARCH_API_KEY ? 'process.env.BRAVE_SEARCH_API_KEY' : 
+                     config.BRAVE_API_KEY ? 'config.BRAVE_API_KEY' : 'なし';
+    logger.debug(`検索APIキーソース: ${keySource}`);
+  }
+  
+  return enabled;
 }
 
 /**
@@ -75,28 +121,78 @@ function detectSearchTrigger(content) {
     }
   }
   
-  // 言語別トリガーの検索（シンプル化）
+  // 否定表現を含むメッセージは除外
+  const negativePatterns = [
+    'しなくて', 'してない', 'しないで', 'やめて', 'いらない',
+    "don't", "dont", "not", "stop", "can't", "cant", "quit"
+  ];
+  
+  for (const pattern of negativePatterns) {
+    if (contentLower.includes(pattern)) {
+      if (config.DEBUG) {
+        logger.debug(`否定表現検出のため検索を中止: "${pattern}"`);
+      }
+      return null;
+    }
+  }
+  
+  // 言語別トリガーの検索（改良版）
+  const allTriggers = [];
+  
+  // すべての言語のトリガーをスコア付きで収集
   for (const lang of Object.keys(SEARCH_TRIGGERS)) {
     for (const trigger of SEARCH_TRIGGERS[lang]) {
-      // トリガーキーワードが含まれているか確認
       if (contentLower.includes(trigger.toLowerCase())) {
         const triggerIndex = contentLower.indexOf(trigger.toLowerCase());
-        // トリガーの後ろの部分をクエリとして取得
         const afterTrigger = content.substring(triggerIndex + trigger.length).trim();
         
-        // クエリが存在する場合のみ検出成功
-        if (afterTrigger && afterTrigger.length > 0) {
-          if (config.DEBUG) {
-            logger.debug(`検索トリガー検出: "${trigger}", クエリ="${afterTrigger}"`);
-          }
-          return { trigger, query: afterTrigger };
+        // クエリが存在し、かつ妥当な長さ（2-100文字）である場合のみ候補に追加
+        if (afterTrigger && afterTrigger.length >= 2 && afterTrigger.length <= 100) {
+          // トリガーの品質スコアを計算（長いトリガーほど誤検出の可能性が低い）
+          const score = trigger.length * 2 + afterTrigger.length;
+          
+          allTriggers.push({
+            trigger,
+            query: afterTrigger,
+            score,
+            index: triggerIndex  // 文中の位置（先頭に近いほど優先）
+          });
         }
       }
     }
   }
   
-  // トリガー検出なし
-  return null;
+  // 検出結果がない場合
+  if (allTriggers.length === 0) {
+    return null;
+  }
+  
+  // スコアで並べ替え、最も信頼性の高い検出結果を選択
+  allTriggers.sort((a, b) => {
+    // 優先度1: スコア（高いほど良い）
+    if (b.score !== a.score) {
+      return b.score - a.score;
+    }
+    
+    // 優先度2: 文中の出現位置（早いほど良い）
+    return a.index - b.index;
+  });
+  
+  // 最も信頼性の高いトリガーを選択
+  const bestMatch = allTriggers[0];
+  
+  if (config.DEBUG) {
+    logger.debug(`検索トリガー検出 (Score=${bestMatch.score}): "${bestMatch.trigger}", クエリ="${bestMatch.query}"`);
+    if (allTriggers.length > 1) {
+      logger.debug(`他の候補: ${allTriggers.length - 1}件（最大スコア: ${allTriggers[0].score}, 最小スコア: ${allTriggers[allTriggers.length - 1].score}）`);
+    }
+  }
+  
+  return { 
+    trigger: bestMatch.trigger, 
+    query: bestMatch.query,
+    score: bestMatch.score  // デバッグ用にスコアも返す
+  };
 }
 
 /**
