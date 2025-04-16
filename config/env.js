@@ -21,8 +21,8 @@ const MEMORY_ENABLED = process.env.MEMORY_ENABLED === 'true';
 // RAGシステム設定
 const RAG_ENABLED = process.env.RAG_ENABLED === 'true';
 
-// 検索API設定
-const BRAVE_API_KEY = process.env.BRAVE_SEARCH_API_KEY || process.env.BRAVE_API_KEY;
+// Web検索API設定 - BRAVE_API_KEY を推奨
+const BRAVE_API_KEY = process.env.BRAVE_API_KEY || process.env.BRAVE_SEARCH_API_KEY;
 const SEARCH_ENABLED = !!BRAVE_API_KEY;
 
 // デバッグモード
