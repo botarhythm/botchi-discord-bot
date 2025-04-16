@@ -102,11 +102,15 @@ class BraveSearchClient {
         url: `${this.config.baseUrl}/web/search`,
         params: {
           q: query,
-          count: count
+          count: count,
+          country: 'JP', // 日本の検索結果を優先
+          language: 'ja', // 日本語を優先
+          search_lang: 'ja' // 検索言語も日本語に設定
         },
         headers: {
           'Accept': 'application/json',
-          'X-Subscription-Token': this.apiKey
+          'X-Subscription-Token': this.apiKey,
+          'Accept-Language': 'ja-JP' // 日本語コンテンツを優先
         },
         timeout: this.config.timeout
       };
@@ -204,11 +208,15 @@ class BraveSearchClient {
         url: `${this.config.baseUrl}/local/search`,
         params: {
           q: query,
-          count: count
+          count: count,
+          country: 'JP', // 日本の検索結果を優先
+          language: 'ja', // 日本語を優先
+          search_lang: 'ja' // 検索言語も日本語に設定
         },
         headers: {
           'Accept': 'application/json',
-          'X-Subscription-Token': this.apiKey
+          'X-Subscription-Token': this.apiKey,
+          'Accept-Language': 'ja-JP' // 日本語コンテンツを優先
         },
         timeout: this.config.timeout
       };
