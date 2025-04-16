@@ -1,8 +1,8 @@
 // Botchi - Discord AI Chatbot
 // Message Handler Module
 
-const logger = require('../utils/logger');
-const { client } = require('../utils/discord-init');
+const logger = require('../system/logger');
+const { setupClient } = require('../core/discord-init');
 const config = require('../config');
 const { getRAGSystem } = require('../extensions/rag');
 const characterDefinitions = require('../extensions/character');
@@ -18,6 +18,8 @@ const RAG_ENABLED = process.env.RAG_ENABLED === 'true';
 
 // Global provider instance
 let aiProvider = null;
+// Initialize Discord client
+const client = setupClient();
 
 function setAIProvider(provider) {
   aiProvider = provider;
