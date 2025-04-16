@@ -8,41 +8,33 @@ const braveSearch = require('../core/search/brave-search');
 const logger = require('../system/logger');
 const config = require('../config/env');
 
-// 検索トリガーフレーズ - より自然な表現を含める
+// 検索トリガーフレーズ - 明示的な検索意図のあるトリガーに限定
 const SEARCH_TRIGGERS = {
   // 日本語
   ja: [
-    // 直接的なトリガー
-    '検索', 'けんさく', 'さがして', '調べて', 'しらべて', 
-    'ググって', 'ぐぐって', '教えて', 'おしえて', 'ネットで調べて',
-    // 丁寧な依頼フレーズ
-    '検索して', 'さがしてください', '調べてください', '検索してくれる', 
-    '調べてくれる', 'おしえてくれる', '教えてくれる', '検索してほしい',
-    '調べてくれますか', '検索してくれますか', 'おしえてくれませんか',
-    // 質問形式
-    'について教えて', 'とは何', 'って何', 'を知りたい', 'を調べて', 
-    'について知りたい', 'について調べて', 'についておしえて',
-    'について検索', 'について最新', 'の最新情報', '最新ニュース',
-    // 最新情報を求めるフレーズ
-    '最新', '今日の', '昨日の', '今週の', '今月の', '現在の',
-    '速報', 'ニュース', '最近の', '今の', '今年の'
+    // 直接的な検索トリガー - 明確に検索を指示するフレーズのみ
+    '検索して', 'けんさくして', 'さがして', 'しらべて', 
+    'ネットで調べて', 'インターネットで検索', 'ウェブで検索',
+    // 丁寧な依頼フレーズ - 明確な検索指示
+    '検索してください', 'さがしてください', '調べてください', 
+    '検索してくれる', '調べてくれる', '検索してほしい',
+    '調べてくれますか', '検索してくれますか', '検索をお願い',
+    // 検索に関連する明示的なフレーズ
+    'について検索', 'を調べて', 'の情報を探して', 
+    'について調べて', 'を検索して', 'の情報を教えて'
   ],
   // 英語
   en: [
-    // 直接的なトリガー
-    'search', 'find', 'look up', 'lookup', 'google', 'search online',
-    'tell me about', 'what is', 'what are', 'check', 'browse for',
-    // 丁寧な依頼フレーズ
+    // 直接的な検索トリガー - 明確に検索を指示するフレーズのみ
+    'search for', 'search about', 'search the web for',
+    'search online for', 'look up', 'find information about',
+    // 丁寧な依頼フレーズ - 明確な検索指示
     'can you search', 'please search', 'could you look up',
-    'can you find', 'please tell me about', 'search for',
-    'would you search', 'could you check', 'can you tell me if',
-    // 質問形式
-    'do you know what', 'do you know about', 'can you tell me about',
-    'i want to know about', 'i need information on', 'how can I find',
-    'who is', 'where is', 'when is', 'why is', 'how to',
-    // 最新情報を求めるフレーズ
-    'latest', 'recent', 'today\'s', 'current', 'newest',
-    'update on', 'news about', 'this week\'s', 'this year\'s'
+    'can you find', 'would you search for', 'could you search',
+    'please look up', 'search the internet for',
+    // 検索に関連する明示的なフレーズ
+    'search information about', 'find details on',
+    'look online for', 'web search for'
   ]
 };
 
@@ -161,27 +153,39 @@ function detectSearchTrigger(content) {
     }
   }
   
-  // 改良版クエリ抽出: 特に「〇〇を検索して」のパターンをより正確に処理
+  // 明示的な検索意図を持つパターンのみを抽出
   // 「〜を検索して」パターン専用の抽出処理
   const searchPatterns = [
-    // 「〜を検索して」パターン - キャプチャグループを変更して「を検索して」の前の部分を取得
-    // (.*)(を|に関して|について|の|に)(検索|調べて|調査して|サーチして|探して)(下さい|ください|ね|よ|くれる|くれません)?$
+    // 「〜を検索して」パターン - 明確に検索を指示するパターン
     {
       pattern: /(.*?)(を|に関して|について|の|に)(検索|調べて|調査して|サーチして|探して)(下さい|ください|ね|よ|くれる|くれません)?$/,
-      extractIndex: 1 // 最初のキャプチャグループ
+      extractIndex: 1, // 最初のキャプチャグループ
+      isExplicitSearch: true,
+      score: 90 // 非常に高いスコア（明示的な検索指示）
     },
-    // 「〜は？」「〜って？」パターン
+    // 「〜の情報を教えて」パターン - 明確な情報要求
     {
-      pattern: /(.*?)(は|って|とは|ってなに|はなに|なの|ですか|何|だれ|誰|いつ|どこ)(\?|？)?$/,
-      extractIndex: 1
+      pattern: /(.*?)(の|に関する|についての)(情報|データ|詳細|ニュース|最新情報|状況)(を|が|は|に)(知|調|教|探)(?:りたい|べたい|えて|したい)/,
+      extractIndex: 1,
+      isExplicitSearch: true,
+      score: 85
     },
-    // 時間要素を含むパターン（今日の〜、明日の〜など）
+    // 「〜はどうなっている？」のような質問 - 情報要求だが検索ほど明示的ではない
     {
-      pattern: /(今日|明日|昨日|今週|来週|今月|来月)(の|は|の中で|における)(.+?)$/,
+      pattern: /(.*?)(は|って|の)(最新|現在|今|どう|どうなって|どんな)(状況|情報|ニュース|様子)(?:は|か|ですか|でしょうか|ある|ある？)/,
+      extractIndex: 1,
+      isExplicitSearch: true,
+      score: 80
+    },
+    // 時間要素を含む明示的な情報要求（今日の〜、明日の〜など）
+    {
+      pattern: /(今日|明日|昨日|今週|来週|今月|来月)(の|における)(.+?)(を|の|について)(検索|調べて|教えて|探して|知りたい)/,
       extractIndex: 3,
       timePrefix: true,
       timeIndex: 1,
-      connectIndex: 2
+      connectIndex: 2,
+      isExplicitSearch: true,
+      score: 85
     }
   ];
 
@@ -255,7 +259,7 @@ function detectSearchTrigger(content) {
           // 5. 明示的な検索フレーズボーナス - 「検索」「調べて」などの明示的な単語を含む場合
           const explicitSearchPatterns = ['検索', '調べ', 'search', 'find', 'look up'];
           const hasExplicitSearchPattern = explicitSearchPatterns.some(p => trigger.includes(p));
-          const explicitSearchBonus = hasExplicitSearchPattern ? 40 : 0;
+          const explicitSearchBonus = hasExplicitSearchPattern ? 60 : 0; // 40から60へ引き上げ
           
           // 合計スコアを計算
           const score = triggerLengthScore + queryLengthScore + positionScore + recentInfoBonus + explicitSearchBonus;
@@ -298,11 +302,34 @@ function detectSearchTrigger(content) {
   // 最も信頼性の高いトリガーを選択
   const bestMatch = allTriggers[0];
   
-  // 最低スコアのしきい値を設定 - 偶発的なトリガーを防止
-  const MINIMUM_SCORE_THRESHOLD = 30;
+  // 最低スコアのしきい値をさらに引き上げ - 明確な検索意図のあるケースのみ検索を実行
+  const MINIMUM_SCORE_THRESHOLD = 90; // 70から90に引き上げ
   if (bestMatch.score < MINIMUM_SCORE_THRESHOLD) {
     if (config.DEBUG) {
       logger.debug(`検索トリガースコアが低すぎるため無視: ${bestMatch.score} < ${MINIMUM_SCORE_THRESHOLD} (トリガー: "${bestMatch.trigger}")`);
+    }
+    return null;
+  }
+  
+  // 挨拶や単純な短いメッセージを除外（「こんにちは」「おはよう」「ありがとう」など）
+  const greetingPatterns = [
+    'こんにち', 'こんばん', 'おはよ', 'やあ', 'よろしく', 'ありがと', 'どうも',
+    'hello', 'hi', 'hey', 'good', 'thanks', 'thank', 'morning', 'evening'
+  ];
+  
+  // クエリが挨拶パターンと一致する場合は検索しない
+  const queryLower = bestMatch.query.toLowerCase();
+  if (greetingPatterns.some(pattern => queryLower.includes(pattern))) {
+    if (config.DEBUG) {
+      logger.debug(`挨拶パターンを検出したため検索をスキップ: "${bestMatch.query}"`);
+    }
+    return null;
+  }
+  
+  // クエリが短すぎる場合（3文字未満）も検索しない
+  if (bestMatch.query.length < 3) {
+    if (config.DEBUG) {
+      logger.debug(`クエリが短すぎるため検索をスキップ: "${bestMatch.query}" (${bestMatch.query.length}文字)`);
     }
     return null;
   }
@@ -504,11 +531,49 @@ async function handleSearchIfTriggered(message) {
   }
 }
 
+/**
+ * 最後に実行された検索の結果を保持する変数
+ * AIレスポンス生成時に検索結果を統合するために使用
+ */
+let lastSearchResult = null;
+
+/**
+ * 最後の検索結果を取得する
+ * @returns {Object|null} 最後の検索結果またはnull
+ */
+function getLastSearchResult() {
+  return lastSearchResult;
+}
+
+/**
+ * 検索結果を保存する
+ * @param {Object} result - 保存する検索結果
+ */
+function setLastSearchResult(result) {
+  lastSearchResult = result;
+  
+  if (config.DEBUG) {
+    logger.debug(`検索結果を保存: ${result?.success ? '成功' : '失敗'}, ${result?.results?.length || 0}件`);
+  }
+}
+
+// processMessage関数を修正して検索結果を保存するようにする
+const originalProcessMessage = processMessage;
+async function processMessageWithSave(message) {
+  const result = await originalProcessMessage(message);
+  if (result) {
+    setLastSearchResult(result);
+  }
+  return result;
+}
+
 // エクスポート
 module.exports = {
   detectSearchTrigger,
   isLocalSearchQuery,
-  processMessage,
+  processMessage: processMessageWithSave, // 拡張された処理に置き換え
   sendSearchResult,
-  handleSearchIfTriggered
+  handleSearchIfTriggered,
+  getLastSearchResult, // 新しい関数をエクスポート
+  setLastSearchResult  // 新しい関数をエクスポート
 };
