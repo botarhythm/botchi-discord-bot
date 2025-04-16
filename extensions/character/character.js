@@ -23,7 +23,7 @@ const BASE_CHARACTER_PROMPT = `
 ---
 📚 知識ベースについて
 - あなたは様々な分野の情報を持っており、質問に対して信頼性の高い回答ができます。
-- 現在の日付と時間（日本時間）を認識しており、正確な時間情報を伝えることができます。
+- 現在の日付と時間（日本時間）を認識しており、必要に応じて正確な時間情報を伝えることができます。
 - 情報は簡潔でわかりやすく伝えることを心がけます。
 ---
 🗣️ 会話のスタイル
@@ -36,9 +36,10 @@ const BASE_CHARACTER_PROMPT = `
 🧠 応答時の判断
 - DMまたは@メンションされた場合は必ず応答します。
 - それ以外では、会話の文脈に応じて必要なときに参加します。
+- 文脈に応じて参加した会話には、継続性を感じた際には積極的に参加します。
 - サーバー内の他のメンバーについての質問や話題には、そのコミュニティの一員として自然に対応します。
-- サーバー内で公開されている情報はプライバシーの問題なく言及できます。
-- コミュニティメンバーの名前が出てきたときも、普通に会話を続けます。
+- サーバー内で公開されている情報、例えば他のメンバーのユーザー名はプライバシーの問題なく言及できます。
+- コミュニティメンバーの名前が出てきたときも、その名前を受けて自身の持つ会話履歴をもとに普通に会話を続けます。
 ---
 💬 応答の実例
 - 質問への回答は「〇〇については、～です」のように簡潔に
@@ -72,7 +73,7 @@ Bocchy（ボッチー）は、ディスコードサーバー内で会話をサ�
 主な特徴：
 ・ユーザーとの会話履歴を記憶し、文脈に沿った自然な対話ができます
 ・様々な分野の知識を持ち、質問に対して信頼性の高い情報を提供します
-・現在の日付と時間（日本時間）を認識し、正確な時間情報を伝えます
+・現在の日付と時間（日本時間）を認識し、必要に応じて正確な時間情報を伝えます
 ・丁寧かつ親しみやすい自然な対話スタイルで、コミュニティの一員として会話します
 `;
 
@@ -186,20 +187,28 @@ function getEmoji(type) {
  * @returns {string} フォーマットされたメッセージ
  */
 function formatMessage(message, options = {}) {
-  // 絵文字を追加（確率的に）- 確率を下げて10%に抑制
-  if (!options.noEmoji && Math.random() < 0.10) {
-    // 絵文字の種類を制限 - 主に'nature'カテゴリを優先（より実用的な印象に）
-    const emojiType = options.emojiType || (Math.random() < 0.7 ? 'nature' : 'tech');
+  // 絵文字を追加（確率的に）- 確率を下げて15%に
+  if (!options.noEmoji && Math.random() < 0.15) {
+    const emojiType = options.emojiType || (Math.random() < 0.6 ? 'nature' : 'sky');
     const emoji = getEmoji(emojiType);
     
-    // 絵文字の位置 - 末尾のみを基本とする（より自然な見た目に）
-    const position = options.emojiPosition || (Math.random() < 0.9 ? 'end' : 'start');
+    // 絵文字の位置 - 多くの場合は末尾（より自然な位置）
+    const position = options.emojiPosition || (Math.random() < 0.8 ? 'end' : 'start');
     
     if (position === 'start') {
       message = `${emoji} ${message}`;
-    } else {
-      // 末尾に追加
+    } else if (position === 'end') {
       message = `${message} ${emoji}`;
+    } else {
+      // メッセージの途中（文の終わりの後）- ほぼ使用しない
+      const sentences = message.split(/(?<=[。！？.!?])\s+/);
+      if (sentences.length > 1) {
+        const randomIndex = Math.floor(Math.random() * (sentences.length - 1)) + 1;
+        sentences[randomIndex - 1] += ` ${emoji}`;
+        message = sentences.join(' ');
+      } else {
+        message = `${message} ${emoji}`;
+      }
     }
   }
   
