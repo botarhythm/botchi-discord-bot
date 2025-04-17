@@ -305,24 +305,17 @@ async function handleDateTime(args, message) {
     const japanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
     const dateTimeStr = formatDateTime(japanTime);
     
-    // DMチャンネルとサーバーチャンネルで異なる処理を行う
-    if (isDM) { // DMチャンネル
-      // DMでは単純なテキストメッセージとして送信
-      try {
-        await message.channel.send(`🕒 **現在の日本時間**: ${dateTimeStr} (JST)`);
-        logger.debug('DMに日時を通常メッセージとして送信しました');
-      } catch (dmError) {
-        logger.error('DMでの日時メッセージ送信エラー:', dmError);
-        await message.channel.send('申し訳ありません、日時情報を送信できませんでした。');
-      }
+    // すべてのチャンネルタイプで同じリッチ埋め込みメッセージを使用
+    const embed = new EmbedBuilder()
+      .setTitle('🕒 現在の日本時間')
+      .setColor(0x00FFFF)
+      .setDescription(`${dateTimeStr}`)
+      .setFooter({ text: 'JST (日本標準時)' });
+    
+    if (isDM) {
+      await message.channel.send({ embeds: [embed] });
+      logger.debug('DMに日時を埋め込みメッセージとして送信しました');
     } else {
-      // 通常のチャンネルではリッチ埋め込みメッセージを使用
-      const embed = new EmbedBuilder()
-        .setTitle('🕒 現在の日本時間')
-        .setColor(0x00FFFF)
-        .setDescription(`${dateTimeStr}`)
-        .setFooter({ text: 'JST (日本標準時)' });
-      
       await message.reply({ embeds: [embed] });
       logger.debug('通常チャンネルに日時を埋め込みメッセージとして返信しました');
     }

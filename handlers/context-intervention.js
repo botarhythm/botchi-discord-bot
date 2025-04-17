@@ -52,7 +52,8 @@ async function shouldIntervene(message, client) {
       keywords: config.INTERVENTION_KEYWORDS,
       lastInterventionTime: messageHistory.getLastBotMessageTime ? 
                            messageHistory.getLastBotMessageTime(message.channelId, client.user.id) : 0,
-      cooldownSeconds: config.INTERVENTION_COOLDOWN
+      cooldownSeconds: config.INTERVENTION_COOLDOWN,
+      botId: client.user.id
     });
     
     if (shouldIntervene && config.DEBUG) {

@@ -84,50 +84,128 @@ AI、哲学、プログラミング、DAO、経営、子育て、教育、技術
 `;
 
 /**
+ * APIヘッダーを生成する
+ * @returns {Object} APIリクエスト用ヘッダー
+ */
+function getApiHeaders() {
+  // APIキーを確認
+  if (!API_KEY || typeof API_KEY !== 'string' || API_KEY.trim() === '') {
+    throw new Error('API key is not configured properly');
+  }
+  
+  // ヘッダーを作成
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${API_KEY.trim()}`
+  };
+}
+
+/**
  * AIサービスの初期化
  * 追加されたinitialize関数：コンテキストマネージャーとの連携を初期化
  */
 async function initialize() {
   try {
+    // API設定状態を確認（より厳密なチェック）
+    const isApiConfigured = !!(API_KEY && typeof API_KEY === 'string' && API_KEY.trim() !== '');
+    
+    // API設定状態のログ出力
+    console.log('OpenAI API設定状態:', isApiConfigured ? '設定済み' : '未設定', 
+                `(API_KEY: ${API_KEY ? '設定あり' : '未設定'}, 長さ: ${API_KEY?.length || 0})`);
+    
     // コンテキストマネージャーを初期化
     if (!contextManagerInitialized) {
-      const contextResult = await contextManager.initialize();
-      contextManagerInitialized = true;
-      console.log('コンテキストマネージャーを初期化しました:', contextResult);
+      try {
+        // contextManagerが有効か確認
+        if (contextManager && typeof contextManager.initialize === 'function') {
+          const contextResult = await contextManager.initialize();
+          contextManagerInitialized = true;
+          console.log('コンテキストマネージャーを初期化しました:', contextResult);
+        } else {
+          console.warn('コンテキストマネージャーが利用できないか、不完全な状態です');
+          contextManagerInitialized = false;
+        }
+      } catch (contextError) {
+        // コンテキストマネージャーの初期化エラーはログに記録するが、サービス自体の初期化は継続
+        console.warn('コンテキストマネージャーの初期化エラー:', contextError.message);
+        contextManagerInitialized = false;
+      }
     }
     
-    // 健全性確認
-    await checkHealth();
+    // 健全性確認（エラー発生時もキャッチしてステータスを更新）
+    try {
+      await checkHealth();
+    } catch (healthError) {
+      console.warn('ヘルスチェックエラー:', healthError.message);
+      // エラーが発生した場合は健全性ステータスを更新
+      HEALTH_STATUS.status = isApiConfigured ? 'unhealthy' : 'unconfigured';
+      HEALTH_STATUS.lastCheck = Date.now();
+      HEALTH_STATUS.consecutiveFailures = (HEALTH_STATUS.consecutiveFailures || 0) + 1;
+    }
     
+    // API設定状態を明示的にHealthStatusに反映
+    if (!isApiConfigured) {
+      HEALTH_STATUS.status = 'unconfigured';
+      HEALTH_STATUS.lastCheck = Date.now();
+    }
+    
+    // 初期化成功とするが、API設定状態は正確に反映
     return {
-      initialized: true,
-      apiConfigured: !!API_KEY,
-      model: API_MODEL,
-      healthStatus: HEALTH_STATUS.status
+      initialized: true, // サービス自体の初期化は常に成功とみなす
+      apiConfigured: isApiConfigured,
+      model: API_MODEL || 'undefined',
+      healthStatus: HEALTH_STATUS?.status || 'unknown',
+      contextManagerInitialized: !!contextManagerInitialized
     };
   } catch (error) {
     console.error('初期化エラー:', error);
+    // 予期せぬエラーが発生した場合も健全性ステータスを更新
+    HEALTH_STATUS.status = 'error';
+    HEALTH_STATUS.lastCheck = Date.now();
+    HEALTH_STATUS.consecutiveFailures = (HEALTH_STATUS.consecutiveFailures || 0) + 1;
+    
     return {
       initialized: false,
-      error: error.message
+      apiConfigured: false,
+      error: error.message,
+      healthStatus: 'error'
     };
   }
 }
 
 /**
  * OpenAI APIを使用してメッセージに応答（リトライ機能付き）
+ * @param {string} userId - ユーザーID
+ * @param {string} message - ユーザーメッセージ
+ * @param {string} username - ユーザー名
+ * @param {boolean} isDM - DMかどうか
+ * @returns {Promise<string>} AIからの応答
  */
 async function getAIResponse(userId, message, username, isDM = false) {
-  if (!API_KEY) {
+  // API設定状態を確認
+  const isApiConfigured = !!(API_KEY && API_KEY !== '');
+  
+  if (!isApiConfigured) {
     console.error('OpenAI API Key が設定されていません');
     return '🌿 API設定に問題があるようです。少し待ってみてください。';
+  }
+
+  // 入力パラメータの検証
+  if (!userId || !message) {
+    console.warn('必須パラメータが不足しています: ' + 
+      (!userId ? 'userId ' : '') + 
+      (!message ? 'message ' : '')
+    );
+    return '🍃 会話を続けるための情報が足りないようです。もう一度話しかけてみてください。';
   }
 
   let retries = 0;
   while (retries <= MAX_RETRIES) {
     try {
       if (retries > 0) {
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * Math.pow(2, retries - 1)));
+        // 指数バックオフでリトライ
+        const delay = RETRY_DELAY * Math.pow(2, retries - 1);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
       return await processAIRequest(userId, message, username, isDM);
     } catch (error) {
@@ -140,6 +218,9 @@ async function getAIResponse(userId, message, username, isDM = false) {
       }
     }
   }
+  
+  // 通常はここに到達しないが、念のため
+  return '🌿 応答の取得に問題が発生しました。しばらく時間をおいてみてください。';
 }
 
 function isErrorRetryable(error) {
@@ -189,10 +270,7 @@ async function processAIRequest(userId, message, username, isDM = false) {
   const url = API_ENDPOINT;
   const response = await axios.post(url, requestData, {
     timeout: REQUEST_TIMEOUT,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${API_KEY}`
-    }
+    headers: getApiHeaders()
   });
 
   const responseText = extractResponseText(response);
@@ -260,88 +338,229 @@ function updateHealthStatus(success) {
 
 async function checkHealth() {
   try {
-    // 軽量なヘルスチェック - APIキーが設定されているかのみを確認
-    if (!API_KEY) {
+    // まず、API設定状態を再確認（より厳密なチェック）
+    const isApiConfigured = !!(API_KEY && typeof API_KEY === 'string' && API_KEY.trim() !== '');
+    const now = Date.now();
+    
+    // APIキーが設定されていない場合は未設定ステータスを返す
+    if (!isApiConfigured) {
+      // グローバル健全性ステータスを確実に更新
+      if (HEALTH_STATUS) {
+        HEALTH_STATUS.status = 'unconfigured';
+        HEALTH_STATUS.lastCheck = now;
+        HEALTH_STATUS.consecutiveFailures = 0; // 設定されていないので失敗とは見なさない
+      }
+      
+      // API設定状態の詳細をログ出力
+      console.log('API健全性確認: API未設定', 
+                `(API_KEY: ${API_KEY ? '存在するが無効' : '未設定'}, 長さ: ${API_KEY?.length || 0})`);
+      
       return {
         status: 'unconfigured',
-        lastCheck: Date.now(),
-        consecutiveFailures: 0
+        lastCheck: now,
+        apiConfigured: false,
+        consecutiveFailures: 0,
+        message: 'API key is not configured or empty'
       };
     }
     
-    // AI APIへの簡易接続テスト
-    const url = API_ENDPOINT;
-    await axios.post(url, 
-      {
-        model: API_MODEL,
+    try {
+      // AI APIへの簡易接続テスト
+      const url = API_ENDPOINT || 'https://api.openai.com/v1/chat/completions'; // デフォルト値の保証
+      const model = API_MODEL || 'gpt-3.5-turbo'; // デフォルトモデルの保証
+      
+      // テスト用リクエストデータ
+      const requestData = {
+        model: model,
         messages: [{ role: 'user', content: 'hello' }],
-        max_tokens: 5
-      },
-      {
+        max_tokens: 5,
+        temperature: 0.7
+      };
+      
+      // 接続テスト開始ログ
+      console.log(`API健全性確認: 接続テスト開始 (URL: ${url}, モデル: ${model})`);
+      
+      // POSTリクエスト実行
+      await axios.post(url, requestData, {
         timeout: 5000, // 短めのタイムアウト
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${API_KEY}`
+        headers: getApiHeaders()
+      });
+      
+      // 成功した場合
+      if (HEALTH_STATUS) {
+        HEALTH_STATUS.status = 'healthy';
+        HEALTH_STATUS.lastCheck = now;
+        HEALTH_STATUS.consecutiveFailures = 0;
+      }
+      
+      console.log('API健全性確認: 接続テスト成功');
+      
+      return {
+        status: 'healthy',
+        lastCheck: now,
+        apiConfigured: true,
+        consecutiveFailures: 0,
+        message: 'API is responding correctly'
+      };
+    } catch (apiError) {
+      // API呼び出しエラーの場合
+      const errorStatus = apiError.response?.status;
+      const errorMessage = apiError.message || 'Unknown API error';
+      
+      // グローバル健全性ステータスを更新
+      if (HEALTH_STATUS) {
+        HEALTH_STATUS.consecutiveFailures = (HEALTH_STATUS.consecutiveFailures || 0) + 1;
+        HEALTH_STATUS.lastCheck = now;
+        
+        if (HEALTH_STATUS.consecutiveFailures >= 3) {
+          HEALTH_STATUS.status = 'unhealthy';
         }
       }
-    );
-    
-    // 成功した場合
-    HEALTH_STATUS.status = 'healthy';
-    HEALTH_STATUS.lastCheck = Date.now();
-    HEALTH_STATUS.consecutiveFailures = 0;
-    
-    return {
-      status: 'healthy',
-      lastCheck: HEALTH_STATUS.lastCheck,
-      consecutiveFailures: 0
-    };
+      
+      // エラー状態ログ出力
+      console.warn(`API健全性確認: 接続テスト失敗 (ステータス: ${errorStatus || 'なし'}, エラー: ${errorMessage})`);
+      
+      return {
+        status: 'unhealthy',
+        lastCheck: now,
+        apiConfigured: true, // APIキーは設定されているが通信に失敗
+        error: errorMessage,
+        statusCode: errorStatus,
+        consecutiveFailures: HEALTH_STATUS?.consecutiveFailures || 1,
+        message: `API connection failed: ${errorMessage}`
+      };
+    }
   } catch (error) {
-    // エラーの場合
-    HEALTH_STATUS.consecutiveFailures++;
-    HEALTH_STATUS.lastCheck = Date.now();
+    // 予期せぬエラーの場合
+    const now = Date.now();
+    const errorMessage = error.message || 'Unknown error during health check';
     
-    if (HEALTH_STATUS.consecutiveFailures >= 3) {
-      HEALTH_STATUS.status = 'unhealthy';
+    // グローバル健全性ステータスを更新
+    if (HEALTH_STATUS) {
+      HEALTH_STATUS.status = 'error';
+      HEALTH_STATUS.lastCheck = now;
+      HEALTH_STATUS.consecutiveFailures = (HEALTH_STATUS.consecutiveFailures || 0) + 1;
     }
     
+    console.error(`API健全性確認: 予期せぬエラー: ${errorMessage}`);
+    
     return {
-      status: 'unhealthy',
-      lastCheck: Date.now(),
-      error: error.message,
-      consecutiveFailures: HEALTH_STATUS.consecutiveFailures
+      status: 'error',
+      lastCheck: now,
+      error: errorMessage,
+      consecutiveFailures: HEALTH_STATUS?.consecutiveFailures || 1,
+      message: `Unexpected error during health check: ${errorMessage}`
     };
   }
 }
 
 function isConfigured() {
-  const configured = !!API_KEY;
+  const configured = !!(API_KEY && API_KEY !== '');
   console.log(`OpenAI API設定状態: ${configured ? '設定済み' : '未設定'}`);
   return configured;
 }
 
+// テスト用の会話キャッシュアクセサ（プライベートメンバーへのアクセス）
+// このメソッドはテスト環境でのみ使用し、プロダクション環境では使用しない
+function __getConversationCache() {
+  return conversationCache;
+}
+
+/**
+ * 新インターフェース用のレスポンス取得メソッド
+ * @param {Object} context - 会話コンテキスト
+ * @returns {Promise<string>} AIからの応答
+ */
+async function getResponse(context) {
+  try {
+    // コンテキストから必要な情報を抽出
+    const { userId, username = 'User', message, contextType = 'unknown' } = context;
+    console.log(`OpenAI getResponse呼び出し: userId=${userId}, contextType=${contextType}`);
+    
+    // getAIResponseメソッドに変換して呼び出し
+    const isDM = contextType === 'direct_message';
+    return await getAIResponse(
+      userId,
+      message,
+      username,
+      isDM
+    );
+  } catch (error) {
+    console.error(`OpenAI getResponse呼び出しエラー: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * 現在の設定情報を取得
+ * @returns {Object} 設定情報
+ */
 function getConfig() {
-  return {
-    model: API_MODEL,
-    endpoint: API_ENDPOINT,
-    cacheExpiry: CACHE_EXPIRY,
-    maxRetries: MAX_RETRIES,
-    requestTimeout: REQUEST_TIMEOUT,
-    userCount: conversationCache.size,
-    healthStatus: HEALTH_STATUS.status,
-    contextManager: {
-      initialized: contextManagerInitialized,
-      useSupabase: contextManager.getConfig().useSupabase,
-      userCount: contextManager.getConfig().userCount
+  // より堅牢なcontextManager参照チェック（デフォルト値を明示）
+  let contextManagerConfig = { 
+    useSupabase: false, 
+    userCount: 0,
+    initialized: contextManagerInitialized || false
+  };
+  
+  try {
+    // contextManagerの存在と型チェックを厳密に行う
+    if (contextManager && 
+        typeof contextManager === 'object' && 
+        typeof contextManager.getConfig === 'function') {
+      
+      // getConfigの実行を試み、存在しない場合のフォールバック処理
+      try {
+        const config = contextManager.getConfig();
+        if (config && typeof config === 'object') {
+          contextManagerConfig = {
+            ...contextManagerConfig,
+            useSupabase: Boolean(config.useSupabase),
+            userCount: typeof config.userCount === 'number' ? config.userCount : 0
+          };
+        }
+      } catch (configError) {
+        console.warn('コンテキストマネージャーのgetConfig実行中にエラー:', configError.message);
+        // エラー発生時のフォールバック設定をより明示的に
+        contextManagerConfig = {
+          useSupabase: false,
+          userCount: 0,
+          initialized: contextManagerInitialized || false,
+          error: configError.message
+        };
+      }
     }
+  } catch (error) {
+    console.warn('コンテキストマネージャー設定の取得に失敗:', error.message);
+    // エラー発生時のフォールバック設定をより明示的に
+    contextManagerConfig = {
+      useSupabase: false,
+      userCount: 0,
+      initialized: false,
+      error: error.message
+    };
+  }
+  
+  // 未定義値の安全な処理
+  const safeConversationCacheSize = conversationCache ? conversationCache.size || 0 : 0;
+  const safeHealthStatus = HEALTH_STATUS ? HEALTH_STATUS.status || 'unknown' : 'unknown';
+  
+  return {
+    model: API_MODEL || 'undefined', // 空文字列も許容しないようにする
+    endpoint: API_ENDPOINT || 'undefined',
+    userCount: safeConversationCacheSize,
+    healthStatus: safeHealthStatus,
+    contextManager: contextManagerConfig
   };
 }
 
 module.exports = {
   initialize,
   getAIResponse,
+  getResponse,
   clearConversationHistory,
   isConfigured,
   checkHealth,
-  getConfig
+  getConfig,
+  __getConversationCache
 };

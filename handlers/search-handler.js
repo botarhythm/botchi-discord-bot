@@ -8,33 +8,56 @@ const braveSearch = require('../core/search/brave-search');
 const logger = require('../system/logger');
 const config = require('../config/env');
 
-// 検索トリガーフレーズ - 明示的な検索意図のあるトリガーに限定
+// 検索トリガーフレーズ - 明示的な検索意図のあるトリガーと情報要求トリガーを含む
 const SEARCH_TRIGGERS = {
   // 日本語
   ja: [
-    // 直接的な検索トリガー - 明確に検索を指示するフレーズのみ
+    // 直接的な検索トリガー - 明確に検索を指示するフレーズ
     '検索して', 'けんさくして', 'さがして', 'しらべて', 
     'ネットで調べて', 'インターネットで検索', 'ウェブで検索',
+    'オンラインで調べて', 'インターネットで確認',
     // 丁寧な依頼フレーズ - 明確な検索指示
     '検索してください', 'さがしてください', '調べてください', 
     '検索してくれる', '調べてくれる', '検索してほしい',
     '調べてくれますか', '検索してくれますか', '検索をお願い',
     // 検索に関連する明示的なフレーズ
     'について検索', 'を調べて', 'の情報を探して', 
-    'について調べて', 'を検索して', 'の情報を教えて'
+    'について調べて', 'を検索して', 'の情報を教えて',
+    // 時事性の高い情報を求めるフレーズ
+    '最新の', '最近の', '今日の', '今週の', '今月の',
+    '最新情報', '最新ニュース', '新しい情報', '現在の状況',
+    '最新動向', '最新トレンド', '最新アップデート',
+    // 情報要求を示す間接的なフレーズ
+    'とは何ですか', 'について教えて', 'とはどういう意味',
+    'の定義は', 'の仕組みは', 'の使い方', 'の方法',
+    'はどうやって', 'ってどんな', 'の特徴は',
+    // 事実確認を求めるフレーズ
+    'は本当に', 'は実際に', 'は事実ですか',
+    'の真相は', 'の事実関係', 'は正しいですか'
   ],
   // 英語
   en: [
-    // 直接的な検索トリガー - 明確に検索を指示するフレーズのみ
+    // 直接的な検索トリガー - 明確に検索を指示するフレーズ
     'search for', 'search about', 'search the web for',
     'search online for', 'look up', 'find information about',
+    'google', 'browse for', 'check online',
     // 丁寧な依頼フレーズ - 明確な検索指示
     'can you search', 'please search', 'could you look up',
     'can you find', 'would you search for', 'could you search',
     'please look up', 'search the internet for',
     // 検索に関連する明示的なフレーズ
     'search information about', 'find details on',
-    'look online for', 'web search for'
+    'look online for', 'web search for',
+    // 時事性の高い情報を求めるフレーズ
+    'latest', 'recent', 'today\'s', 'this week\'s', 'this month\'s',
+    'current', 'newest', 'up-to-date', 'breaking',
+    // 情報要求を示す間接的なフレーズ
+    'what is', 'who is', 'how to', 'tell me about',
+    'explain', 'definition of', 'meaning of',
+    'how does', 'what are', 'where is',
+    // 事実確認を求めるフレーズ
+    'is it true', 'is it real', 'fact check',
+    'verify if', 'confirm if', 'is it correct'
   ]
 };
 
@@ -153,29 +176,28 @@ function detectSearchTrigger(content) {
     }
   }
   
-  // 明示的な検索意図を持つパターンのみを抽出
-  // 「〜を検索して」パターン専用の抽出処理
+  // 多様な検索意図とクエリパターンを検出
   const searchPatterns = [
     // 「〜を検索して」パターン - 明確に検索を指示するパターン
     {
       pattern: /(.*?)(を|に関して|について|の|に)(検索|調べて|調査して|サーチして|探して)(下さい|ください|ね|よ|くれる|くれません)?$/,
       extractIndex: 1, // 最初のキャプチャグループ
       isExplicitSearch: true,
-      score: 90 // 非常に高いスコア（明示的な検索指示）
+      score: 95 // 非常に高いスコア（明示的な検索指示）
     },
     // 「〜の情報を教えて」パターン - 明確な情報要求
     {
       pattern: /(.*?)(の|に関する|についての)(情報|データ|詳細|ニュース|最新情報|状況)(を|が|は|に)(知|調|教|探)(?:りたい|べたい|えて|したい)/,
       extractIndex: 1,
       isExplicitSearch: true,
-      score: 85
+      score: 90
     },
     // 「〜はどうなっている？」のような質問 - 情報要求だが検索ほど明示的ではない
     {
       pattern: /(.*?)(は|って|の)(最新|現在|今|どう|どうなって|どんな)(状況|情報|ニュース|様子)(?:は|か|ですか|でしょうか|ある|ある？)/,
       extractIndex: 1,
       isExplicitSearch: true,
-      score: 80
+      score: 85
     },
     // 時間要素を含む明示的な情報要求（今日の〜、明日の〜など）
     {
@@ -185,7 +207,66 @@ function detectSearchTrigger(content) {
       timeIndex: 1,
       connectIndex: 2,
       isExplicitSearch: true,
+      score: 90
+    },
+    // 「Xとは何ですか？」形式の定義質問
+    {
+      pattern: /(.*?)(とは|って)(何|なに|どんなもの|どういうもの)(?:ですか|なの|でしょうか|か)/,
+      extractIndex: 1,
+      isExplicitSearch: false,
+      isDefinitionQuery: true,
+      score: 75
+    },
+    // 「Xの意味は？」形式の意味質問
+    {
+      pattern: /(.*?)(の|における|にとっての)(意味|定義|使い方|役割|機能|特徴|メリット|デメリット)(は|を|が|について)/,
+      extractIndex: 1,
+      isExplicitSearch: false,
+      isDefinitionQuery: true,
+      score: 70
+    },
+    // 「どうやってXをするの？」形式の方法質問
+    {
+      pattern: /(どうやって|どうすれば|どのように|どうすると|何をすれば|どうしたら)(.*?)(できる|する|作る|なる|実現|達成|解決|改善)(?:の|か|ですか|でしょうか|？)/,
+      extractIndex: 2,
+      isExplicitSearch: false,
+      isHowToQuery: true,
+      score: 75
+    },
+    // 「XはYですか？」形式の事実確認質問
+    {
+      pattern: /(.*?)(は|って)(本当|実際|事実|正しい|間違い|嘘|真実|正式)(なの|ですか|か|でしょうか|？)/,
+      extractIndex: 1,
+      isExplicitSearch: false,
+      isFactCheckQuery: true,
+      score: 80
+    },
+    // 「最新のX」形式の時事情報質問
+    {
+      pattern: /(最新|最近|今日|今年|現在|直近|昨今|最先端|トレンド)(の|における|な|で話題の)(.*?)(?:について|は|を|の|とは)/,
+      extractIndex: 3,
+      timePrefix: true,
+      timeIndex: 1,
+      connectIndex: 2,
+      isExplicitSearch: false,
+      isCurrentInfoQuery: true,
       score: 85
+    },
+    // 「Xの新しい情報」形式の更新情報質問
+    {
+      pattern: /(.*?)(の|に関する)(最新|最近の|新しい|最新の|アップデート|更新|リリース|発表|トレンド)(情報|ニュース|状況|トピック|動向)/,
+      extractIndex: 1,
+      isExplicitSearch: false,
+      isCurrentInfoQuery: true,
+      score: 80
+    },
+    // Wikiスタイルの質問「Xとは」形式の百科事典的質問
+    {
+      pattern: /^(.*?)(とは|って何|について教えて|について|の説明|の情報|の解説)/,
+      extractIndex: 1,
+      isExplicitSearch: false,
+      isWikiStyleQuery: true,
+      score: 65
     }
   ];
 
@@ -207,13 +288,26 @@ function detectSearchTrigger(content) {
       if (query) {
         if (config.DEBUG) {
           logger.debug(`パターンマッチによる検索クエリ抽出: "${query}" (パターン: ${patternObj.pattern})`);
+          logger.debug(`パターンタイプ: ${Object.keys(patternObj).filter(key => key.startsWith('is')).join(', ')}`);
         }
-        return { 
+        
+        // 検索クエリの種類に関する情報を格納
+        const queryInfo = {
           trigger: match[0], 
           query: query,
-          score: 80, // 高いスコア
-          isExplicitSearch: true
+          score: patternObj.score || 80,
+          pattern: patternObj.pattern.toString().substring(0, 100) + '...',
+          matchGroups: match.length
         };
+        
+        // パターンのタイプフラグを追加
+        for (const key of Object.keys(patternObj)) {
+          if (key.startsWith('is') && patternObj[key] === true) {
+            queryInfo[key] = true;
+          }
+        }
+        
+        return queryInfo;
       }
     }
   }
@@ -430,6 +524,18 @@ async function processMessage(message) {
       searchResult = await braveSearch.search(triggerInfo.query);
     }
     
+    // 検索結果にクエリ情報を追加
+    searchResult.queryInfo = triggerInfo;
+    searchResult.query = triggerInfo.query;
+    searchResult.queryType = getQueryTypeInfo(triggerInfo);
+    
+    // デバッグ用のログ出力
+    if (config.DEBUG) {
+      const queryType = searchResult.queryType;
+      const typeStr = Object.keys(queryType).filter(k => queryType[k]).join(', ');
+      logger.debug(`検索クエリタイプ: ${typeStr || 'なし'}`);
+    }
+    
     return searchResult;
   } catch (error) {
     logger.error(`検索処理エラー: ${error.message}`);
@@ -437,6 +543,7 @@ async function processMessage(message) {
     return {
       success: false,
       query: triggerInfo.query,
+      queryInfo: triggerInfo,
       error: error.message,
       results: []
     };
@@ -567,6 +674,51 @@ async function processMessageWithSave(message) {
   return result;
 }
 
+/**
+ * クエリ情報から検索タイプの情報を抽出・整理する
+ * @param {Object} queryInfo 検索クエリ情報
+ * @returns {Object} 検索タイプ情報
+ */
+function getQueryTypeInfo(queryInfo) {
+  if (!queryInfo) return {};
+  
+  // デフォルトの検索タイプ情報
+  const typeInfo = {
+    isExplicitSearch: false,       // 明示的な検索要求（「〜を検索して」など）
+    isDefinitionQuery: false,      // 定義質問（「〜とは何ですか」など）
+    isHowToQuery: false,           // ハウツー質問（「どうやって〜するの」など）
+    isFactCheckQuery: false,       // 事実確認質問（「〜は本当ですか」など）
+    isCurrentInfoQuery: false,     // 最新情報質問（「最新の〜」など）
+    isWikiStyleQuery: false,       // 百科事典的質問（「〜とは」など）
+    isGeneralInfoQuery: false,     // 一般的な情報質問（その他の情報要求）
+    isLocalQuery: false            // 位置情報質問（「〜の場所」など）
+  };
+  
+  // queryInfoから検索タイプフラグを抽出
+  Object.keys(queryInfo).forEach(key => {
+    if (key.startsWith('is') && queryInfo[key] === true && typeInfo.hasOwnProperty(key)) {
+      typeInfo[key] = true;
+    }
+  });
+  
+  // 特殊な検索タイプの検出
+  if (queryInfo.isRecentInfoQuery) {
+    typeInfo.isCurrentInfoQuery = true;
+  }
+  
+  // ローカル検索かどうかをチェック
+  if (queryInfo.query) {
+    typeInfo.isLocalQuery = isLocalSearchQuery(queryInfo.query);
+  }
+  
+  // 明示的な検索指定がない場合は一般的な情報質問とみなす
+  if (!Object.keys(typeInfo).some(key => key !== 'isLocalQuery' && typeInfo[key])) {
+    typeInfo.isGeneralInfoQuery = true;
+  }
+  
+  return typeInfo;
+}
+
 // エクスポート
 module.exports = {
   detectSearchTrigger,
@@ -575,5 +727,6 @@ module.exports = {
   sendSearchResult,
   handleSearchIfTriggered,
   getLastSearchResult, // 新しい関数をエクスポート
-  setLastSearchResult  // 新しい関数をエクスポート
+  setLastSearchResult, // 新しい関数をエクスポート
+  getQueryTypeInfo     // クエリタイプ情報取得関数
 };

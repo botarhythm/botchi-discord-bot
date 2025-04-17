@@ -52,6 +52,7 @@ const EMOTIONAL_PATTERNS = [
  * @param {Array} options.keywords - トリガーキーワード配列
  * @param {number} options.lastInterventionTime - 最後に介入した時間
  * @param {number} options.cooldownSeconds - クールダウン時間（秒）
+ * @param {string} options.botId - このボットのDiscord ID（ボットメッセージ判定用）
  * @returns {boolean} 介入すべきかどうか
  */
 function shouldIntervene(options) {
@@ -68,7 +69,8 @@ function shouldIntervene(options) {
       mode: options?.mode,
       keywordsCount: Array.isArray(options?.keywords) ? options?.keywords.length : 0,
       lastInterventionTime: options?.lastInterventionTime ? new Date(options.lastInterventionTime).toISOString() : 'none',
-      cooldownSeconds: options?.cooldownSeconds || ANALYZER_CONFIG.DEFAULT_COOLDOWN
+      cooldownSeconds: options?.cooldownSeconds || ANALYZER_CONFIG.DEFAULT_COOLDOWN,
+      botId: options?.botId || null
     }));
     
     // オプションの安全な展開
@@ -78,7 +80,8 @@ function shouldIntervene(options) {
       mode = 'balanced', 
       keywords = ANALYZER_CONFIG.DEFAULT_KEYWORDS, 
       lastInterventionTime = 0,
-      cooldownSeconds = ANALYZER_CONFIG.DEFAULT_COOLDOWN
+      cooldownSeconds = ANALYZER_CONFIG.DEFAULT_COOLDOWN,
+      botId = null
     } = options || {};
     
     // メッセージが存在しない、または無効な場合は介入しない
@@ -104,6 +107,16 @@ function shouldIntervene(options) {
     
     // AIキーワードを含むか先に確認 - 関連性の高い発言の場合は短くても介入確率を上げる
     const isAIRelated = isAITopic(message.content);
+    
+    // 特定のキーワードチェック（ボッチー、bocchy）- これらが含まれる場合は必ず介入
+    const hasMustInterventionKeyword = lowerContent.includes('ボッチー') || 
+                                     lowerContent.includes('bocchy') ||
+                                     lowerContent.includes('botchi');
+
+    if (hasMustInterventionKeyword) {
+      logger.debug('[ANALYZER] Must-intervention keyword found, will force intervention');
+      return true;
+    }
     
     // メッセージが短すぎる場合
     if (message.content.length < ANALYZER_CONFIG.MIN_MESSAGE_LENGTH) {
@@ -176,7 +189,7 @@ function shouldIntervene(options) {
     }
     
     // 最近の会話の流れを分析（質問の連鎖など）
-    const conversationContext = analyzeConversationContext(history);
+    const conversationContext = analyzeConversationContext(history, botId);
     logger.debug(`[ANALYZER] Conversation context: ${JSON.stringify(conversationContext)}`);
     
     // 基本確率を取得（モードに基づく）
@@ -187,6 +200,13 @@ function shouldIntervene(options) {
     
     // 特定条件に応じて確率を調整
     let probabilityLog = [`Base (${mode}): ${interventionProbability}%`];
+    
+    // 最近の会話で介入があったかどうかをチェック
+    const recentBotInteraction = wasRecentBotInteraction(history, botId);
+    if (recentBotInteraction) {
+      interventionProbability += 20; // 最近介入していた場合、話題の継続性を保つため確率UP
+      probabilityLog.push(`Recent bot interaction (+20): ${interventionProbability}%`);
+    }
     
     if (containsKeyword) {
       interventionProbability += 30; // キーワードがあれば確率UP
@@ -344,9 +364,10 @@ function hasEmotionalExpression(text) {
 /**
  * 会話の流れを分析して文脈情報を返す
  * @param {Array} history - メッセージ履歴
+ * @param {string} botId - ボットのDiscord ID
  * @returns {Object} 分析結果
  */
-function analyzeConversationContext(history) {
+function analyzeConversationContext(history, botId = null) {
   try {
     // 履歴がない場合のデフォルト値
     if (!history || history.length === 0) {
@@ -354,7 +375,8 @@ function analyzeConversationContext(history) {
         probabilityModifier: 0,
         isQuestionChain: false,
         hasRecentQuestion: false,
-        topicConsistency: 'unknown'
+        topicConsistency: 'unknown',
+        recentBotInteraction: false
       };
     }
     
@@ -449,7 +471,8 @@ function analyzeConversationContext(history) {
       probabilityModifier,
       isQuestionChain: questionCount >= 2,
       hasRecentQuestion,
-      topicConsistency
+      topicConsistency,
+      recentBotInteraction: hasRecentBotMessage(history, botId)
     };
   } catch (error) {
     // モジュールのロガーがあれば使用、なければconsoleにフォールバック
@@ -464,7 +487,8 @@ function analyzeConversationContext(history) {
       probabilityModifier: 0,
       isQuestionChain: false,
       hasRecentQuestion: false,
-      topicConsistency: 'unknown'
+      topicConsistency: 'unknown',
+      recentBotInteraction: false
     };
   }
 }
@@ -554,6 +578,80 @@ function getResponseHint(context) {
       style: 'standard',
       focusPoints: ['gentle_guidance', 'maintain_character']
     };
+  }
+}
+
+/**
+ * 最近のメッセージ履歴にボットのメッセージがあるかチェック
+ * @param {Array} history - メッセージ履歴
+ * @param {string} botId - ボットのDiscord ID
+ * @returns {boolean} 最近のボット介入があるかどうか
+ */
+function wasRecentBotInteraction(history, botId) {
+  if (!history || history.length === 0) {
+    return false;
+  }
+  
+  try {
+    // 直近の3メッセージにボットからのメッセージがあるか確認
+    const recentMessages = history.slice(Math.max(0, history.length - 3));
+    
+    return recentMessages.some(msg => {
+      // ボットフラグ、特定のユーザー名、または指定されたボットIDでチェック
+      return msg && msg.author && (
+        msg.author.bot === true || 
+        (msg.author.id && botId && msg.author.id === botId) ||
+        (msg.author.username && (
+          msg.author.username.toLowerCase().includes('bocchy') || 
+          msg.author.username.toLowerCase().includes('ボッチー')
+        ))
+      );
+    });
+  } catch (error) {
+    try {
+      const logger = require('../system/logger');
+      logger.error('[ANALYZER] Error checking recent bot interaction:', error);
+    } catch (e) {
+      console.error('[ANALYZER] Error checking recent bot interaction:', error);
+    }
+    return false;
+  }
+}
+
+/**
+ * 会話履歴にボットのメッセージがあるかをチェック
+ * @param {Array} history - メッセージ履歴
+ * @param {string} botId - ボットのDiscord ID
+ * @returns {boolean} ボットメッセージがあるかどうか
+ */
+function hasRecentBotMessage(history, botId) {
+  if (!history || history.length === 0) {
+    return false;
+  }
+  
+  try {
+    // 最新の5メッセージをチェック
+    const recentMessages = history.slice(Math.max(0, history.length - 5));
+    
+    return recentMessages.some(msg => {
+      // ボットフラグ、特定のユーザー名、または指定されたボットIDでチェック
+      return msg && msg.author && (
+        msg.author.bot === true || 
+        (msg.author.id && botId && msg.author.id === botId) ||
+        (msg.author.username && (
+          msg.author.username.toLowerCase().includes('bocchy') || 
+          msg.author.username.toLowerCase().includes('ボッチー')
+        ))
+      );
+    });
+  } catch (error) {
+    try {
+      const logger = require('../system/logger');
+      logger.error('[ANALYZER] Error checking bot messages:', error);
+    } catch (e) {
+      console.error('[ANALYZER] Error checking bot messages:', error);
+    }
+    return false;
   }
 }
 

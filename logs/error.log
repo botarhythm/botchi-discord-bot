@@ -1,0 +1,683 @@
+2025-04-17 23:16:49 [error]: API Error: Request failed with status code 429
+2025-04-17 23:16:49 [error]: Status: 429
+2025-04-17 23:16:49 [error]: Data: {"type":"ErrorResponse","error":{"id":"8e7064a6-d89a-4681-b924-5a6652d7e112","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":136,"component":"rate_limiter"}},"time":1744899412}
+2025-04-17 23:16:49 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:74:23)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:16:49 [error]: API応答ステータス: 429
+2025-04-17 23:16:49 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "8e7064a6-d89a-4681-b924-5a6652d7e112",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 136,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899412
+}
+2025-04-17 23:16:49 [error]: API Error: Request failed with status code 429
+2025-04-17 23:16:49 [error]: Status: 429
+2025-04-17 23:16:49 [error]: Data: {"type":"ErrorResponse","error":{"id":"70d56e58-5e89-4216-8c1c-0b01d5acd962","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":136,"component":"rate_limiter"}},"time":1744899412}
+2025-04-17 23:16:49 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:74:23)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:16:49 [error]: API応答ステータス: 429
+2025-04-17 23:16:49 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "70d56e58-5e89-4216-8c1c-0b01d5acd962",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 136,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899412
+}
+2025-04-17 23:16:49 [error]: API Error: Request failed with status code 429
+2025-04-17 23:16:49 [error]: Status: 429
+2025-04-17 23:16:49 [error]: Data: {"type":"ErrorResponse","error":{"id":"133e7605-5156-488a-b127-d5071306454e","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":136,"component":"rate_limiter"}},"time":1744899412}
+2025-04-17 23:16:49 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:74:23)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:16:49 [error]: API応答ステータス: 429
+2025-04-17 23:16:49 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "133e7605-5156-488a-b127-d5071306454e",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 136,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899412
+}
+2025-04-17 23:16:50 [error]: API Error: Request failed with status code 429
+2025-04-17 23:16:50 [error]: Status: 429
+2025-04-17 23:16:50 [error]: Data: {"type":"ErrorResponse","error":{"id":"2cf9a53d-0ff3-4bfc-abc9-64c6bf82f8f3","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":136,"component":"rate_limiter"}},"time":1744899412}
+2025-04-17 23:16:50 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:74:23)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:16:50 [error]: API応答ステータス: 429
+2025-04-17 23:16:50 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "2cf9a53d-0ff3-4bfc-abc9-64c6bf82f8f3",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 136,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899412
+}
+2025-04-17 23:16:50 [error]: API Error: Request failed with status code 429
+2025-04-17 23:16:50 [error]: Status: 429
+2025-04-17 23:16:50 [error]: Data: {"type":"ErrorResponse","error":{"id":"a148e982-9feb-4a82-975b-5269655de11f","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":136,"component":"rate_limiter"}},"time":1744899412}
+2025-04-17 23:16:50 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:74:23)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:16:50 [error]: API応答ステータス: 429
+2025-04-17 23:16:50 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "a148e982-9feb-4a82-975b-5269655de11f",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 136,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899412
+}
+2025-04-17 23:16:50 [error]: API Error: Request failed with status code 429
+2025-04-17 23:17:45 [error]: API Error: Request failed with status code 429
+2025-04-17 23:17:45 [error]: Status: 429
+2025-04-17 23:17:45 [error]: Data: {"type":"ErrorResponse","error":{"id":"e94be7a8-69c3-4fa5-a55c-86b04045f4f1","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":137,"component":"rate_limiter"}},"time":1744899468}
+2025-04-17 23:17:45 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:132:19)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:17:45 [error]: API応答ステータス: 429
+2025-04-17 23:17:45 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "e94be7a8-69c3-4fa5-a55c-86b04045f4f1",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 137,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899468
+}
+2025-04-17 23:17:45 [error]: API Error: Request failed with status code 429
+2025-04-17 23:17:45 [error]: Status: 429
+2025-04-17 23:17:45 [error]: Data: {"type":"ErrorResponse","error":{"id":"69ca0abb-2a39-47dd-ada9-7ceabd81bec9","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":137,"component":"rate_limiter"}},"time":1744899468}
+2025-04-17 23:17:45 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:132:19)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:17:45 [error]: API応答ステータス: 429
+2025-04-17 23:17:45 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "69ca0abb-2a39-47dd-ada9-7ceabd81bec9",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 137,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899468
+}
+2025-04-17 23:17:45 [error]: API Error: Request failed with status code 429
+2025-04-17 23:17:45 [error]: Status: 429
+2025-04-17 23:17:45 [error]: Data: {"type":"ErrorResponse","error":{"id":"572ad549-c81a-40cf-b6f6-541716fb65f5","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":137,"component":"rate_limiter"}},"time":1744899468}
+2025-04-17 23:17:45 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:132:19)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:17:45 [error]: API応答ステータス: 429
+2025-04-17 23:17:45 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "572ad549-c81a-40cf-b6f6-541716fb65f5",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 137,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899468
+}
+2025-04-17 23:17:45 [error]: API Error: Request failed with status code 429
+2025-04-17 23:17:45 [error]: Status: 429
+2025-04-17 23:17:45 [error]: Data: {"type":"ErrorResponse","error":{"id":"afb6e7dc-1215-43be-8f6f-dfff3ad17c15","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":137,"component":"rate_limiter"}},"time":1744899468}
+2025-04-17 23:17:45 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:132:19)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:17:45 [error]: API応答ステータス: 429
+2025-04-17 23:17:45 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "afb6e7dc-1215-43be-8f6f-dfff3ad17c15",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 137,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899468
+}
+2025-04-17 23:17:45 [error]: API Error: Request failed with status code 429
+2025-04-17 23:17:45 [error]: Status: 429
+2025-04-17 23:17:45 [error]: Data: {"type":"ErrorResponse","error":{"id":"6b9bcca3-9c70-4b42-9534-d2ed7bf23b67","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":137,"component":"rate_limiter"}},"time":1744899468}
+2025-04-17 23:17:45 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:132:19)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:17:45 [error]: API応答ステータス: 429
+2025-04-17 23:17:45 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "6b9bcca3-9c70-4b42-9534-d2ed7bf23b67",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 137,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899468
+}
+2025-04-17 23:17:46 [error]: API Error: Request failed with status code 429
+2025-04-17 23:18:50 [error]: API Error: Request failed with status code 429
+2025-04-17 23:18:50 [error]: Status: 429
+2025-04-17 23:18:50 [error]: Data: {"type":"ErrorResponse","error":{"id":"33803274-6f30-4862-ad41-5dbf162b4119","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":138,"component":"rate_limiter"}},"time":1744899533}
+2025-04-17 23:18:50 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:143:21)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:18:50 [error]: API応答ステータス: 429
+2025-04-17 23:18:50 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "33803274-6f30-4862-ad41-5dbf162b4119",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 138,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899533
+}
+2025-04-17 23:18:50 [error]: API Error: Request failed with status code 429
+2025-04-17 23:18:50 [error]: Status: 429
+2025-04-17 23:18:50 [error]: Data: {"type":"ErrorResponse","error":{"id":"9cdf801e-b5ac-46a7-91bc-480a16fa9dd6","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":138,"component":"rate_limiter"}},"time":1744899533}
+2025-04-17 23:18:50 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:143:21)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:18:50 [error]: API応答ステータス: 429
+2025-04-17 23:18:50 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "9cdf801e-b5ac-46a7-91bc-480a16fa9dd6",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 138,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899533
+}
+2025-04-17 23:18:50 [error]: API Error: Request failed with status code 429
+2025-04-17 23:18:50 [error]: Status: 429
+2025-04-17 23:18:50 [error]: Data: {"type":"ErrorResponse","error":{"id":"670efd03-6eb3-43ab-877e-dc340d29931d","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":138,"component":"rate_limiter"}},"time":1744899533}
+2025-04-17 23:18:50 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:143:21)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:18:50 [error]: API応答ステータス: 429
+2025-04-17 23:18:50 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "670efd03-6eb3-43ab-877e-dc340d29931d",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 138,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899533
+}
+2025-04-17 23:18:50 [error]: API Error: Request failed with status code 429
+2025-04-17 23:18:50 [error]: Status: 429
+2025-04-17 23:18:50 [error]: Data: {"type":"ErrorResponse","error":{"id":"01bc27f7-a8e1-4d2d-a20e-722188db8ed3","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":138,"component":"rate_limiter"}},"time":1744899533}
+2025-04-17 23:18:50 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:143:21)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:18:50 [error]: API応答ステータス: 429
+2025-04-17 23:18:50 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "01bc27f7-a8e1-4d2d-a20e-722188db8ed3",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 138,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899533
+}
+2025-04-17 23:18:50 [error]: API Error: Request failed with status code 429
+2025-04-17 23:18:50 [error]: Status: 429
+2025-04-17 23:18:50 [error]: Data: {"type":"ErrorResponse","error":{"id":"039338db-c54b-4ef0-8c80-c0238dcdb193","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":138,"component":"rate_limiter"}},"time":1744899533}
+2025-04-17 23:18:50 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:143:21)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:18:50 [error]: API応答ステータス: 429
+2025-04-17 23:18:50 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "039338db-c54b-4ef0-8c80-c0238dcdb193",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 138,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899533
+}
+2025-04-17 23:18:50 [error]: API Error: Request failed with status code 429
+2025-04-17 23:19:51 [error]: API Error: Request failed with status code 429
+2025-04-17 23:19:51 [error]: Status: 429
+2025-04-17 23:19:51 [error]: Data: {"type":"ErrorResponse","error":{"id":"68c386af-d1fa-46df-a2c4-07fe32cb905f","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":139,"component":"rate_limiter"}},"time":1744899594}
+2025-04-17 23:19:51 [error]: API Error: Request failed with status code 429
+2025-04-17 23:19:51 [error]: Status: 429
+2025-04-17 23:19:51 [error]: Data: {"type":"ErrorResponse","error":{"id":"1c4c5ab4-6ede-456c-965a-ce16b7111a30","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":139,"component":"rate_limiter"}},"time":1744899594}
+2025-04-17 23:19:51 [error]: API Error: Request failed with status code 429
+2025-04-17 23:19:51 [error]: Status: 429
+2025-04-17 23:19:51 [error]: Data: {"type":"ErrorResponse","error":{"id":"d3019f9c-a155-457c-b6cd-4dbe18bf6185","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":139,"component":"rate_limiter"}},"time":1744899594}
+2025-04-17 23:19:52 [error]: API Error: Request failed with status code 429
+2025-04-17 23:19:52 [error]: Status: 429
+2025-04-17 23:19:52 [error]: Data: {"type":"ErrorResponse","error":{"id":"5bc8ae21-8533-44ba-a7cc-73086f1ca685","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":139,"component":"rate_limiter"}},"time":1744899594}
+2025-04-17 23:19:52 [error]: API Error: Request failed with status code 429
+2025-04-17 23:19:52 [error]: Status: 429
+2025-04-17 23:19:52 [error]: Data: {"type":"ErrorResponse","error":{"id":"9a1f520f-b205-4900-88d9-70c18aa9117d","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":139,"component":"rate_limiter"}},"time":1744899594}
+2025-04-17 23:19:52 [error]: API Error: Request failed with status code 429
+2025-04-17 23:41:47 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:41:50 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:42:12 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:42:47 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:42:49 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:42:53 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:43:27 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:44:38 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:45:55 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:45:58 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:46:00 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen

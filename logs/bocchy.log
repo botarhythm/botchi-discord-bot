@@ -1,0 +1,1460 @@
+2025-04-17 23:16:49 [debug]: ヘルスチェック用API Key: BSATh...
+2025-04-17 23:16:49 [debug]: ヘルスチェック成功: 200
+2025-04-17 23:16:49 [info]: 検索実行: "量子コンピュータとは何ですか" (結果数: 5)
+2025-04-17 23:16:49 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":true,"isHowToQuery":false,"isFactCheckQuery":false,"isGeneralInfoQuery":false,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:16:49 [debug]: API Key being used: BSATh...
+2025-04-17 23:16:49 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:16:49 [error]: API Error: Request failed with status code 429
+2025-04-17 23:16:49 [error]: Status: 429
+2025-04-17 23:16:49 [error]: Data: {"type":"ErrorResponse","error":{"id":"8e7064a6-d89a-4681-b924-5a6652d7e112","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":136,"component":"rate_limiter"}},"time":1744899412}
+2025-04-17 23:16:49 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:74:23)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:16:49 [error]: API応答ステータス: 429
+2025-04-17 23:16:49 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "8e7064a6-d89a-4681-b924-5a6652d7e112",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 136,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899412
+}
+2025-04-17 23:16:49 [info]: 検索実行: "最新のAI技術ニュース" (結果数: 5)
+2025-04-17 23:16:49 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":true,"isDefinitionQuery":false,"isHowToQuery":false,"isFactCheckQuery":false,"isGeneralInfoQuery":false,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:16:49 [debug]: API Key being used: BSATh...
+2025-04-17 23:16:49 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:16:49 [error]: API Error: Request failed with status code 429
+2025-04-17 23:16:49 [error]: Status: 429
+2025-04-17 23:16:49 [error]: Data: {"type":"ErrorResponse","error":{"id":"70d56e58-5e89-4216-8c1c-0b01d5acd962","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":136,"component":"rate_limiter"}},"time":1744899412}
+2025-04-17 23:16:49 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:74:23)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:16:49 [error]: API応答ステータス: 429
+2025-04-17 23:16:49 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "70d56e58-5e89-4216-8c1c-0b01d5acd962",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 136,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899412
+}
+2025-04-17 23:16:49 [info]: 検索実行: "パスタの作り方を教えて" (結果数: 5)
+2025-04-17 23:16:49 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":false,"isHowToQuery":true,"isFactCheckQuery":false,"isGeneralInfoQuery":false,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:16:49 [debug]: API Key being used: BSATh...
+2025-04-17 23:16:49 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:16:49 [error]: API Error: Request failed with status code 429
+2025-04-17 23:16:49 [error]: Status: 429
+2025-04-17 23:16:49 [error]: Data: {"type":"ErrorResponse","error":{"id":"133e7605-5156-488a-b127-d5071306454e","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":136,"component":"rate_limiter"}},"time":1744899412}
+2025-04-17 23:16:49 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:74:23)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:16:49 [error]: API応答ステータス: 429
+2025-04-17 23:16:49 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "133e7605-5156-488a-b127-d5071306454e",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 136,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899412
+}
+2025-04-17 23:16:49 [info]: 検索実行: "地球温暖化は本当ですか" (結果数: 5)
+2025-04-17 23:16:49 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":false,"isHowToQuery":false,"isFactCheckQuery":true,"isGeneralInfoQuery":false,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:16:49 [debug]: API Key being used: BSATh...
+2025-04-17 23:16:49 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:16:50 [error]: API Error: Request failed with status code 429
+2025-04-17 23:16:50 [error]: Status: 429
+2025-04-17 23:16:50 [error]: Data: {"type":"ErrorResponse","error":{"id":"2cf9a53d-0ff3-4bfc-abc9-64c6bf82f8f3","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":136,"component":"rate_limiter"}},"time":1744899412}
+2025-04-17 23:16:50 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:74:23)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:16:50 [error]: API応答ステータス: 429
+2025-04-17 23:16:50 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "2cf9a53d-0ff3-4bfc-abc9-64c6bf82f8f3",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 136,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899412
+}
+2025-04-17 23:16:50 [info]: 検索実行: "東京タワーの場所" (結果数: 5)
+2025-04-17 23:16:50 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":false,"isHowToQuery":false,"isFactCheckQuery":false,"isGeneralInfoQuery":false,"isLocalQuery":true,"hasSpecificType":true}
+2025-04-17 23:16:50 [debug]: API Key being used: BSATh...
+2025-04-17 23:16:50 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:16:50 [error]: API Error: Request failed with status code 429
+2025-04-17 23:16:50 [error]: Status: 429
+2025-04-17 23:16:50 [error]: Data: {"type":"ErrorResponse","error":{"id":"a148e982-9feb-4a82-975b-5269655de11f","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":136,"component":"rate_limiter"}},"time":1744899412}
+2025-04-17 23:16:50 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:74:23)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:16:50 [error]: API応答ステータス: 429
+2025-04-17 23:16:50 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "a148e982-9feb-4a82-975b-5269655de11f",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 136,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899412
+}
+2025-04-17 23:16:50 [info]: 検索実行: "猫について教えて" (結果数: 5)
+2025-04-17 23:16:50 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":false,"isHowToQuery":false,"isFactCheckQuery":false,"isGeneralInfoQuery":true,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:16:50 [debug]: API Key being used: BSATh...
+2025-04-17 23:16:50 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:16:50 [error]: API Error: Request failed with status code 429
+2025-04-17 23:17:44 [debug]: ヘルスチェック用API Key: BSATh...
+2025-04-17 23:17:45 [debug]: ヘルスチェック成功: 200
+2025-04-17 23:17:45 [info]: 検索実行: "量子コンピュータとは何ですか" (結果数: 5)
+2025-04-17 23:17:45 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":true,"isHowToQuery":false,"isFactCheckQuery":false,"isGeneralInfoQuery":false,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:17:45 [debug]: API Key being used: BSATh...
+2025-04-17 23:17:45 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:17:45 [error]: API Error: Request failed with status code 429
+2025-04-17 23:17:45 [error]: Status: 429
+2025-04-17 23:17:45 [error]: Data: {"type":"ErrorResponse","error":{"id":"e94be7a8-69c3-4fa5-a55c-86b04045f4f1","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":137,"component":"rate_limiter"}},"time":1744899468}
+2025-04-17 23:17:45 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:132:19)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:17:45 [error]: API応答ステータス: 429
+2025-04-17 23:17:45 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "e94be7a8-69c3-4fa5-a55c-86b04045f4f1",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 137,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899468
+}
+2025-04-17 23:17:45 [info]: 検索実行: "最新のAI技術ニュース" (結果数: 5)
+2025-04-17 23:17:45 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":true,"isDefinitionQuery":false,"isHowToQuery":false,"isFactCheckQuery":false,"isGeneralInfoQuery":false,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:17:45 [debug]: API Key being used: BSATh...
+2025-04-17 23:17:45 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:17:45 [error]: API Error: Request failed with status code 429
+2025-04-17 23:17:45 [error]: Status: 429
+2025-04-17 23:17:45 [error]: Data: {"type":"ErrorResponse","error":{"id":"69ca0abb-2a39-47dd-ada9-7ceabd81bec9","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":137,"component":"rate_limiter"}},"time":1744899468}
+2025-04-17 23:17:45 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:132:19)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:17:45 [error]: API応答ステータス: 429
+2025-04-17 23:17:45 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "69ca0abb-2a39-47dd-ada9-7ceabd81bec9",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 137,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899468
+}
+2025-04-17 23:17:45 [info]: 検索実行: "パスタの作り方を教えて" (結果数: 5)
+2025-04-17 23:17:45 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":false,"isHowToQuery":true,"isFactCheckQuery":false,"isGeneralInfoQuery":false,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:17:45 [debug]: API Key being used: BSATh...
+2025-04-17 23:17:45 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:17:45 [error]: API Error: Request failed with status code 429
+2025-04-17 23:17:45 [error]: Status: 429
+2025-04-17 23:17:45 [error]: Data: {"type":"ErrorResponse","error":{"id":"572ad549-c81a-40cf-b6f6-541716fb65f5","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":137,"component":"rate_limiter"}},"time":1744899468}
+2025-04-17 23:17:45 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:132:19)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:17:45 [error]: API応答ステータス: 429
+2025-04-17 23:17:45 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "572ad549-c81a-40cf-b6f6-541716fb65f5",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 137,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899468
+}
+2025-04-17 23:17:45 [info]: 検索実行: "地球温暖化は本当ですか" (結果数: 5)
+2025-04-17 23:17:45 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":false,"isHowToQuery":false,"isFactCheckQuery":true,"isGeneralInfoQuery":false,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:17:45 [debug]: API Key being used: BSATh...
+2025-04-17 23:17:45 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:17:45 [error]: API Error: Request failed with status code 429
+2025-04-17 23:17:45 [error]: Status: 429
+2025-04-17 23:17:45 [error]: Data: {"type":"ErrorResponse","error":{"id":"afb6e7dc-1215-43be-8f6f-dfff3ad17c15","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":137,"component":"rate_limiter"}},"time":1744899468}
+2025-04-17 23:17:45 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:132:19)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:17:45 [error]: API応答ステータス: 429
+2025-04-17 23:17:45 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "afb6e7dc-1215-43be-8f6f-dfff3ad17c15",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 137,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899468
+}
+2025-04-17 23:17:45 [info]: 検索実行: "東京タワーの場所" (結果数: 5)
+2025-04-17 23:17:45 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":false,"isHowToQuery":false,"isFactCheckQuery":false,"isGeneralInfoQuery":false,"isLocalQuery":true,"hasSpecificType":true}
+2025-04-17 23:17:45 [debug]: API Key being used: BSATh...
+2025-04-17 23:17:45 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:17:45 [error]: API Error: Request failed with status code 429
+2025-04-17 23:17:45 [error]: Status: 429
+2025-04-17 23:17:45 [error]: Data: {"type":"ErrorResponse","error":{"id":"6b9bcca3-9c70-4b42-9534-d2ed7bf23b67","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":137,"component":"rate_limiter"}},"time":1744899468}
+2025-04-17 23:17:45 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:132:19)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:17:45 [error]: API応答ステータス: 429
+2025-04-17 23:17:45 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "6b9bcca3-9c70-4b42-9534-d2ed7bf23b67",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 137,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899468
+}
+2025-04-17 23:17:45 [info]: 検索実行: "猫について教えて" (結果数: 5)
+2025-04-17 23:17:45 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":false,"isHowToQuery":false,"isFactCheckQuery":false,"isGeneralInfoQuery":true,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:17:45 [debug]: API Key being used: BSATh...
+2025-04-17 23:17:45 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:17:46 [error]: API Error: Request failed with status code 429
+2025-04-17 23:18:49 [debug]: ヘルスチェック用API Key: BSATh...
+2025-04-17 23:18:50 [debug]: ヘルスチェック成功: 200
+2025-04-17 23:18:50 [info]: 検索実行: "量子コンピュータとは何ですか" (結果数: 5)
+2025-04-17 23:18:50 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":true,"isHowToQuery":false,"isFactCheckQuery":false,"isGeneralInfoQuery":false,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:18:50 [debug]: API Key being used: BSATh...
+2025-04-17 23:18:50 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:18:50 [error]: API Error: Request failed with status code 429
+2025-04-17 23:18:50 [error]: Status: 429
+2025-04-17 23:18:50 [error]: Data: {"type":"ErrorResponse","error":{"id":"33803274-6f30-4862-ad41-5dbf162b4119","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":138,"component":"rate_limiter"}},"time":1744899533}
+2025-04-17 23:18:50 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:143:21)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:18:50 [error]: API応答ステータス: 429
+2025-04-17 23:18:50 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "33803274-6f30-4862-ad41-5dbf162b4119",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 138,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899533
+}
+2025-04-17 23:18:50 [info]: 検索実行: "最新のAI技術ニュース" (結果数: 5)
+2025-04-17 23:18:50 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":true,"isDefinitionQuery":false,"isHowToQuery":false,"isFactCheckQuery":false,"isGeneralInfoQuery":false,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:18:50 [debug]: API Key being used: BSATh...
+2025-04-17 23:18:50 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:18:50 [error]: API Error: Request failed with status code 429
+2025-04-17 23:18:50 [error]: Status: 429
+2025-04-17 23:18:50 [error]: Data: {"type":"ErrorResponse","error":{"id":"9cdf801e-b5ac-46a7-91bc-480a16fa9dd6","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":138,"component":"rate_limiter"}},"time":1744899533}
+2025-04-17 23:18:50 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:143:21)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:18:50 [error]: API応答ステータス: 429
+2025-04-17 23:18:50 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "9cdf801e-b5ac-46a7-91bc-480a16fa9dd6",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 138,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899533
+}
+2025-04-17 23:18:50 [info]: 検索実行: "パスタの作り方を教えて" (結果数: 5)
+2025-04-17 23:18:50 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":false,"isHowToQuery":true,"isFactCheckQuery":false,"isGeneralInfoQuery":false,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:18:50 [debug]: API Key being used: BSATh...
+2025-04-17 23:18:50 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:18:50 [error]: API Error: Request failed with status code 429
+2025-04-17 23:18:50 [error]: Status: 429
+2025-04-17 23:18:50 [error]: Data: {"type":"ErrorResponse","error":{"id":"670efd03-6eb3-43ab-877e-dc340d29931d","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":138,"component":"rate_limiter"}},"time":1744899533}
+2025-04-17 23:18:50 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:143:21)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:18:50 [error]: API応答ステータス: 429
+2025-04-17 23:18:50 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "670efd03-6eb3-43ab-877e-dc340d29931d",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 138,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899533
+}
+2025-04-17 23:18:50 [info]: 検索実行: "地球温暖化は本当ですか" (結果数: 5)
+2025-04-17 23:18:50 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":false,"isHowToQuery":false,"isFactCheckQuery":true,"isGeneralInfoQuery":false,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:18:50 [debug]: API Key being used: BSATh...
+2025-04-17 23:18:50 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:18:50 [error]: API Error: Request failed with status code 429
+2025-04-17 23:18:50 [error]: Status: 429
+2025-04-17 23:18:50 [error]: Data: {"type":"ErrorResponse","error":{"id":"01bc27f7-a8e1-4d2d-a20e-722188db8ed3","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":138,"component":"rate_limiter"}},"time":1744899533}
+2025-04-17 23:18:50 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:143:21)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:18:50 [error]: API応答ステータス: 429
+2025-04-17 23:18:50 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "01bc27f7-a8e1-4d2d-a20e-722188db8ed3",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 138,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899533
+}
+2025-04-17 23:18:50 [info]: 検索実行: "東京タワーの場所" (結果数: 5)
+2025-04-17 23:18:50 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":false,"isHowToQuery":false,"isFactCheckQuery":false,"isGeneralInfoQuery":false,"isLocalQuery":true,"hasSpecificType":true}
+2025-04-17 23:18:50 [debug]: API Key being used: BSATh...
+2025-04-17 23:18:50 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:18:50 [error]: API Error: Request failed with status code 429
+2025-04-17 23:18:50 [error]: Status: 429
+2025-04-17 23:18:50 [error]: Data: {"type":"ErrorResponse","error":{"id":"039338db-c54b-4ef0-8c80-c0238dcdb193","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":138,"component":"rate_limiter"}},"time":1744899533}
+2025-04-17 23:18:50 [error]: 検索処理エラー: AxiosError: Request failed with status code 429
+Stack Trace: AxiosError: Request failed with status code 429
+    at settle (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:2031:12)
+    at Unzip.handleStreamEnd (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:3148:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (C:\Users\seamo\Documents\Claude\botchi-current\node_modules\axios\dist\node\axios.cjs:4258:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.performSearch (C:\Users\seamo\Documents\Claude\botchi-current\extensions\search-service.js:69:24)
+    at async testSearchFeature (C:\Users\seamo\Documents\Claude\botchi-current\test-search.js:143:21)
+Error Code: ERR_BAD_REQUEST
+2025-04-17 23:18:50 [error]: API応答ステータス: 429
+2025-04-17 23:18:50 [error]: API応答データ: {
+  "type": "ErrorResponse",
+  "error": {
+    "id": "039338db-c54b-4ef0-8c80-c0238dcdb193",
+    "status": 429,
+    "code": "RATE_LIMITED",
+    "detail": "Request rate limit exceeded for plan.",
+    "meta": {
+      "plan": "Free",
+      "rate_limit": 1,
+      "rate_current": 1,
+      "quota_limit": 2000,
+      "quota_current": 138,
+      "component": "rate_limiter"
+    }
+  },
+  "time": 1744899533
+}
+2025-04-17 23:18:50 [info]: 検索実行: "猫について教えて" (結果数: 5)
+2025-04-17 23:18:50 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":false,"isHowToQuery":false,"isFactCheckQuery":false,"isGeneralInfoQuery":true,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:18:50 [debug]: API Key being used: BSATh...
+2025-04-17 23:18:50 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:18:50 [error]: API Error: Request failed with status code 429
+2025-04-17 23:19:51 [debug]: ヘルスチェック用API Key: BSATh...
+2025-04-17 23:19:51 [debug]: ヘルスチェック成功: 200
+2025-04-17 23:19:51 [info]: 検索実行: "量子コンピュータとは何ですか" (結果数: 5)
+2025-04-17 23:19:51 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":true,"isHowToQuery":false,"isFactCheckQuery":false,"isGeneralInfoQuery":false,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:19:51 [debug]: API Key being used: BSATh...
+2025-04-17 23:19:51 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:19:51 [error]: API Error: Request failed with status code 429
+2025-04-17 23:19:51 [error]: Status: 429
+2025-04-17 23:19:51 [error]: Data: {"type":"ErrorResponse","error":{"id":"68c386af-d1fa-46df-a2c4-07fe32cb905f","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":139,"component":"rate_limiter"}},"time":1744899594}
+2025-04-17 23:19:51 [warn]: APIレート制限に達しました。モックデータを使用します: 量子コンピュータとは何ですか
+2025-04-17 23:19:51 [info]: 検索実行: "最新のAI技術ニュース" (結果数: 5)
+2025-04-17 23:19:51 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":true,"isDefinitionQuery":false,"isHowToQuery":false,"isFactCheckQuery":false,"isGeneralInfoQuery":false,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:19:51 [debug]: API Key being used: BSATh...
+2025-04-17 23:19:51 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:19:51 [error]: API Error: Request failed with status code 429
+2025-04-17 23:19:51 [error]: Status: 429
+2025-04-17 23:19:51 [error]: Data: {"type":"ErrorResponse","error":{"id":"1c4c5ab4-6ede-456c-965a-ce16b7111a30","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":139,"component":"rate_limiter"}},"time":1744899594}
+2025-04-17 23:19:51 [warn]: APIレート制限に達しました。モックデータを使用します: 最新のAI技術ニュース
+2025-04-17 23:19:51 [info]: 検索実行: "パスタの作り方を教えて" (結果数: 5)
+2025-04-17 23:19:51 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":false,"isHowToQuery":true,"isFactCheckQuery":false,"isGeneralInfoQuery":false,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:19:51 [debug]: API Key being used: BSATh...
+2025-04-17 23:19:51 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:19:51 [error]: API Error: Request failed with status code 429
+2025-04-17 23:19:51 [error]: Status: 429
+2025-04-17 23:19:51 [error]: Data: {"type":"ErrorResponse","error":{"id":"d3019f9c-a155-457c-b6cd-4dbe18bf6185","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":139,"component":"rate_limiter"}},"time":1744899594}
+2025-04-17 23:19:51 [warn]: APIレート制限に達しました。モックデータを使用します: パスタの作り方を教えて
+2025-04-17 23:19:51 [info]: 検索実行: "地球温暖化は本当ですか" (結果数: 5)
+2025-04-17 23:19:51 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":false,"isHowToQuery":false,"isFactCheckQuery":true,"isGeneralInfoQuery":false,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:19:51 [debug]: API Key being used: BSATh...
+2025-04-17 23:19:51 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:19:52 [error]: API Error: Request failed with status code 429
+2025-04-17 23:19:52 [error]: Status: 429
+2025-04-17 23:19:52 [error]: Data: {"type":"ErrorResponse","error":{"id":"5bc8ae21-8533-44ba-a7cc-73086f1ca685","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":139,"component":"rate_limiter"}},"time":1744899594}
+2025-04-17 23:19:52 [warn]: APIレート制限に達しました。モックデータを使用します: 地球温暖化は本当ですか
+2025-04-17 23:19:52 [info]: 検索実行: "東京タワーの場所" (結果数: 5)
+2025-04-17 23:19:52 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":false,"isHowToQuery":false,"isFactCheckQuery":false,"isGeneralInfoQuery":false,"isLocalQuery":true,"hasSpecificType":true}
+2025-04-17 23:19:52 [debug]: API Key being used: BSATh...
+2025-04-17 23:19:52 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:19:52 [error]: API Error: Request failed with status code 429
+2025-04-17 23:19:52 [error]: Status: 429
+2025-04-17 23:19:52 [error]: Data: {"type":"ErrorResponse","error":{"id":"9a1f520f-b205-4900-88d9-70c18aa9117d","status":429,"code":"RATE_LIMITED","detail":"Request rate limit exceeded for plan.","meta":{"plan":"Free","rate_limit":1,"rate_current":1,"quota_limit":2000,"quota_current":139,"component":"rate_limiter"}},"time":1744899594}
+2025-04-17 23:19:52 [warn]: APIレート制限に達しました。モックデータを使用します: 東京タワーの場所
+2025-04-17 23:19:52 [info]: 検索実行: "猫について教えて" (結果数: 5)
+2025-04-17 23:19:52 [debug]: クエリタイプ分析結果: {"isCurrentInfoQuery":false,"isDefinitionQuery":false,"isHowToQuery":false,"isFactCheckQuery":false,"isGeneralInfoQuery":true,"isLocalQuery":false,"hasSpecificType":true}
+2025-04-17 23:19:52 [debug]: API Key being used: BSATh...
+2025-04-17 23:19:52 [debug]: API URL: https://api.search.brave.com/res/v1/web/search
+2025-04-17 23:19:52 [error]: API Error: Request failed with status code 429
+2025-04-17 23:41:46 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:41:46 [info]: Node.js Version: v22.12.0
+2025-04-17 23:41:47 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:41:47 [info]: Context intervention mode: balanced
+2025-04-17 23:41:47 [info]: Running environment: Local
+2025-04-17 23:41:47 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:41:47 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:41:47 [info]: Health check server started
+2025-04-17 23:41:47 [info]: Initializing message history system...
+2025-04-17 23:41:47 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:41:47 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:41:47 [info]: RAG system is disabled
+2025-04-17 23:41:47 [info]: Loading AI service module...
+2025-04-17 23:41:47 [info]: Setting up Discord client...
+2025-04-17 23:41:47 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:41:47 [info]: AIプロバイダ "openai" を初期化中...
+2025-04-17 23:41:47 [info]: AI service registered with message handler
+2025-04-17 23:41:47 [debug]: Message handler registered successfully
+2025-04-17 23:41:47 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:41:46 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:41:46 [info]: Node.js Version: v22.12.0
+2025-04-17 23:41:47 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:41:47 [info]: Context intervention mode: balanced
+2025-04-17 23:41:47 [info]: Running environment: Local
+2025-04-17 23:41:47 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:41:47 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:41:47 [info]: Health check server started
+2025-04-17 23:41:47 [info]: Initializing message history system...
+2025-04-17 23:41:47 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:41:47 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:41:47 [info]: RAG system is disabled
+2025-04-17 23:41:47 [info]: Loading AI service module...
+2025-04-17 23:41:47 [info]: Setting up Discord client...
+2025-04-17 23:41:47 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:41:47 [info]: AIプロバイダ "openai" を初期化中...
+2025-04-17 23:41:47 [info]: AI service registered with message handler
+2025-04-17 23:41:47 [debug]: Message handler registered successfully
+2025-04-17 23:41:47 [info]: Health check server is running on port 3000
+2025-04-17 23:41:48 [info]: Bot login successful
+2025-04-17 23:41:48 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:41:48 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:41:48 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:41:48 [info]: AIプロバイダ "openai" の初期化が完了しました
+2025-04-17 23:41:48 [info]: AI service initialized: Success
+2025-04-17 23:41:48 [info]: Active AI provider: openai, Model: gpt-4o-mini
+2025-04-17 23:41:48 [info]: Bot login successful
+2025-04-17 23:41:48 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:41:48 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:41:48 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:41:48 [info]: AIプロバイダ "openai" の初期化が完了しました
+2025-04-17 23:41:48 [info]: AI service initialized: Success
+2025-04-17 23:41:48 [info]: Active AI provider: openai, Model: gpt-4o-mini
+2025-04-17 23:41:49 [info]: AI service health: healthy, provider: openai
+2025-04-17 23:41:49 [info]: AI service health: healthy, provider: openai
+2025-04-17 23:41:49 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:41:49 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:41:49 [info]: Node.js Version: v22.12.0
+2025-04-17 23:41:50 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:41:50 [info]: Context intervention mode: balanced
+2025-04-17 23:41:50 [info]: Running environment: Local
+2025-04-17 23:41:50 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:41:50 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:41:50 [info]: Health check server started
+2025-04-17 23:41:50 [info]: Initializing message history system...
+2025-04-17 23:41:50 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:41:50 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:41:50 [info]: RAG system is disabled
+2025-04-17 23:41:50 [info]: Loading AI service module...
+2025-04-17 23:41:49 [info]: Node.js Version: v22.12.0
+2025-04-17 23:41:50 [info]: Setting up Discord client...
+2025-04-17 23:41:50 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:41:50 [info]: Context intervention mode: balanced
+2025-04-17 23:41:50 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:41:50 [info]: Running environment: Local
+2025-04-17 23:41:50 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:41:50 [info]: AIプロバイダ "openai" を初期化中...
+2025-04-17 23:41:50 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:41:50 [info]: AI service registered with message handler
+2025-04-17 23:41:50 [info]: Health check server started
+2025-04-17 23:41:50 [debug]: Message handler registered successfully
+2025-04-17 23:41:50 [info]: Initializing message history system...
+2025-04-17 23:41:50 [info]: Health check server is running on port 3000
+2025-04-17 23:41:50 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:41:50 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:41:50 [info]: RAG system is disabled
+2025-04-17 23:41:50 [info]: Loading AI service module...
+2025-04-17 23:41:50 [info]: Setting up Discord client...
+2025-04-17 23:41:50 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:41:50 [info]: AIプロバイダ "openai" を初期化中...
+2025-04-17 23:41:50 [info]: AI service registered with message handler
+2025-04-17 23:41:50 [debug]: Message handler registered successfully
+2025-04-17 23:41:50 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:41:51 [info]: AIプロバイダ "openai" の初期化が完了しました
+2025-04-17 23:41:51 [info]: AI service initialized: Success
+2025-04-17 23:41:51 [info]: Active AI provider: openai, Model: gpt-4o-mini
+2025-04-17 23:41:51 [info]: AIプロバイダ "openai" の初期化が完了しました
+2025-04-17 23:41:51 [info]: AI service initialized: Success
+2025-04-17 23:41:51 [info]: Active AI provider: openai, Model: gpt-4o-mini
+2025-04-17 23:41:51 [info]: AI service health: healthy, provider: openai
+2025-04-17 23:41:52 [info]: AI service health: healthy, provider: openai
+2025-04-17 23:41:53 [info]: Bot login successful
+2025-04-17 23:41:53 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:41:54 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:41:54 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:41:59 [info]: Bot login successful
+2025-04-17 23:41:59 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:41:59 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:41:59 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:42:11 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:42:11 [info]: Node.js Version: v22.12.0
+2025-04-17 23:42:11 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:42:11 [info]: Context intervention mode: balanced
+2025-04-17 23:42:11 [info]: Running environment: Local
+2025-04-17 23:42:11 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:42:11 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:42:11 [info]: Health check server started
+2025-04-17 23:42:11 [info]: Initializing message history system...
+2025-04-17 23:42:11 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:42:11 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:42:11 [info]: RAG system is disabled
+2025-04-17 23:42:11 [info]: Loading AI service module...
+2025-04-17 23:42:11 [info]: Setting up Discord client...
+2025-04-17 23:42:11 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:42:11 [info]: AIプロバイダ "openai" を初期化中...
+2025-04-17 23:42:12 [info]: AI service registered with message handler
+2025-04-17 23:42:12 [debug]: Message handler registered successfully
+2025-04-17 23:42:12 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:42:11 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:42:11 [info]: Node.js Version: v22.12.0
+2025-04-17 23:42:11 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:42:11 [info]: Context intervention mode: balanced
+2025-04-17 23:42:11 [info]: Running environment: Local
+2025-04-17 23:42:11 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:42:11 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:42:11 [info]: Health check server started
+2025-04-17 23:42:11 [info]: Initializing message history system...
+2025-04-17 23:42:11 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:42:11 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:42:11 [info]: RAG system is disabled
+2025-04-17 23:42:11 [info]: Loading AI service module...
+2025-04-17 23:42:11 [info]: Setting up Discord client...
+2025-04-17 23:42:11 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:42:11 [info]: AIプロバイダ "openai" を初期化中...
+2025-04-17 23:42:12 [info]: AI service registered with message handler
+2025-04-17 23:42:12 [debug]: Message handler registered successfully
+2025-04-17 23:42:12 [info]: Health check server is running on port 3000
+2025-04-17 23:42:12 [info]: AIプロバイダ "openai" の初期化が完了しました
+2025-04-17 23:42:12 [info]: AI service initialized: Success
+2025-04-17 23:42:12 [info]: Active AI provider: openai, Model: gpt-4o-mini
+2025-04-17 23:42:12 [info]: Bot login successful
+2025-04-17 23:42:12 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:42:12 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:42:12 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:42:13 [info]: AI service health: healthy, provider: openai
+2025-04-17 23:42:13 [info]: Bot login successful
+2025-04-17 23:42:13 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:42:13 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:42:13 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:42:15 [info]: AIプロバイダ "openai" の初期化が完了しました
+2025-04-17 23:42:15 [info]: AI service initialized: Success
+2025-04-17 23:42:15 [info]: Active AI provider: openai, Model: gpt-4o-mini
+2025-04-17 23:42:16 [info]: AI service health: healthy, provider: openai
+2025-04-17 23:42:46 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:42:46 [info]: Node.js Version: v22.12.0
+2025-04-17 23:42:46 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:42:46 [info]: Context intervention mode: balanced
+2025-04-17 23:42:46 [info]: Running environment: Local
+2025-04-17 23:42:46 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:42:46 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:42:46 [info]: Health check server started
+2025-04-17 23:42:46 [info]: Initializing message history system...
+2025-04-17 23:42:46 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:42:46 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:42:46 [info]: RAG system is disabled
+2025-04-17 23:42:46 [info]: Loading AI service module...
+2025-04-17 23:42:46 [info]: Setting up Discord client...
+2025-04-17 23:42:46 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:42:46 [info]: AI Provider: openai
+2025-04-17 23:42:47 [info]: Initializing AI provider...
+2025-04-17 23:42:47 [info]: AI service registered with message handler
+2025-04-17 23:42:47 [debug]: Message handler registered successfully
+2025-04-17 23:42:47 [info]: Health check server is running on port 3000
+2025-04-17 23:42:46 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:42:46 [info]: Node.js Version: v22.12.0
+2025-04-17 23:42:46 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:42:46 [info]: Context intervention mode: balanced
+2025-04-17 23:42:46 [info]: Running environment: Local
+2025-04-17 23:42:46 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:42:46 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:42:46 [info]: Health check server started
+2025-04-17 23:42:46 [info]: Initializing message history system...
+2025-04-17 23:42:46 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:42:46 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:42:46 [info]: RAG system is disabled
+2025-04-17 23:42:46 [info]: Loading AI service module...
+2025-04-17 23:42:46 [info]: Setting up Discord client...
+2025-04-17 23:42:47 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:42:47 [info]: AI Provider: openai
+2025-04-17 23:42:47 [info]: Initializing AI provider...
+2025-04-17 23:42:47 [info]: AI service registered with message handler
+2025-04-17 23:42:47 [debug]: Message handler registered successfully
+2025-04-17 23:42:47 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:42:47 [debug]: Provider initialization result: {"initialized":true,"apiConfigured":true,"model":"gpt-4o-mini","healthStatus":"healthy","contextManagerInitialized":true}
+2025-04-17 23:42:47 [info]: AI provider initialized successfully
+2025-04-17 23:42:47 [info]: AI service initialized: Failed
+2025-04-17 23:42:47 [warn]: AI service initialization failed: Unknown error
+2025-04-17 23:42:47 [debug]: Provider initialization result: {"initialized":true,"apiConfigured":true,"model":"gpt-4o-mini","healthStatus":"healthy","contextManagerInitialized":true}
+2025-04-17 23:42:47 [info]: AI provider initialized successfully
+2025-04-17 23:42:47 [info]: AI service initialized: Failed
+2025-04-17 23:42:47 [warn]: AI service initialization failed: Unknown error
+2025-04-17 23:42:48 [info]: Bot login successful
+2025-04-17 23:42:48 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:42:48 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:42:48 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:42:48 [info]: AI service health: healthy, provider: Unknown
+2025-04-17 23:42:48 [info]: Bot login successful
+2025-04-17 23:42:48 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:42:48 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:42:48 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:42:48 [info]: AI service health: healthy, provider: Unknown
+2025-04-17 23:42:48 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:42:48 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:42:48 [info]: Node.js Version: v22.12.0
+2025-04-17 23:42:49 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:42:49 [info]: Context intervention mode: balanced
+2025-04-17 23:42:49 [info]: Running environment: Local
+2025-04-17 23:42:49 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:42:49 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:42:49 [info]: Health check server started
+2025-04-17 23:42:49 [info]: Initializing message history system...
+2025-04-17 23:42:49 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:42:49 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:42:49 [info]: RAG system is disabled
+2025-04-17 23:42:49 [info]: Loading AI service module...
+2025-04-17 23:42:49 [info]: Setting up Discord client...
+2025-04-17 23:42:49 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:42:49 [info]: AI Provider: openai
+2025-04-17 23:42:49 [info]: Initializing AI provider...
+2025-04-17 23:42:49 [info]: AI service registered with message handler
+2025-04-17 23:42:49 [debug]: Message handler registered successfully
+2025-04-17 23:42:49 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:42:48 [info]: Node.js Version: v22.12.0
+2025-04-17 23:42:49 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:42:49 [info]: Context intervention mode: balanced
+2025-04-17 23:42:49 [info]: Running environment: Local
+2025-04-17 23:42:49 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:42:49 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:42:49 [info]: Health check server started
+2025-04-17 23:42:49 [info]: Initializing message history system...
+2025-04-17 23:42:49 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:42:49 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:42:49 [info]: RAG system is disabled
+2025-04-17 23:42:49 [info]: Loading AI service module...
+2025-04-17 23:42:49 [info]: Setting up Discord client...
+2025-04-17 23:42:49 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:42:49 [info]: AI Provider: openai
+2025-04-17 23:42:49 [info]: Initializing AI provider...
+2025-04-17 23:42:49 [info]: AI service registered with message handler
+2025-04-17 23:42:49 [debug]: Message handler registered successfully
+2025-04-17 23:42:49 [info]: Health check server is running on port 3000
+2025-04-17 23:42:50 [debug]: Provider initialization result: {"initialized":true,"apiConfigured":true,"model":"gpt-4o-mini","healthStatus":"healthy","contextManagerInitialized":true}
+2025-04-17 23:42:50 [info]: AI provider initialized successfully
+2025-04-17 23:42:50 [info]: AI service initialized: Failed
+2025-04-17 23:42:50 [warn]: AI service initialization failed: Unknown error
+2025-04-17 23:42:50 [debug]: Provider initialization result: {"initialized":true,"apiConfigured":true,"model":"gpt-4o-mini","healthStatus":"healthy","contextManagerInitialized":true}
+2025-04-17 23:42:50 [info]: AI provider initialized successfully
+2025-04-17 23:42:50 [info]: AI service initialized: Failed
+2025-04-17 23:42:50 [warn]: AI service initialization failed: Unknown error
+2025-04-17 23:42:50 [info]: AI service health: healthy, provider: Unknown
+2025-04-17 23:42:50 [info]: AI service health: healthy, provider: Unknown
+2025-04-17 23:42:52 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:42:52 [info]: Node.js Version: v22.12.0
+2025-04-17 23:42:53 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:42:53 [info]: Context intervention mode: balanced
+2025-04-17 23:42:53 [info]: Running environment: Local
+2025-04-17 23:42:53 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:42:53 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:42:53 [info]: Health check server started
+2025-04-17 23:42:53 [info]: Initializing message history system...
+2025-04-17 23:42:53 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:42:53 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:42:53 [info]: RAG system is disabled
+2025-04-17 23:42:53 [info]: Loading AI service module...
+2025-04-17 23:42:53 [info]: Setting up Discord client...
+2025-04-17 23:42:53 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:42:53 [info]: AI Provider: openai
+2025-04-17 23:42:53 [info]: Initializing AI provider...
+2025-04-17 23:42:53 [info]: AI service registered with message handler
+2025-04-17 23:42:53 [debug]: Message handler registered successfully
+2025-04-17 23:42:53 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:42:53 [info]: Bot login successful
+2025-04-17 23:42:53 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:42:53 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:42:53 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:42:53 [debug]: Provider initialization result: {"initialized":true,"apiConfigured":true,"model":"gpt-4o-mini","healthStatus":"healthy","contextManagerInitialized":true}
+2025-04-17 23:42:53 [info]: AI provider initialized successfully
+2025-04-17 23:42:53 [info]: AI service initialized: Failed
+2025-04-17 23:42:53 [warn]: AI service initialization failed: Unknown error
+2025-04-17 23:42:54 [info]: AI service health: healthy, provider: Unknown
+2025-04-17 23:42:58 [info]: Bot login successful
+2025-04-17 23:42:58 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:42:58 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:42:58 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:43:04 [info]: Bot login successful
+2025-04-17 23:43:04 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:43:04 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:43:04 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:43:27 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:43:27 [info]: Node.js Version: v22.12.0
+2025-04-17 23:43:27 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:43:27 [info]: Context intervention mode: balanced
+2025-04-17 23:43:27 [info]: Running environment: Local
+2025-04-17 23:43:27 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:43:27 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:43:27 [info]: Health check server started
+2025-04-17 23:43:27 [info]: Initializing message history system...
+2025-04-17 23:43:27 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:43:27 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:43:27 [info]: RAG system is disabled
+2025-04-17 23:43:27 [info]: Loading AI service module...
+2025-04-17 23:43:27 [info]: Setting up Discord client...
+2025-04-17 23:43:27 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:43:27 [info]: AI Provider: openai
+2025-04-17 23:43:27 [info]: Initializing AI provider...
+2025-04-17 23:43:27 [info]: AI service registered with message handler
+2025-04-17 23:43:27 [debug]: Message handler registered successfully
+2025-04-17 23:43:27 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:43:28 [debug]: Provider initialization result: {"initialized":true,"apiConfigured":true,"model":"gpt-4o-mini","healthStatus":"healthy","contextManagerInitialized":true}
+2025-04-17 23:43:28 [info]: AI provider initialized successfully
+2025-04-17 23:43:28 [info]: AI service initialized: Failed
+2025-04-17 23:43:28 [warn]: AI service initialization failed: Unknown error
+2025-04-17 23:43:28 [info]: Bot login successful
+2025-04-17 23:43:28 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:43:28 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:43:28 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:43:29 [info]: AI service health: healthy, provider: Unknown
+2025-04-17 23:44:37 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:44:37 [info]: Node.js Version: v22.12.0
+2025-04-17 23:44:38 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:44:38 [info]: Context intervention mode: balanced
+2025-04-17 23:44:38 [info]: Running environment: Local
+2025-04-17 23:44:38 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:44:38 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:44:38 [info]: Health check server started
+2025-04-17 23:44:38 [info]: Initializing message history system...
+2025-04-17 23:44:38 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:44:38 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:44:38 [info]: RAG system is disabled
+2025-04-17 23:44:38 [info]: Loading AI service module...
+2025-04-17 23:44:38 [info]: Setting up Discord client...
+2025-04-17 23:44:38 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:44:38 [info]: AI Provider: openai
+2025-04-17 23:44:38 [info]: Initializing AI provider...
+2025-04-17 23:44:38 [info]: AI service registered with message handler
+2025-04-17 23:44:38 [debug]: Message handler registered successfully
+2025-04-17 23:44:38 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:44:38 [debug]: Provider initialization result: {"initialized":true,"apiConfigured":true,"model":"gpt-4o-mini","healthStatus":"healthy","contextManagerInitialized":true}
+2025-04-17 23:44:38 [info]: AI provider initialized successfully
+2025-04-17 23:44:38 [info]: AI service initialized: Failed
+2025-04-17 23:44:38 [warn]: AI service initialization failed: Unknown error
+2025-04-17 23:44:39 [info]: Bot login successful
+2025-04-17 23:44:39 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:44:39 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:44:39 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:44:39 [info]: AI service health: healthy, provider: Unknown
+2025-04-17 23:45:54 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:45:54 [info]: Node.js Version: v22.12.0
+2025-04-17 23:45:54 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:45:54 [info]: Context intervention mode: balanced
+2025-04-17 23:45:54 [info]: Running environment: Local
+2025-04-17 23:45:54 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:45:54 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:45:54 [info]: Health check server started
+2025-04-17 23:45:54 [info]: Initializing message history system...
+2025-04-17 23:45:54 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:45:54 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:45:54 [info]: RAG system is disabled
+2025-04-17 23:45:54 [info]: Loading AI service module...
+2025-04-17 23:45:54 [info]: Setting up Discord client...
+2025-04-17 23:45:54 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:45:54 [info]: AI Provider: openai
+2025-04-17 23:45:55 [info]: Initializing AI provider...
+2025-04-17 23:45:55 [info]: AI service registered with message handler
+2025-04-17 23:45:55 [debug]: Message handler registered successfully
+2025-04-17 23:45:55 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:45:54 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:45:54 [info]: Node.js Version: v22.12.0
+2025-04-17 23:45:54 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:45:54 [info]: Context intervention mode: balanced
+2025-04-17 23:45:54 [info]: Running environment: Local
+2025-04-17 23:45:54 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:45:54 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:45:54 [info]: Health check server started
+2025-04-17 23:45:54 [info]: Initializing message history system...
+2025-04-17 23:45:54 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:45:54 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:45:54 [info]: RAG system is disabled
+2025-04-17 23:45:54 [info]: Loading AI service module...
+2025-04-17 23:45:54 [info]: Setting up Discord client...
+2025-04-17 23:45:54 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:45:54 [info]: AI Provider: openai
+2025-04-17 23:45:55 [info]: Initializing AI provider...
+2025-04-17 23:45:55 [info]: AI service registered with message handler
+2025-04-17 23:45:55 [debug]: Message handler registered successfully
+2025-04-17 23:45:55 [info]: Health check server is running on port 3000
+2025-04-17 23:45:55 [debug]: Provider initialization result: {"initialized":true,"apiConfigured":true,"model":"gpt-4o-mini","healthStatus":"healthy","contextManagerInitialized":true}
+2025-04-17 23:45:55 [info]: AI provider initialized successfully
+2025-04-17 23:45:55 [info]: AI service initialized: Failed
+2025-04-17 23:45:55 [warn]: AI service initialization failed: Unknown error
+2025-04-17 23:45:56 [info]: Bot login successful
+2025-04-17 23:45:56 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:45:56 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:45:56 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:45:56 [info]: Bot login successful
+2025-04-17 23:45:56 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:45:56 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:45:56 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:45:56 [info]: AI service health: healthy, provider: Unknown
+2025-04-17 23:45:57 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:45:57 [info]: Node.js Version: v22.12.0
+2025-04-17 23:45:58 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:45:58 [info]: Context intervention mode: balanced
+2025-04-17 23:45:58 [info]: Running environment: Local
+2025-04-17 23:45:58 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:45:58 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:45:58 [info]: Health check server started
+2025-04-17 23:45:58 [info]: Initializing message history system...
+2025-04-17 23:45:58 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:45:58 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:45:58 [info]: RAG system is disabled
+2025-04-17 23:45:58 [info]: Loading AI service module...
+2025-04-17 23:45:58 [info]: Setting up Discord client...
+2025-04-17 23:45:58 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:45:58 [info]: AI Provider: openai
+2025-04-17 23:45:58 [info]: Initializing AI provider...
+2025-04-17 23:45:58 [info]: AI service registered with message handler
+2025-04-17 23:45:58 [debug]: Message handler registered successfully
+2025-04-17 23:45:58 [info]: Health check server is running on port 3000
+2025-04-17 23:45:57 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:45:57 [info]: Node.js Version: v22.12.0
+2025-04-17 23:45:58 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:45:58 [info]: Context intervention mode: balanced
+2025-04-17 23:45:58 [info]: Running environment: Local
+2025-04-17 23:45:58 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:45:58 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:45:58 [info]: Health check server started
+2025-04-17 23:45:58 [info]: Initializing message history system...
+2025-04-17 23:45:58 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:45:58 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:45:58 [info]: RAG system is disabled
+2025-04-17 23:45:58 [info]: Loading AI service module...
+2025-04-17 23:45:58 [info]: Setting up Discord client...
+2025-04-17 23:45:58 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:45:58 [info]: AI Provider: openai
+2025-04-17 23:45:58 [info]: Initializing AI provider...
+2025-04-17 23:45:58 [info]: AI service registered with message handler
+2025-04-17 23:45:58 [debug]: Message handler registered successfully
+2025-04-17 23:45:58 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:45:59 [debug]: Provider initialization result: {"initialized":true,"apiConfigured":true,"model":"gpt-4o-mini","healthStatus":"healthy","contextManagerInitialized":true}
+2025-04-17 23:45:59 [info]: AI provider initialized successfully
+2025-04-17 23:45:59 [info]: AI service initialized: Failed
+2025-04-17 23:45:59 [warn]: AI service initialization failed: Unknown error
+2025-04-17 23:45:59 [debug]: Provider initialization result: {"initialized":true,"apiConfigured":true,"model":"gpt-4o-mini","healthStatus":"healthy","contextManagerInitialized":true}
+2025-04-17 23:45:59 [info]: AI provider initialized successfully
+2025-04-17 23:45:59 [info]: AI service initialized: Failed
+2025-04-17 23:45:59 [warn]: AI service initialization failed: Unknown error
+2025-04-17 23:45:59 [info]: AI service health: healthy, provider: Unknown
+2025-04-17 23:45:59 [info]: AI service health: healthy, provider: Unknown
+2025-04-17 23:45:59 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:45:59 [info]: Node.js Version: v22.12.0
+2025-04-17 23:45:59 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:45:59 [info]: Context intervention mode: balanced
+2025-04-17 23:45:59 [info]: Running environment: Local
+2025-04-17 23:45:59 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:45:59 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:45:59 [info]: Health check server started
+2025-04-17 23:45:59 [info]: Initializing message history system...
+2025-04-17 23:45:59 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:45:59 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:45:59 [info]: RAG system is disabled
+2025-04-17 23:45:59 [info]: Loading AI service module...
+2025-04-17 23:45:59 [info]: Setting up Discord client...
+2025-04-17 23:45:59 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:45:59 [info]: AI Provider: openai
+2025-04-17 23:45:59 [info]: Initializing AI provider...
+2025-04-17 23:46:00 [info]: AI service registered with message handler
+2025-04-17 23:46:00 [debug]: Message handler registered successfully
+2025-04-17 23:46:00 [error]: Health check server error: Error: listen EADDRINUSE: address already in use :::3000
+Stack Trace: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at createServer (C:\Users\seamo\Documents\Claude\botchi-current\server\health-server.js:31:10)
+    at Object.<anonymous> (C:\Users\seamo\Documents\Claude\botchi-current\index.js:49:3)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Error Code: EADDRINUSE
+System Call: listen
+2025-04-17 23:46:00 [debug]: Provider initialization result: {"initialized":true,"apiConfigured":true,"model":"gpt-4o-mini","healthStatus":"healthy","contextManagerInitialized":true}
+2025-04-17 23:46:00 [info]: AI provider initialized successfully
+2025-04-17 23:46:00 [info]: AI service initialized: Failed
+2025-04-17 23:46:00 [warn]: AI service initialization failed: Unknown error
+2025-04-17 23:46:01 [info]: Bot login successful
+2025-04-17 23:46:01 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:46:01 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:46:01 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:46:01 [info]: AI service health: healthy, provider: Unknown
+2025-04-17 23:46:06 [info]: Bot login successful
+2025-04-17 23:46:06 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:46:06 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:46:06 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:46:12 [info]: Bot login successful
+2025-04-17 23:46:12 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:46:12 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:46:12 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:48:09 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:48:09 [info]: Node.js Version: v22.12.0
+2025-04-17 23:48:10 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:48:10 [info]: Context intervention mode: balanced
+2025-04-17 23:48:10 [info]: Running environment: Local
+2025-04-17 23:48:10 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:48:10 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:48:10 [info]: Health check server started
+2025-04-17 23:48:10 [info]: Initializing message history system...
+2025-04-17 23:48:10 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:48:10 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:48:10 [info]: RAG system is disabled
+2025-04-17 23:48:10 [info]: Loading AI service module...
+2025-04-17 23:48:10 [info]: Setting up Discord client...
+2025-04-17 23:48:10 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:48:10 [info]: AI Provider: openai
+2025-04-17 23:48:10 [info]: Initializing AI provider...
+2025-04-17 23:48:10 [info]: AI service registered with message handler
+2025-04-17 23:48:10 [debug]: Message handler registered successfully
+2025-04-17 23:48:10 [info]: Health check server is running on port 3000
+2025-04-17 23:48:11 [debug]: Provider initialization result: {"initialized":true,"apiConfigured":true,"model":"gpt-4o-mini","healthStatus":"healthy","contextManagerInitialized":true}
+2025-04-17 23:48:11 [info]: AI provider initialized successfully
+2025-04-17 23:48:11 [info]: AI service initialized: Failed
+2025-04-17 23:48:11 [warn]: AI service initialization failed: Unknown error
+2025-04-17 23:48:11 [info]: Bot login successful
+2025-04-17 23:48:11 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:48:11 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:48:11 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:48:11 [info]: AI service health: healthy, provider: Unknown
+2025-04-17 23:49:53 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:49:53 [info]: Node.js Version: v22.12.0
+2025-04-17 23:49:53 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:49:53 [info]: Context intervention mode: balanced
+2025-04-17 23:49:53 [info]: Running environment: Local
+2025-04-17 23:49:53 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:49:53 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:49:53 [info]: Health check server started
+2025-04-17 23:49:53 [info]: Initializing message history system...
+2025-04-17 23:49:53 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:49:53 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:49:53 [info]: RAG system is disabled
+2025-04-17 23:49:53 [info]: Loading AI service module...
+2025-04-17 23:49:53 [info]: Setting up Discord client...
+2025-04-17 23:49:53 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:49:53 [info]: AI Provider: openai
+2025-04-17 23:49:53 [info]: Initializing AI provider...
+2025-04-17 23:49:53 [info]: AI service registered with message handler
+2025-04-17 23:49:53 [debug]: Message handler registered successfully
+2025-04-17 23:49:53 [info]: Health check server is running on port 3000
+2025-04-17 23:49:54 [debug]: Provider initialization result: {"initialized":true,"apiConfigured":true,"model":"gpt-4o-mini","healthStatus":"healthy","contextManagerInitialized":true}
+2025-04-17 23:49:54 [info]: AI provider initialized successfully
+2025-04-17 23:49:54 [info]: AI service initialized: Failed
+2025-04-17 23:49:54 [warn]: AI service initialization failed: Unknown error
+2025-04-17 23:49:54 [info]: Bot login successful
+2025-04-17 23:49:54 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:49:54 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:49:54 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:49:54 [info]: AI service health: healthy, provider: Unknown
+2025-04-17 23:51:20 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:51:20 [info]: Node.js Version: v22.12.0
+2025-04-17 23:51:20 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:51:20 [info]: Context intervention mode: balanced
+2025-04-17 23:51:20 [info]: Running environment: Local
+2025-04-17 23:51:20 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:51:20 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:51:20 [info]: Health check server started
+2025-04-17 23:51:20 [info]: Initializing message history system...
+2025-04-17 23:51:20 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:51:20 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:51:20 [info]: RAG system is disabled
+2025-04-17 23:51:20 [info]: Loading AI service module...
+2025-04-17 23:51:20 [info]: Setting up Discord client...
+2025-04-17 23:51:20 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:51:20 [info]: AI Provider: openai
+2025-04-17 23:51:20 [info]: Initializing AI provider...
+2025-04-17 23:51:20 [info]: AI service registered with message handler
+2025-04-17 23:51:20 [debug]: Message handler registered successfully
+2025-04-17 23:51:20 [info]: Health check server is running on port 3000
+2025-04-17 23:51:21 [debug]: Provider initialization result: {"initialized":true,"apiConfigured":true,"model":"gpt-4o-mini","healthStatus":"healthy","contextManagerInitialized":true}
+2025-04-17 23:51:21 [info]: AI provider initialized successfully
+2025-04-17 23:51:21 [info]: AI service initialized: Failed
+2025-04-17 23:51:21 [warn]: AI service initialization failed: Unknown error
+2025-04-17 23:51:21 [info]: Bot login successful
+2025-04-17 23:51:21 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:51:21 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:51:21 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:51:21 [info]: AI service health: healthy, provider: Unknown
+2025-04-17 23:52:22 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:52:22 [info]: Node.js Version: v22.12.0
+2025-04-17 23:52:23 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:52:23 [info]: Context intervention mode: balanced
+2025-04-17 23:52:23 [info]: Running environment: Local
+2025-04-17 23:52:23 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:52:23 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:52:23 [info]: Health check server started
+2025-04-17 23:52:23 [info]: Initializing message history system...
+2025-04-17 23:52:23 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:52:23 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:52:23 [info]: RAG system is disabled
+2025-04-17 23:52:23 [info]: Loading AI service module...
+2025-04-17 23:52:23 [info]: Setting up Discord client...
+2025-04-17 23:52:23 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:52:23 [info]: AI Provider: openai
+2025-04-17 23:52:23 [info]: Initializing AI provider...
+2025-04-17 23:52:23 [info]: AI service registered with message handler
+2025-04-17 23:52:23 [debug]: Message handler registered successfully
+2025-04-17 23:52:23 [info]: Health check server is running on port 3000
+2025-04-17 23:52:24 [debug]: Provider initialization result: {"initialized":true,"apiConfigured":true,"model":"gpt-4o-mini","healthStatus":"healthy","contextManagerInitialized":true}
+2025-04-17 23:52:24 [info]: AI provider initialized successfully
+2025-04-17 23:52:24 [info]: AI service initialized: Failed
+2025-04-17 23:52:24 [warn]: AI service initialization failed: Unknown error
+2025-04-17 23:52:24 [info]: Bot login successful
+2025-04-17 23:52:24 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:52:24 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:52:24 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:52:24 [info]: AI service health: healthy, provider: Unknown
+2025-04-17 23:53:03 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:53:03 [info]: Node.js Version: v22.12.0
+2025-04-17 23:53:04 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:53:04 [info]: Context intervention mode: balanced
+2025-04-17 23:53:04 [info]: Running environment: Local
+2025-04-17 23:53:04 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:53:04 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:53:04 [info]: Health check server started
+2025-04-17 23:53:04 [info]: Initializing message history system...
+2025-04-17 23:53:04 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:53:04 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:53:04 [info]: RAG system is disabled
+2025-04-17 23:53:04 [info]: Loading AI service module...
+2025-04-17 23:53:04 [info]: Setting up Discord client...
+2025-04-17 23:53:04 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:53:04 [info]: AI Provider: openai
+2025-04-17 23:53:04 [info]: Initializing AI provider...
+2025-04-17 23:53:04 [info]: AI service registered with message handler
+2025-04-17 23:53:04 [debug]: Message handler registered successfully
+2025-04-17 23:53:04 [info]: Health check server is running on port 3000
+2025-04-17 23:53:04 [debug]: Provider initialization result: {"initialized":true,"apiConfigured":true,"model":"gpt-4o-mini","healthStatus":"healthy","contextManagerInitialized":true}
+2025-04-17 23:53:04 [info]: AI provider initialized successfully
+2025-04-17 23:53:04 [info]: AI service initialized: Success
+2025-04-17 23:53:04 [info]: Active AI provider: openai, Model: Unknown
+2025-04-17 23:53:05 [info]: Bot login successful
+2025-04-17 23:53:05 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:53:05 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:53:05 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:53:05 [info]: AI service health: healthy, provider: Unknown
+2025-04-17 23:55:40 [info]: Bocchy Discord Bot v1.3.5 starting...
+2025-04-17 23:55:40 [info]: Node.js Version: v22.12.0
+2025-04-17 23:55:41 [info]: Discord.js Version: 14.18.0
+2025-04-17 23:55:41 [info]: Context intervention mode: balanced
+2025-04-17 23:55:41 [info]: Running environment: Local
+2025-04-17 23:55:41 [info]: Application root: C:\Users\seamo\Documents\Claude\botchi-current
+2025-04-17 23:55:41 [info]: Brave Search API is configured (key: BSA...)
+2025-04-17 23:55:41 [info]: Health check server started
+2025-04-17 23:55:41 [info]: Initializing message history system...
+2025-04-17 23:55:41 [warn]: Message history system has no initialize method, using fallback
+2025-04-17 23:55:41 [info]: Memory system is disabled, using in-memory message history only
+2025-04-17 23:55:41 [info]: RAG system is disabled
+2025-04-17 23:55:41 [info]: Loading AI service module...
+2025-04-17 23:55:41 [info]: Setting up Discord client...
+2025-04-17 23:55:41 [info]: Initializing AI service with provider: openai...
+2025-04-17 23:55:41 [info]: AI Provider: openai
+2025-04-17 23:55:41 [info]: Initializing AI provider...
+2025-04-17 23:55:41 [info]: AI service registered with message handler
+2025-04-17 23:55:41 [debug]: Message handler registered successfully
+2025-04-17 23:55:41 [info]: Health check server is running on port 3000
+2025-04-17 23:55:42 [debug]: Provider initialization result: {"initialized":true,"apiConfigured":true,"model":"gpt-4o-mini","healthStatus":"healthy","contextManagerInitialized":true}
+2025-04-17 23:55:42 [info]: AI provider initialized successfully
+2025-04-17 23:55:42 [info]: AI service initialized: Success
+2025-04-17 23:55:42 [info]: Active AI provider: openai, Model: Unknown
+2025-04-17 23:55:42 [info]: Ready! Logged in as ボッチー#9740
+2025-04-17 23:55:42 [info]: Bot ID: 1360187059544920115
+2025-04-17 23:55:42 [info]: Bot login successful
+2025-04-17 23:55:42 [info]: Bocchy Discord Bot is ready!
+2025-04-17 23:55:42 [info]: AI service health: healthy, provider: Unknown

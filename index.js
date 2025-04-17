@@ -175,7 +175,15 @@ if (process.env.RAG_ENABLED === 'true') {
 
 // ===== 修正された初期化フロー =====
 
-// 1. Discordクライアントモジュール読み込み
+// 1. AIサービスモジュールを読み込み
+logger.info('Loading AI service module...');
+const aiService = syncUtil.safeRequire('./ai-service', {
+  initialize: () => Promise.reject(new Error('AI service module not found')),
+  getResponse: () => Promise.reject(new Error('AI service not initialized')),
+  checkHealth: () => Promise.reject(new Error('AI service health check failed'))
+});
+
+// 2. Discordクライアントモジュール読み込み
 logger.info('Setting up Discord client...');
 const discordInit = syncUtil.safeRequire('./core/discord-init', {
   initializeClient: () => {
@@ -194,18 +202,49 @@ if (!client) {
   process.exit(1);
 }
 
-// 3. メッセージハンドラーの読み込み（循環参照を解消）
+// 3. AIサービスを初期化
+logger.info(`Initializing AI service with provider: ${config.AI_PROVIDER}...`);
+aiService.initialize(config.AI_PROVIDER)
+  .then(result => {
+    // 新しいai-service.jsでは結果形式が変わっているため、互換性を持たせる
+    const isInitialized = result.success === true || result.initialized === true;
+    logger.info(`AI service initialized: ${isInitialized ? 'Success' : 'Failed'}`);
+    if (isInitialized) {
+      logger.info(`Active AI provider: ${result.provider || config.AI_PROVIDER}, Model: ${result.model || 'Unknown'}`);
+    } else {
+      logger.warn(`AI service initialization failed: ${result.error || 'Unknown error'}`);
+    }
+    return aiService.checkHealth();
+  })
+  .then(health => {
+    logger.info(`AI service health: ${health.status}, provider: ${health.provider || 'Unknown'}`);
+  })
+  .catch(error => {
+    logger.error('Failed to initialize AI service:', error);
+    logger.warn('Continuing with limited AI functionality');
+  });
+
+// 4. メッセージハンドラーの読み込み（循環参照を解消）
 const messageHandlerModule = syncUtil.safeRequire('./handlers/message-handler', {
   handleMessage: () => {
     logger.error('Message handler module not found or invalid');
     return Promise.resolve();
-  }
+  },
+  setAIProvider: () => {}
 });
 
-// 4. メッセージハンドラーをクライアントに登録
+// 5. AIサービスをメッセージハンドラーに登録
+if (typeof messageHandlerModule.setAIProvider === 'function') {
+  messageHandlerModule.setAIProvider(aiService);
+  logger.info('AI service registered with message handler');
+} else {
+  logger.warn('Failed to register AI service with message handler - setAIProvider method not found');
+}
+
+// 6. メッセージハンドラーをクライアントに登録
 discordInit.registerMessageHandler(client, messageHandlerModule.handleMessage);
 
-// 5. クライアントにログイン
+// 7. クライアントにログイン
 discordInit.loginClient(client)
   .then(() => {
     logger.info('Bocchy Discord Bot is ready!');
