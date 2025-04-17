@@ -475,12 +475,52 @@ async function processMessage(message) {
     return null; // 検索トリガーが見つからない場合
   }
   
-  // 検索クライアントが設定されているか確認
-  if (!braveSearch.isReady()) {
-    logger.warn('Search was triggered but Brave Search API is not configured.');
+  // 検索クライアントのインスタンスを取得
+  let clientInstance;
+  try {
+    // braveSearch モジュールがクラスコンストラクタや getInstance をエクスポートしているか確認が必要
+    // ここでは getInstance が存在すると仮定
+    if (typeof braveSearch.getInstance === 'function') {
+        clientInstance = braveSearch.getInstance();
+    } else if (typeof braveSearch === 'function') { 
+        // もし braveSearch が直接クラスなら new でインスタンス化 (要APIキー)
+        // このケースはAPIキーの渡し方によるため、一旦保留。getInstance優先。
+        // const apiKey = config.get('BRAVE_SEARCH_API_KEY'); 
+        // clientInstance = new braveSearch(apiKey);
+        logger.warn('braveSearch is likely a class, but getInstance() is preferred. Check brave-search.js export structure.');
+        // 仮にモジュール自体がインスタンスの場合 (シングルトンエクスポート)
+        if(typeof braveSearch.search === 'function') { // Check if it has search method directly
+             clientInstance = braveSearch;
+        } else {
+             throw new Error('Cannot determine how to get Brave Search client instance.');
+        }
+    } else if (typeof braveSearch.search === 'function') { 
+         // モジュールが直接インスタンスをエクスポートしている場合
+         clientInstance = braveSearch;
+    } else {
+        throw new Error('Cannot determine how to get Brave Search client instance from the imported module.');
+    }
+    
+  } catch (error) {
+    logger.error(`Brave Search クライアントの取得に失敗: ${error.message}`);
     return {
       success: false,
-      error: 'Brave Search API is not configured',
+      error: `Brave Search client initialization failed: ${error.message}`,
+      results: []
+    };
+  }
+  
+  // 取得したインスタンスの準備ができているか確認
+  if (!clientInstance || typeof clientInstance.isReady !== 'function' || !clientInstance.isReady()) {
+    logger.warn('Search was triggered but Brave Search client instance is not ready or configured.');
+    // isReadyがない、またはfalseの場合のエラー詳細
+    if (!clientInstance) logger.warn('Client instance could not be obtained.');
+    else if (typeof clientInstance.isReady !== 'function') logger.warn('clientInstance.isReady is not a function.');
+    else logger.warn('clientInstance.isReady() returned false.');
+    
+    return {
+      success: false,
+      error: 'Brave Search client is not ready or not configured properly',
       results: []
     };
   }
@@ -494,37 +534,36 @@ async function processMessage(message) {
       await message.channel.sendTyping();
     }
     
-    // 検索を実行
+    // 検索を実行 (インスタンスを使用)
     let searchResult;
-    
     if (isLocal) {
       if (config.DEBUG) {
         logger.debug(`ローカル検索を実行: "${triggerInfo.query}"`);
       }
-      searchResult = await braveSearch.localSearch(triggerInfo.query);
+      searchResult = await clientInstance.localSearch(triggerInfo.query); // Use instance
     } else {
       if (config.DEBUG) {
         logger.debug(`ウェブ検索を実行: "${triggerInfo.query}"`);
       }
-      searchResult = await braveSearch.search(triggerInfo.query);
+      searchResult = await clientInstance.search(triggerInfo.query); // Use instance
     }
     
-    // 検索結果にクエリ情報を追加
+    // 検索結果にクエリ情報を追加 (結果がない場合も考慮)
+    searchResult = searchResult || { success: false, results: [], query: triggerInfo.query }; // Ensure searchResult exists
     searchResult.queryInfo = triggerInfo;
-    searchResult.query = triggerInfo.query;
+    searchResult.query = triggerInfo.query; // Ensure query is set even on failure
     searchResult.queryType = getQueryTypeInfo(triggerInfo);
     
     // デバッグ用のログ出力
     if (config.DEBUG) {
-      const queryType = searchResult.queryType;
-      const typeStr = Object.keys(queryType).filter(k => queryType[k]).join(', ');
-      logger.debug(`検索クエリタイプ: ${typeStr || 'なし'}`);
+       const queryType = searchResult.queryType || {}; // Ensure queryType exists
+       const typeStr = Object.keys(queryType).filter(k => queryType[k]).join(', ') || 'なし';
+       logger.debug(`検索クエリタイプ: ${typeStr}`);
     }
     
     return searchResult;
   } catch (error) {
     logger.error(`検索処理エラー: ${error.message}`);
-    
     return {
       success: false,
       query: triggerInfo.query,
