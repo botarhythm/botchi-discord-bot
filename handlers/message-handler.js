@@ -443,6 +443,7 @@ function buildContextPrompt(userMessage, messageContext, conversationHistory = [
   systemPrompt += `\n【重要な指示】\n`;
   systemPrompt += `- 日本語で応答してください。\n`;
   systemPrompt += `- 人間らしい温かみのある会話を心がけてください。\n`;
+  systemPrompt += `- 上記の「現在の日時 (${japanTime})」は、現在の正確な日本時間です。時間、日付、季節に関する話題や質問には、この情報を考慮して応答してください。ただし、毎回応答に含める必要はありません。\n`;
   
   // 検索結果を整形してプロンプトに追加
   const searchPromptSection = formatSearchResultsForPrompt(searchResults, messageContext);
