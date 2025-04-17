@@ -258,6 +258,135 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
   }
 }
 
+/**
+ * 検索結果をプロンプト用に整形し、応答指示を生成する関数
+ * @param {Object} searchResults - BraveSearchからの検索結果
+ * @param {Object} messageContext - メッセージコンテキスト (クエリタイプ情報を含む)
+ * @returns {string} プロンプトに追加する検索結果と応答指示の文字列
+ */
+function formatSearchResultsForPrompt(searchResults, messageContext) {
+  let promptSection = '';
+
+  if (!searchResults) {
+    return promptSection; // 検索結果がない場合は空文字列を返す
+  }
+
+  promptSection += `\n【Web検索結果】\n`;
+
+  // 検索クエリと成功/失敗状態を追加
+  if (searchResults.query) {
+    promptSection += `検索クエリ: 「${searchResults.query}」\n`;
+  }
+
+  // 検索結果のサマリー情報があれば追加
+  if (searchResults.summary) {
+    promptSection += `検索結果サマリー: ${searchResults.summary}\n\n`;
+  }
+
+  // 検索結果の詳細情報
+  if (searchResults.results && searchResults.results.length > 0) {
+    promptSection += `${searchResults.results.length}件の結果が見つかりました\n`;
+
+    searchResults.results.forEach((result, index) => {
+      // 最大3件まで表示 (件数を減らしてプロンプトを簡潔に)
+      if (index < 3) {
+        promptSection += `[${index + 1}] タイトル: ${result.title}\n`;
+
+        // 説明文は短く制限（著作権への配慮）
+        if (result.description) {
+          const shortenedDesc = result.description.length > 100
+            ? result.description.substring(0, 100) + '...'
+            : result.description;
+          promptSection += `    概要: ${shortenedDesc}\n`;
+        }
+
+        // URLのドメイン部分のみ表示
+        if (result.url) {
+          try {
+            const urlObject = new URL(result.url);
+            promptSection += `    出典: ${urlObject.hostname}\n\n`;
+          } catch (e) {
+            logger.warn(`Invalid URL encountered in search results: ${result.url}`);
+            promptSection += `    出典: (不明なURL)\n\n`;
+          }
+        }
+      }
+    });
+    // 結果が3件より多い場合、省略していることを示す
+    if (searchResults.results.length > 3) {
+       promptSection += `(他 ${searchResults.results.length - 3} 件の結果は省略)\n\n`;
+    }
+
+  } else {
+    promptSection += `関連する検索結果は見つかりませんでした。\n\n`;
+  }
+
+  // 著作権への配慮の指示 (簡略化)
+  promptSection += `【応答指示】検索結果を参考に、ユーザーの質問に自然に答えてください。検索結果から引用する場合は、短く要約して出典（ドメイン名）を添えてください。\n`;
+
+  // クエリタイプに応じた応答指示 (簡略化)
+  if (messageContext.queryType) {
+    const queryType = messageContext.queryType;
+    let specificInstruction = '';
+
+    if (queryType.isCurrentInfoQuery) {
+      specificInstruction = `特に最新の情報に注目してください。`;
+    } else if (queryType.isDefinitionQuery) {
+      specificInstruction = `定義や意味を明確に説明してください。`;
+    } else if (queryType.isHowToQuery) {
+      specificInstruction = `手順や方法を分かりやすく説明してください。`;
+    } else if (queryType.isFactCheckQuery) {
+      specificInstruction = `事実確認を行い、客観的に説明してください。`;
+    } else if (queryType.isLocalQuery) {
+      specificInstruction = `場所に関する情報を伝えてください。`;
+    }
+
+    if (specificInstruction) {
+      promptSection += `    - ${specificInstruction}\n`;
+    }
+  }
+
+  return promptSection;
+}
+
+/**
+ * RAG結果をプロンプト用に整形する関数
+ * @param {string | null} ragResults - RAGシステムからの結果文字列
+ * @returns {string} プロンプトに追加するRAG結果の文字列
+ */
+function formatRagResultsForPrompt(ragResults) {
+  let promptSection = '';
+  if (ragResults) {
+    promptSection += `\n【関連知識】\n${ragResults}\n`;
+    promptSection += `上記の関連知識を参考にしつつ、質問に答えてください。\n`;
+  }
+  return promptSection;
+}
+
+/**
+ * 会話履歴をプロンプト用に整形する関数
+ * @param {Array} conversationHistory - 会話履歴の配列
+ * @param {Object} messageContext - メッセージコンテキスト (ユーザー名を含む)
+ * @param {Object} character - キャラクター定義 (キャラクター名を含む)
+ * @returns {string} プロンプトに追加する会話履歴の文字列
+ */
+function formatConversationHistoryForPrompt(conversationHistory, messageContext, character) {
+  let promptSection = '';
+  if (conversationHistory && conversationHistory.length > 0) {
+    promptSection += `\n【会話履歴】\n`;
+    conversationHistory.forEach(item => {
+      // roleが'user'または'assistant'以外の場合、ログを出力してスキップ
+      if (item.role !== 'user' && item.role !== 'assistant') {
+        logger.warn(`会話履歴に不明なroleが含まれています: ${item.role}`);
+        return; // 不明なroleはスキップ
+      }
+      const speaker = item.role === 'user' ? messageContext.username : character.name;
+      promptSection += `${speaker}: ${item.content}\n`;
+    });
+  }
+  return promptSection;
+}
+
 function buildContextPrompt(userMessage, messageContext, conversationHistory = [], searchResults = null, ragResults = null) {
   // Get current time in Japan
   const now = new Date();
@@ -313,93 +442,22 @@ function buildContextPrompt(userMessage, messageContext, conversationHistory = [
   
   systemPrompt += `\n【重要な指示】\n`;
   systemPrompt += `- 日本語で応答してください。\n`;
-  systemPrompt += `- 現在の日時情報（${japanTime}）を自然な会話の流れの中で活用してください。ただし、ユーザーが明示的に日付や時間について尋ねた場合や、文脈上必要な場合を除いて、毎回強制的に表示する必要はありません。\n`;
-  systemPrompt += `- あなたの応答は、ユーザーの質問や会話の文脈に合わせて自然に行ってください。\n`;
   systemPrompt += `- 人間らしい温かみのある会話を心がけてください。\n`;
   
-  // 検索結果が存在する場合、結果とクエリの種類に基づいて適切に統合
-  if (searchResults) {
-    // 検索結果の概要と整形されたデータを追加
-    systemPrompt += `\n【Web検索結果】\n`;
-    
-    // 検索クエリと成功/失敗状態を追加
-    if (searchResults.query) {
-      systemPrompt += `検索クエリ: 「${searchResults.query}」\n`;
-    }
-    
-    // 検索結果のサマリー情報があれば追加
-    if (searchResults.summary) {
-      systemPrompt += `検索結果サマリー: ${searchResults.summary}\n\n`;
-    }
-    
-    // 検索結果の詳細情報
-    if (searchResults.results && searchResults.results.length > 0) {
-      systemPrompt += `${searchResults.results.length}件の結果が見つかりました\n`;
-      
-      searchResults.results.forEach((result, index) => {
-        // 最大5件まで、概要と著作権に配慮しつつ表示
-        if (index < 5) {
-          systemPrompt += `[${index + 1}] タイトル: ${result.title}\n`;
-          
-          // 説明文は短く制限（著作権への配慮）
-          if (result.description) {
-            // 説明文を150文字程度に制限
-            const shortenedDesc = result.description.length > 150 
-              ? result.description.substring(0, 150) + '...' 
-              : result.description;
-            systemPrompt += `    概要: ${shortenedDesc}\n`;
-          }
-          
-          // URLのドメイン部分のみ表示
-          if (result.url) {
-            const domain = result.url.replace(/^https?:\/\/([^\/]+).*$/, '$1');
-            systemPrompt += `    出典: ${domain}\n\n`;
-          }
-        }
-      });
-    }
+  // 検索結果を整形してプロンプトに追加
+  const searchPromptSection = formatSearchResultsForPrompt(searchResults, messageContext);
+  systemPrompt += searchPromptSection;
 
-    // 著作権への配慮の指示
-    systemPrompt += `【著作権への配慮】検索結果から情報を引用する場合は必ず短く（25語以内）し、引用符で囲んでください。長文の引用や全文の再現は避け、内容を自分の言葉で要約してください。\n`;
-
-    // 検索クエリのタイプに応じた応答指示
-    if (messageContext.queryType) {
-      // クエリタイプに応じた指示
-      if (messageContext.isCurrentInfoQuery) {
-        systemPrompt += `【応答指示】最新情報を求めるクエリです。検索結果から最新の情報を中心に、わかりやすく簡潔に説明してください。情報の日付や時期を明記し、情報の鮮度を伝えてください。\n`;
-      } else if (messageContext.isDefinitionQuery) {
-        systemPrompt += `【応答指示】定義や意味を尋ねるクエリです。検索結果から概念や用語の定義を明確に説明してください。複数の視点や解釈がある場合は、それらを簡潔にまとめてください。\n`;
-      } else if (messageContext.isHowToQuery) {
-        systemPrompt += `【応答指示】方法や手順を尋ねるクエリです。検索結果からステップバイステップの説明を、簡潔かつ明確に提供してください。重要なポイントや注意点も含めてください。\n`;
-      } else if (messageContext.isFactCheckQuery) {
-        systemPrompt += `【応答指示】事実確認を求めるクエリです。検索結果に基づいて、事実かどうかを客観的に説明してください。情報源の信頼性にも言及し、複数の見解がある場合はそれを示してください。\n`;
-      } else if (messageContext.isLocalQuery) {
-        systemPrompt += `【応答指示】場所や位置に関するクエリです。検索結果から場所の情報を分かりやすく伝えてください。基本的な情報（住所、営業時間、評価など）を簡潔にまとめてください。\n`;
-      } else {
-        systemPrompt += `【応答指示】検索結果を参考にしつつ、クエリに対して簡潔で明確な応答を作成してください。検索結果から得られた情報を自然な会話の流れに統合し、情報源の信頼性や公開日時に留意してください。\n`;
-      }
-    } else {
-      // 一般的な指示
-      systemPrompt += `【応答指示】上記の検索結果を参考にしつつ、ユーザーの質問に答えてください。検索結果にない情報については、「その情報は見つかりませんでした」と正直に伝えてください。\n`;
-    }
-  }
+  // RAG結果を整形してプロンプトに追加
+  const ragPromptSection = formatRagResultsForPrompt(ragResults);
+  systemPrompt += ragPromptSection;
   
-  // Add RAG results if available
-  if (ragResults) {
-    systemPrompt += `\n【関連知識】\n${ragResults}\n`;
-    systemPrompt += `上記の関連知識を参考にしつつ、質問に答えてください。\n`;
-  }
-  
-  // Add conversation history if available
-  if (conversationHistory && conversationHistory.length > 0) {
-    systemPrompt += `\n【会話履歴】\n`;
-    conversationHistory.forEach(item => {
-      systemPrompt += `${item.role === 'user' ? messageContext.username : character.name}: ${item.content}\n`;
-    });
-  }
+  // Format conversation history
+  const historyPromptSection = formatConversationHistoryForPrompt(conversationHistory, messageContext, character);
+  systemPrompt += historyPromptSection;
   
   // Add user message
-  const finalPrompt = `${systemPrompt}\n【現在のメッセージ】\n${messageContext.username}: ${userMessage}\n\n${character.name}: ${personalizedPrefix}`;
+  const finalPrompt = `${systemPrompt}\n【現在のメッセージ】\n${messageContext.username}: ${userMessage}\n\n${character.name}: `;
   
   return finalPrompt;
 }

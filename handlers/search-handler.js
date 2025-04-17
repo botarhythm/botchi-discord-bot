@@ -405,21 +405,6 @@ function detectSearchTrigger(content) {
     return null;
   }
   
-  // 挨拶や単純な短いメッセージを除外（「こんにちは」「おはよう」「ありがとう」など）
-  const greetingPatterns = [
-    'こんにち', 'こんばん', 'おはよ', 'やあ', 'よろしく', 'ありがと', 'どうも',
-    'hello', 'hi', 'hey', 'good', 'thanks', 'thank', 'morning', 'evening'
-  ];
-  
-  // クエリが挨拶パターンと一致する場合は検索しない
-  const queryLower = bestMatch.query.toLowerCase();
-  if (greetingPatterns.some(pattern => queryLower.includes(pattern))) {
-    if (config.DEBUG) {
-      logger.debug(`挨拶パターンを検出したため検索をスキップ: "${bestMatch.query}"`);
-    }
-    return null;
-  }
-  
   // クエリが短すぎる場合（3文字未満）も検索しない
   if (bestMatch.query.length < 3) {
     if (config.DEBUG) {
@@ -719,6 +704,28 @@ function getQueryTypeInfo(queryInfo) {
   return typeInfo;
 }
 
+/**
+ * メッセージの内容から検索が必要かどうかを判断する
+ * @param {string} content メッセージの内容
+ * @returns {boolean} 検索が必要な場合はtrue
+ */
+function shouldSearch(content) {
+  // 検索機能が無効な場合は常にfalse
+  if (!isSearchEnabled()) {
+    return false;
+  }
+
+  // 検索トリガーを検出
+  const triggerInfo = detectSearchTrigger(content);
+  
+  if (config.DEBUG) {
+    logger.debug(`検索判定: content="${content}", triggerInfo=${JSON.stringify(triggerInfo)}`);
+  }
+  
+  // トリガーが検出された場合はtrue
+  return triggerInfo !== null;
+}
+
 // エクスポート
 module.exports = {
   detectSearchTrigger,
@@ -728,5 +735,6 @@ module.exports = {
   handleSearchIfTriggered,
   getLastSearchResult, // 新しい関数をエクスポート
   setLastSearchResult, // 新しい関数をエクスポート
-  getQueryTypeInfo     // クエリタイプ情報取得関数
+  getQueryTypeInfo,     // クエリタイプ情報取得関数
+  shouldSearch
 };
