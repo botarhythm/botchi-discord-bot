@@ -129,6 +129,15 @@ async function handleIntervention(message) {
 
 async function processMessageWithAI(message, cleanContent, searchResults = null, isIntervention = false) {
   try {
+    // --- Add check for empty cleanContent --- 
+    if (!cleanContent || cleanContent.trim() === '') {
+        logger.warn('[processMessageWithAI] cleanContent is empty, skipping AI processing.');
+        // Optionally send a message back to the user
+        // await message.reply('メッセージの内容が見当たりませんでした。');
+        return; 
+    }
+    // --- End check --- 
+
     // デバッグログ：AI処理開始
     logger.debug(`AI処理開始: ${isIntervention ? '介入モード' : '通常モード'}`);
     
