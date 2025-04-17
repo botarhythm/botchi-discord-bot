@@ -196,7 +196,7 @@ const discordInit = syncUtil.safeRequire('./core/discord-init', {
 });
 
 // 2. クライアントを初期化（メッセージハンドラーの登録なし）
-const client = discordInit.initializeClient();
+const client = discordInit.setupClient();
 if (!client) {
   logger.error('Failed to initialize Discord client');
   process.exit(1);
@@ -241,11 +241,18 @@ if (typeof messageHandlerModule.setAIProvider === 'function') {
   logger.warn('Failed to register AI service with message handler - setAIProvider method not found');
 }
 
-// 6. メッセージハンドラーをクライアントに登録
-discordInit.registerMessageHandler(client, messageHandlerModule.handleMessage);
+// 6. メッセージイベントを直接登録
+client.on('messageCreate', async (message) => {
+  try {
+    await messageHandlerModule.handleMessage(message);
+  } catch (error) {
+    logger.error('Error handling message:', error);
+  }
+});
+logger.debug('Message handler registered successfully');
 
 // 7. クライアントにログイン
-discordInit.loginClient(client)
+discordInit.loginClient()
   .then(() => {
     logger.info('Bocchy Discord Bot is ready!');
   })
