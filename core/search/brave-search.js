@@ -406,9 +406,8 @@ class BraveSearchClient {
    * @returns {boolean} 設定済みかどうか
    */
   isReady() {
-    // 機能が無効の場合はfalseを返す
-    if (!this.isEnabled) return false;
-    return true;
+    // Check the global config directly, not instance property
+    return config.BRAVE_SEARCH_ENABLED === true;
   }
 }
 

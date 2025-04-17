@@ -85,7 +85,7 @@ async function handleMessage(message) {
         try {
           logger.debug('検索実行が必要と判断');
           const searchResults = await performSearch(message);
-          logger.debug(`[handleMessage] Search performed successfully. Results found: ${!!searchResults}`);
+          logger.debug(`[handleMessage] Search process completed. Success: ${searchResults?.success}. Results obtained: ${searchResults?.results?.length || 0}`);
           await processMessageWithAI(message, cleanContent, searchResults);
         } catch (err) {
           logger.error(`[handleMessage] Error during performSearch (processMessage): ${err.message}`);
@@ -311,7 +311,8 @@ function formatSearchResultsForPrompt(searchResults, messageContext) {
         if (result.url) {
           try {
             const urlObject = new URL(result.url);
-            promptSection += `    出典: ${urlObject.hostname}\n\n`;
+            promptSection += `    出典: ${urlObject.hostname}\n`;
+            promptSection += `    出典URL: ${result.url}\n\n`;
           } catch (e) {
             logger.warn(`Invalid URL encountered in search results: ${result.url}`);
             promptSection += `    出典: (不明なURL)\n\n`;
