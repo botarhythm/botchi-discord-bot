@@ -76,7 +76,7 @@ class BraveSearchClient {
     const params = {
       q: query.trim(),
       count: options.count || 5,
-      search_lang: options.language || 'ja',
+      search_lang: options.language || 'jp',
       country: options.country || 'JP',
       ...options
     };

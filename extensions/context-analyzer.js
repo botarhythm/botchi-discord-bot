@@ -128,11 +128,9 @@ function shouldIntervene(options) {
         return willIntervene;
       }
       
-      // AI関連でない短いメッセージは10%の低確率で介入
-      const rand = Math.random();
-      const willIntervene = rand < 0.1;
-      logger.debug(`[ANALYZER] Message too short (${message.content.length} chars), random check: ${rand.toFixed(3)} < 0.1? ${willIntervene ? 'will intervene' : 'will not intervene'}`);
-      return willIntervene;
+      // AI関連でない短いメッセージは常に介入しない
+      logger.debug(`[ANALYZER] Message too short (${message.content.length} chars) and not AI related, will not intervene.`);
+      return false; // Always return false for short, non-AI messages
     }
     
     // クールダウン期間中なら介入しない
