@@ -712,6 +712,7 @@ function getQueryTypeInfo(queryInfo) {
 function shouldSearch(content) {
   // 検索機能が無効な場合は常にfalse
   if (!isSearchEnabled()) {
+    logger.debug('[shouldSearch] Search is disabled.');
     return false;
   }
 
@@ -719,11 +720,14 @@ function shouldSearch(content) {
   const triggerInfo = detectSearchTrigger(content);
   
   if (config.DEBUG) {
-    logger.debug(`検索判定: content="${content}", triggerInfo=${JSON.stringify(triggerInfo)}`);
+    logger.debug(`[shouldSearch] Content: "${content}"`);
+    logger.debug(`[shouldSearch] detectSearchTrigger result: ${JSON.stringify(triggerInfo)}`);
   }
   
   // トリガーが検出された場合はtrue
-  return triggerInfo !== null;
+  const should = triggerInfo !== null;
+  logger.debug(`[shouldSearch] Decision: ${should}`);
+  return should;
 }
 
 // エクスポート

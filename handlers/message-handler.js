@@ -76,16 +76,23 @@ async function handleMessage(message) {
       logger.debug(`クリーン化されたメッセージ内容: "${cleanContent}"`);
       
       // Check if we should perform a search
-      if (shouldSearch(cleanContent)) {
+      logger.debug(`[handleMessage] Checking if search should be performed for: "${cleanContent}"`);
+      const performSearchCheck = shouldSearch(cleanContent);
+      logger.debug(`[handleMessage] shouldSearch returned: ${performSearchCheck}`);
+      
+      if (performSearchCheck) {
+        logger.debug('[handleMessage] Attempting to perform search...');
         try {
           logger.debug('検索実行が必要と判断');
           const searchResults = await performSearch(cleanContent);
+          logger.debug(`[handleMessage] Search performed successfully. Results found: ${!!searchResults}`);
           await processMessageWithAI(message, cleanContent, searchResults);
         } catch (err) {
-          logger.error(`Search error: ${err.message}`);
+          logger.error(`[handleMessage] Error during performSearch: ${err.message}`);
           await processMessageWithAI(message, cleanContent);
         }
       } else {
+        logger.debug('[handleMessage] Search not required. Proceeding without search.');
         logger.debug('検索なしでAI処理を実行');
         await processMessageWithAI(message, cleanContent);
       }
