@@ -8,7 +8,7 @@
 
 const axios = require('axios');
 const logger = require('../../system/logger');
-const config = require('../../config');
+const config = require('../../config/env');
 
 // デフォルト設定
 const DEFAULT_CONFIG = {
@@ -51,9 +51,9 @@ class BraveSearchClient {
    */
   static getInstance() {
     if (!instance) {
-      const apiKey = config.get('BRAVE_SEARCH_API_KEY');
+      const apiKey = config.BRAVE_API_KEY;
       if (!apiKey) {
-        throw new Error('Brave Search APIキーが設定されていません');
+        throw new Error('Brave Search APIキーが設定されていません (config.BRAVE_API_KEY is missing)');
       }
       
       instance = new BraveSearchClient(apiKey);
