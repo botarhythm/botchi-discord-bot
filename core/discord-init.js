@@ -1,99 +1,130 @@
 /**
- * Bocchy Discord Bot - シンプル版Discord初期化
- * 循環参照解消のためにリファクタリング
+ * Bocchy Discord Bot - Discord Client Initialization
+ * 
+ * このモジュールはDiscord.jsクライアントの初期化と設定を担当します。
+ * イベントリスナーの設定やクライアントの基本設定を行います。
  */
 
-const { Client, GatewayIntentBits, Events, Partials, ActivityType } = require('discord.js');
+const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const logger = require('../system/logger');
-const config = require('../config/env'); // 直接configをインポート
+const config = require('../config/env');
+
+// Discord.jsクライアントインスタンス
+let client = null;
 
 /**
- * Discordクライアントを初期化
- * @returns {Object} - 初期化されたDiscordクライアント
+ * Discordクライアントをセットアップ
+ * @returns {Client} 設定済みのDiscordクライアント
  */
-function initializeClient() {
-  // Discordクライアントを初期化
-  const client = new Client({
-    intents: [
-      GatewayIntentBits.Guilds,
-      GatewayIntentBits.GuildMessages,
-      GatewayIntentBits.MessageContent,
-      GatewayIntentBits.GuildMembers,
-      GatewayIntentBits.DirectMessages,
-      GatewayIntentBits.DirectMessageReactions
-    ],
-    partials: [
-      Partials.Channel,
-      Partials.Message,
-      Partials.User
-    ]
-  });
+function setupClient() {
+  if (client) return client;
 
-  // Ready Event
-  client.once(Events.ClientReady, (readyClient) => {
-    logger.info(`Ready! Logged in as ${readyClient.user.tag}`);
-    logger.info(`Bot ID: ${readyClient.user.id}`);
-    
-    // ステータス設定
-    client.user.setActivity('森の奥で静かに待機中 🌿', { type: ActivityType.Playing });
+  logger.info('Setting up Discord client...');
+  
+  // 必要なインテントを設定
+  const intents = [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.DirectMessages,
+    GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.DirectMessageReactions
+  ];
+  
+  // パーシャルを設定（DMなどの部分的なオブジェクトの受信に必要）
+  const partials = [
+    Partials.Channel,
+    Partials.Message,
+    Partials.Reaction
+  ];
+  
+  // クライアントを作成
+  client = new Client({ 
+    intents, 
+    partials,
+    allowedMentions: { parse: ['users', 'roles'], repliedUser: true }
   });
-
-  // Error Handling
-  client.on('error', (error) => {
-    logger.error('Discord.js error:', error);
-  });
-
+  
+  // 基本的なイベントリスナーの設定
+  setupEventListeners();
+  
   return client;
 }
 
 /**
- * クライアントにメッセージイベントハンドラーを登録
- * @param {Object} client - Discordクライアント
- * @param {Function} messageHandler - メッセージ処理関数
+ * 基本的なDiscordイベントリスナーの設定
  */
-function registerMessageHandler(client, messageHandler) {
-  if (!client || typeof messageHandler !== 'function') {
-    logger.error('Invalid client or message handler');
-    return;
-  }
-
-  // Message Event
-  client.on(Events.MessageCreate, async (message) => {
-    try {
-      await messageHandler(message, client);
-    } catch (error) {
-      logger.error('Message event error:', error);
-    }
+function setupEventListeners() {
+  // Ready イベント
+  client.on('ready', () => {
+    logger.info(`Bot logged in as ${client.user.tag}`);
+    
+    // アクティビティを設定
+    client.user.setActivity(config.BOT_ACTIVITY || 'AIチャット', { type: 'LISTENING' });
+    
+    // ログイン成功メッセージをログに出力
+    logger.info(`Connected to ${client.guilds.cache.size} servers, serving ${getTotalUsers()} users`);
   });
-
-  logger.debug('Message handler registered successfully');
+  
+  // エラーイベント
+  client.on('error', (error) => {
+    logger.error(`Discord client error: ${error.message}`);
+  });
+  
+  // 警告イベント
+  client.on('warn', (warning) => {
+    logger.warn(`Discord client warning: ${warning}`);
+  });
+  
+  // 切断イベント
+  client.on('disconnect', () => {
+    logger.warn('Discord client disconnected');
+  });
+  
+  // 再接続イベント
+  client.on('reconnecting', () => {
+    logger.info('Discord client reconnecting...');
+  });
 }
 
 /**
- * クライアントにログイン
- * @param {Object} client - Discordクライアント
- * @returns {Promise} - ログイン処理のPromise
+ * 総ユーザー数を取得
+ * @returns {number} ボットがアクセス可能なユーザー総数
  */
-function loginClient(client) {
-  if (!client) {
-    const error = new Error('Client is not initialized');
-    logger.error('Login failed:', error);
-    return Promise.reject(error);
-  }
-
-  return client.login(process.env.DISCORD_TOKEN)
-    .then(() => {
-      logger.info('Bot login successful');
-      return client;
-    })
-    .catch(err => {
-      logger.error('Bot login failed:', err);
-      throw err;
-    });
+function getTotalUsers() {
+  let totalUsers = 0;
+  client.guilds.cache.forEach(guild => {
+    totalUsers += guild.memberCount;
+  });
+  return totalUsers;
 }
 
-module.exports = { 
-  initializeClient, 
-  registerMessageHandler, 
-  loginClient 
+/**
+ * Discordクライアントのログイン
+ * @returns {Promise<void>} ログイン完了時に解決するPromise
+ */
+async function loginClient() {
+  try {
+    if (!client) setupClient();
+    
+    // Discordトークンが設定されているか確認
+    const token = process.env.DISCORD_TOKEN;
+    if (!token) {
+      throw new Error('DISCORD_TOKEN environment variable not set');
+    }
+    
+    logger.info('Logging in to Discord...');
+    await client.login(token);
+    return true;
+  } catch (error) {
+    logger.error(`Bot login failed: ${error}`);
+    throw error;
+  }
+}
+
+// モジュールをエクスポート
+module.exports = {
+  setupClient,
+  loginClient,
+  getClient: () => client
 };
