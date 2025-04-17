@@ -8,7 +8,7 @@ const { getRAGSystem } = require('../extensions/rag');
 const characterDefinitions = require('../extensions/character');
 const { handleCommand } = require('./command-handler');
 const { isValidForIntervention, shouldIntervene } = require('./context-intervention');
-const { shouldSearch, performSearch } = require('./search-handler');
+const { shouldSearch, processMessage: performSearch } = require('./search-handler');
 
 // Get environment variables
 const MENTIONS_ONLY = process.env.MENTIONS_ONLY === 'true';
@@ -84,11 +84,11 @@ async function handleMessage(message) {
         logger.debug('[handleMessage] Attempting to perform search...');
         try {
           logger.debug('検索実行が必要と判断');
-          const searchResults = await performSearch(cleanContent);
+          const searchResults = await performSearch(message);
           logger.debug(`[handleMessage] Search performed successfully. Results found: ${!!searchResults}`);
           await processMessageWithAI(message, cleanContent, searchResults);
         } catch (err) {
-          logger.error(`[handleMessage] Error during performSearch: ${err.message}`);
+          logger.error(`[handleMessage] Error during performSearch (processMessage): ${err.message}`);
           await processMessageWithAI(message, cleanContent);
         }
       } else {
