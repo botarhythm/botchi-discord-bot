@@ -540,25 +540,33 @@ async function processMessage(message) {
       if (config.DEBUG) {
         logger.debug(`ローカル検索を実行: "${triggerInfo.query}"`);
       }
-      searchResult = await clientInstance.localSearch(triggerInfo.query); // Use instance
+      searchResult = await clientInstance.localSearch(triggerInfo.query); 
+      logger.debug(`[processMessage] Local search result: ${JSON.stringify(searchResult)}`);
     } else {
       if (config.DEBUG) {
         logger.debug(`ウェブ検索を実行: "${triggerInfo.query}"`);
       }
-      searchResult = await clientInstance.search(triggerInfo.query); // Use instance
+      searchResult = await clientInstance.search(triggerInfo.query); 
+      logger.debug(`[processMessage] Web search result raw data keys: ${Object.keys(searchResult || {}).join(', ')}`);
+      if (searchResult?.web?.results) {
+           logger.debug(`[processMessage] Web search found ${searchResult.web.results.length} results.`);
+      } else {
+           logger.debug(`[processMessage] Web search did not return results in expected format.`);
+      }
     }
     
     // 検索結果にクエリ情報を追加 (結果がない場合も考慮)
-    searchResult = searchResult || { success: false, results: [], query: triggerInfo.query }; // Ensure searchResult exists
+    searchResult = searchResult || { success: false, results: [], query: triggerInfo.query }; 
     searchResult.queryInfo = triggerInfo;
-    searchResult.query = triggerInfo.query; // Ensure query is set even on failure
+    searchResult.query = triggerInfo.query; 
     searchResult.queryType = getQueryTypeInfo(triggerInfo);
     
     // デバッグ用のログ出力
     if (config.DEBUG) {
-       const queryType = searchResult.queryType || {}; // Ensure queryType exists
+       const queryType = searchResult.queryType || {}; 
        const typeStr = Object.keys(queryType).filter(k => queryType[k]).join(', ') || 'なし';
        logger.debug(`検索クエリタイプ: ${typeStr}`);
+       logger.debug(`[processMessage] Returning searchResult: success=${searchResult.success}, results_length=${searchResult.results?.length || 0}, error=${searchResult.error || 'none'}`);
     }
     
     return searchResult;

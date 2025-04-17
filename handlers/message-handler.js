@@ -29,6 +29,14 @@ function setAIProvider(provider) {
 async function handleMessage(message) {
   if (message.author.bot) return;
   
+  // --- Add attachment check --- 
+  if (message.attachments.size > 0) {
+    logger.debug(`メッセージに添付ファイルが含まれています。処理をスキップします。`);
+    await message.reply('すみません、添付ファイルを開いて内容を確認することはできないんです 📂');
+    return;
+  }
+  // --- End attachment check --- 
+
   try {
     // デバッグログを追加：メッセージ受信を記録
     logger.debug(`メッセージを受信: "${message.content}" from ${message.author.username} (${message.author.id})`);
@@ -48,7 +56,7 @@ async function handleMessage(message) {
     
     // Skip messages without mentions if mentions_only is enabled and not in DM
     if (MENTIONS_ONLY && !isMention && !isDM) {
-      if (shouldIntervene(message)) {
+      if (shouldIntervene(message, client)) {
         logger.debug(`文脈介入判定: 介入する`);
         await handleIntervention(message);
       } else {
@@ -96,7 +104,7 @@ async function handleMessage(message) {
         logger.debug('検索なしでAI処理を実行');
         await processMessageWithAI(message, cleanContent);
       }
-    } else if (shouldIntervene(message)) {
+    } else if (shouldIntervene(message, client)) {
       logger.debug('文脈介入の条件に合致');
       await handleIntervention(message);
     } else {
