@@ -103,10 +103,10 @@ async function performSearch(query) {
   
   try {
     logger.debug(`検索実行: "${query}"`);
-    const searchResults = await searchService.performSearchNew(query);
+    const searchResponse = await searchService.performSearchNew(query);
     
-    // searchResults 自体のチェックを追加
-    if (!searchResults) {
+    // レスポンス自体のチェック
+    if (!searchResponse) {
         logger.error('searchService.performSearchNew returned undefined or null');
         return {
           success: false,
@@ -115,39 +115,51 @@ async function performSearch(query) {
         };
     }
     
+    logger.debug(`[performSearch] Received search response: success=${searchResponse.success}, results_count=${searchResponse.results?.length}, error=${searchResponse.error}`);
+    
     // 検索が成功した場合
-    if (searchResults.success) {
-      // formattedResults が存在するか確認
-      if (!searchResults.formattedResults) {
-         logger.warn('検索結果のフォーマットに失敗しました。');
-         return {
-           success: false,
-           error: 'FORMATTING_ERROR',
-           content: '検索結果の表示形式に問題がありました。'
-         };
+    if (searchResponse.success && Array.isArray(searchResponse.results)) {
+      // 結果をAI向けに整形
+      let formattedContent = '検索結果が見つかりませんでした。';
+      let sourcesList = '';
+      
+      if (searchResponse.results.length > 0) {
+          // content の整形: title と description を連結
+          formattedContent = searchResponse.results.map((result, index) => 
+              `【${index + 1}】${result.title}\n${result.description}`
+          ).join('\n\n');
+          
+          // sourcesList の整形: title, url, hostname をリスト化
+          sourcesList = searchResponse.results.map((result, index) => {
+              const hostname = result.url ? new URL(result.url).hostname : '(URLなし)';
+              return `${index + 1}. [${result.title}](${result.url || '#'}) - ${hostname}`;
+          }).join('\n');
+          
+          logger.debug('[performSearch] Formatted search results for AI.');
+      } else {
+          logger.debug('[performSearch] Search was successful but returned 0 results.');
       }
+      
       return {
         success: true,
-        content: searchResults.formattedResults,
-        sourcesList: searchResults.sourcesList || '' 
+        content: formattedContent,
+        sourcesList: sourcesList
       };
     } 
-    // 検索が失敗した場合 (success: false)
+    // 検索が失敗した場合
     else {
-        logger.warn(`検索失敗: ${searchResults.error || '不明なエラー'}. Message: ${searchResults.message || ''}`);
-        // レート制限エラーかどうかを判定 (エラーメッセージにRATE_LIMITEDが含まれるか)
-        const isRateLimited = searchResults.error && searchResults.error.includes('RATE_LIMITED');
+        logger.warn(`検索失敗: ${searchResponse.error || '不明なエラー'}. Message: ${searchResponse.message || ''}`);
+        const isRateLimited = searchResponse.error && searchResponse.error.includes('RATE_LIMITED');
         
         return {
           success: false,
-          error: isRateLimited ? 'RATE_LIMITED' : (searchResults.error || 'SEARCH_FAILED'),
-          content: isRateLimited ? '検索APIの利用制限に達しました。しばらく時間を置いてからお試しください。⏳' : (searchResults.message || '検索結果の取得に失敗しました。')
+          error: isRateLimited ? 'RATE_LIMITED' : (searchResponse.error || 'SEARCH_FAILED'),
+          content: isRateLimited ? '検索APIの利用制限に達しました。しばらく時間を置いてからお試しください。⏳' : (searchResponse.message || '検索結果の取得に失敗しました。')
         };
     }
 
   } catch (error) {
     logger.error(`検索中の予期せぬエラー: ${error.message}`, error);
-    // レート制限エラーかどうかを判定 (エラーメッセージ本文やスタックトレースで判断)
     const isRateLimited = error.message && (error.message.includes('429') || error.message.includes('RATE_LIMITED'));
     
     return {
