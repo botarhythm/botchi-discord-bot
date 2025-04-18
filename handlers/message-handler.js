@@ -153,9 +153,23 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
 
     logger.debug(`${idLog} AI Service: ${aiService ? 'Set' : 'Not Set'}`);
 
+    // Determine the effective username (Nickname > Global Username)
+    let effectiveUsername = message.author.username; // Default to global username
+    let userIdentifier = message.author.username; // For logging/context if needed
+    if (message.member && message.member.nickname) {
+        effectiveUsername = message.member.nickname; // Use nickname if available in guild
+        userIdentifier = `${message.member.nickname} (${message.author.username})`;
+        logger.debug(`${idLog} Using server nickname: ${effectiveUsername}`);
+    } else if (message.channel.type === 1) { // DM Channel
+        logger.debug(`${idLog} Using global username in DM: ${effectiveUsername}`);
+    } else {
+        logger.debug(`${idLog} No server nickname found, using global username: ${effectiveUsername}`);
+    }
+
     const messageContext = {
       userId: message.author.id,
-      username: message.author.username,
+      username: message.author.username, // Keep original global username
+      effectiveUsername: effectiveUsername, // Use this for addressing the user
       channelId: message.channel.id,
       channelName: message.channel.name,
       channelType: message.channel.type,
@@ -348,10 +362,12 @@ function formatConversationHistoryForPrompt(conversationHistory, messageContext,
     conversationHistory.forEach(item => {
       // roleが'user'または'assistant'以外の場合、ログを出力してスキップ
       if (item.role !== 'user' && item.role !== 'assistant') {
-        logger.warn(`${idLog} Conversation history contains unknown role: ${item.role}`);
+        // Use a generic identifier for logging if invocationId isn't readily available here
+        logger.warn(`Conversation history contains unknown role: ${item.role}`);
         return; // 不明なroleはスキップ
       }
-      const speaker = item.role === 'user' ? messageContext.username : character.name;
+      // Use effectiveUsername for the user's part in the history
+      const speaker = item.role === 'user' ? messageContext.effectiveUsername : character.name;
       promptSection += `${speaker}: ${item.content}\n`;
     });
   }
@@ -391,7 +407,8 @@ function buildContextPrompt(userMessage, messageContext, conversationHistory = [
   systemPrompt += `【基本情報】\n`;
   systemPrompt += `- 現在の日時: ${japanTime}\n`;
   systemPrompt += `- タイムゾーン: ${dateInfo.timezoneName}\n`;
-  systemPrompt += `- ユーザー名: ${messageContext.username}\n`;
+  // Use effectiveUsername when displaying the user's name in the context
+  systemPrompt += `- ユーザー名: ${messageContext.effectiveUsername}\n`;
   
   if (messageContext.guildName) {
     systemPrompt += `- サーバー: ${messageContext.guildName}\n`;
@@ -405,6 +422,8 @@ function buildContextPrompt(userMessage, messageContext, conversationHistory = [
   systemPrompt += `- 人間らしい温かみのある会話を心がけてください。\n`;
   systemPrompt += `- 時間や日付に関する質問には、必ず${dateInfo.timezoneName}を基準に回答してください。\n`;
   systemPrompt += `- 検索結果を引用する場合は、必ず情報源のURLを含めてください。\n`;
+  // Add specific instruction to use the nickname/effective username
+  systemPrompt += `- ユーザーを呼ぶ際は、必ずここで提供されているユーザー名「${messageContext.effectiveUsername}」を使用し、「あなた」のような一般的な呼び方は避けてください。必要であれば「さん」を付けてください。\n`;
   
   // 検索結果を整形してプロンプトに追加
   const searchPromptSection = formatSearchResultsForPrompt(searchResults, messageContext.message);
