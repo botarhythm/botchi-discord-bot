@@ -392,26 +392,44 @@ async function search(query, options = {}) {
   }
 }
 
+/**
+ * RAGシステムのインスタンスを取得する
+ * @returns {Object|null} RAGシステムのインスタンス
+ */
+function getRAGSystem() {
+  if (!ragConfig.enabled) {
+    return null;
+  }
+  
+  return {
+    initialize,
+    processMessage,
+    addDocument,
+    listDocuments,
+    getDocument,
+    deleteDocument,
+    checkHealth,
+    generateContextForPrompt,
+    query: search,
+    isInitialized,
+    config: ragConfig,
+    state
+  };
+}
+
+// モジュールのエクスポート
 module.exports = {
   initialize,
-  processMessage,
   addDocument,
-  addToKnowledgeBase, // レガシーインターフェース互換用
-  checkHealth,
-  generateContextForPrompt, // メッセージハンドラー用の互換性メソッド
-  isInitialized, // 初期化状態を確認するメソッド
-  // ナレッジベース管理関数
   listDocuments,
   getDocument,
   deleteDocument,
-  search, // 検索用メソッド
-  // 設定と状態
-  config: ragConfig,
-  state, // 状態情報をエクスポート
-  // サブモジュールへの直接アクセスも提供
-  knowledgeBase,
-  queryEngine,
-  vectorStore,
-  embeddings,
-  chunkManager
+  checkHealth,
+  processMessage,
+  generateContextForPrompt,
+  isInitialized,
+  search,
+  addToKnowledgeBase,
+  // RAGシステム全体を取得する関数を追加
+  getRAGSystem
 };

@@ -505,6 +505,95 @@ class MemoryManager {
     this.activeConversations.clear();
     logger.debug('Memory cache cleared');
   }
+
+  /**
+   * 指定したチャンネルの会話履歴を取得
+   * @param {string} channelId チャンネルID
+   * @param {number} limit 取得する会話の上限数 (デフォルト: 10)
+   * @returns {Promise<Array>} 会話履歴の配列
+   */
+  async getConversationHistory(channelId, limit = 10) {
+    try {
+      if (!this.initialized || this.fallbackMode) {
+        logger.debug(`フォールバックモード: 会話履歴は空の配列を返します: ${channelId}`);
+        return [];
+      }
+
+      // チャンネルIDに対応する会話コンテキストを取得
+      const cacheKey = this._createCacheKey({ channelId });
+      let conversationContext = this.activeConversations.get(cacheKey);
+      
+      if (!conversationContext || !conversationContext.conversationId) {
+        logger.debug(`チャンネル ${channelId} の会話コンテキストが見つかりません`);
+        return [];
+      }
+
+      // conversationStoreから会話を取得
+      return await conversationStore.getMessagesForConversation(
+        conversationContext.conversationId,
+        limit
+      );
+    } catch (error) {
+      logger.error(`会話履歴取得中のエラー: ${error.message}`);
+      return [];
+    }
+  }
+
+  /**
+   * 会話を保存する
+   * @param {string} channelId チャンネルID
+   * @param {string} userId ユーザーID
+   * @param {string} userMessage ユーザーメッセージ
+   * @param {string} botResponse ボットの応答
+   * @returns {Promise<boolean>} 保存に成功した場合はtrue
+   */
+  async storeConversation(channelId, userId, userMessage, botResponse) {
+    try {
+      if (!this.initialized || this.fallbackMode) {
+        logger.debug(`フォールバックモード: 会話は保存されません: ${channelId}`);
+        return false;
+      }
+
+      // チャンネルに対応する会話コンテキストを取得または作成
+      const userInfo = {
+        userId,
+        channelId
+      };
+      
+      const conversationContext = await this.getOrCreateConversationContext(userInfo);
+      
+      if (!conversationContext || !conversationContext.conversationId) {
+        logger.error(`会話コンテキストの取得に失敗しました: ${channelId}`);
+        return false;
+      }
+
+      // 一時的な会話IDの場合は保存しない
+      if (conversationContext.conversationId.startsWith('temp-')) {
+        logger.debug(`一時的な会話IDのため会話は保存されません: ${conversationContext.conversationId}`);
+        return false;
+      }
+
+      // ユーザーメッセージを追加
+      await conversationStore.addMessage({
+        conversationId: conversationContext.conversationId,
+        role: 'user',
+        content: userMessage
+      });
+
+      // ボットの応答を追加
+      await conversationStore.addMessage({
+        conversationId: conversationContext.conversationId,
+        role: 'assistant',
+        content: botResponse
+      });
+
+      logger.debug(`会話が保存されました: ${conversationContext.conversationId}`);
+      return true;
+    } catch (error) {
+      logger.error(`会話保存中のエラー: ${error.message}`);
+      return false;
+    }
+  }
 }
 
 // シングルトンインスタンスを作成
