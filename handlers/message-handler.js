@@ -137,6 +137,16 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
   // Prepend invocationId to logs within this function
   const idLog = `[${invocationId}]`;
 
+  // Log detailed member information for debugging nickname issues
+  logger.debug(`${idLog} Debugging Member Info: message.member exists? ${!!message.member}`);
+  if (message.member) {
+    logger.debug(`${idLog} Debugging Member Info: Keys: ${Object.keys(message.member).join(', ')}`);
+    logger.debug(`${idLog} Debugging Member Info: Nickname: ${message.member.nickname}`);
+    logger.debug(`${idLog} Debugging Member Info: Display Name: ${message.member.displayName}`); // displayName might also be useful
+  } else {
+    logger.debug(`${idLog} Debugging Member Info: message.member object is null or undefined.`);
+  }
+
   try {
     if (!cleanContent || cleanContent.trim() === '') {
         logger.warn(`${idLog} [processMessageWithAI] cleanContent is empty, skipping AI processing.`);
