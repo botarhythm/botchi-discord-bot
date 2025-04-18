@@ -65,11 +65,12 @@ class BraveSearchClient {
    * 検索を実行する
    * @param {string} query - 検索クエリ
    * @param {Object} options - 検索オプション
-   * @returns {Promise<Object>} 検索結果
+   * @returns {Promise<Object>} 検索結果 (successフラグとresultsを含む)
    */
   async search(query, options = {}) {
     if (!query || typeof query !== 'string' || query.trim() === '') {
-      throw new Error('検索クエリが空です');
+      // エラーの場合も success: false を返すように統一
+      return { success: false, error: '検索クエリが空です', results: [] }; 
     }
     
     // リクエストパラメータの設定
@@ -97,18 +98,28 @@ class BraveSearchClient {
       });
       
       // 結果をフォーマット
-      return this._formatResults(response.data);
+      const formattedData = this._formatResults(response.data);
+      
+      // 成功時には success: true と結果を含めて返す
+      return {
+        success: true,
+        query: formattedData.query, // フォーマット後のデータから取得
+        results: formattedData.web?.results || [] // results を抽出
+      };
       
     } catch (error) {
-      // エラーハンドリング
       logger.error(`検索API呼び出しエラー: ${error.message}`);
       
-      // エラー詳細の抽出
       const details = error.response 
         ? { status: error.response.status, data: error.response.data }
         : { code: error.code, message: error.message };
-        
-      throw new Error(`Brave Search APIエラー: ${JSON.stringify(details)}`);
+      
+      // エラー時にも success: false を含めて返す
+      return { 
+        success: false, 
+        error: `Brave Search APIエラー: ${JSON.stringify(details)}`, 
+        results: [] 
+      };
     }
   }
   
@@ -226,31 +237,41 @@ class BraveSearchClient {
   /**
    * API結果を整形する
    * @param {Object} data - APIからのレスポンスデータ
-   * @returns {Object} 整形された結果
+   * @returns {Object} 整形された結果 (元の構造を維持しつつ調整)
    */
   _formatResults(data) {
-    // 検索結果がない場合
-    if (!data || !data.web || !data.web.results) {
-      return { web: { results: [] } };
+    // 検索結果がない場合、または必要な構造がない場合
+    if (!data || typeof data !== 'object') {
+      logger.warn('APIからのレスポンスデータが無効です');
+      return { query: {}, web: { results: [] } }; // 空の構造を返す
     }
-    
-    // web プロパティが存在しない場合は追加
+
+    // web プロパティが存在しない場合は空の配列で初期化
     if (!data.web) {
       data.web = { results: [] };
-      return data;
+    }
+    // web.results が配列でない場合は空の配列で初期化
+    else if (!Array.isArray(data.web.results)) {
+        logger.warn('APIレスポンスの web.results が配列ではありません');
+        data.web.results = [];
     }
     
     // 各結果の説明を適切な長さに調整
-    if (data.web.results) {
-      data.web.results = data.web.results.map(item => {
-        // 説明文が長すぎる場合は切り詰める（最大500文字）
+    data.web.results = data.web.results.map(item => {
+      // itemがオブジェクトであることを確認
+      if (item && typeof item === 'object') {
         if (item.description && item.description.length > 500) {
           item.description = item.description.substring(0, 497) + '...';
         }
-        return item;
-      });
-    }
+      } else {
+        // 不正な形式のアイテムはnullにして後でフィルタリングするか、ログに残す
+        logger.warn('不正な形式の検索結果アイテムが見つかりました', item);
+        return null; 
+      }
+      return item;
+    }).filter(item => item !== null); // 不正な形式だったアイテムを除外
     
+    // 元のデータ構造を維持して返す
     return data;
   }
   
