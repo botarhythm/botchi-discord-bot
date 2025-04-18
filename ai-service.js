@@ -89,27 +89,49 @@ function getConfig() {
  * @returns {Promise<Object>} 処理された検索結果
  */
 async function performSearch(query) {
+  // まず検索サービスが初期化されているか確認
+  if (!searchService.isInitialized()) {
+    logger.warn('検索サービスが初期化されていないため、検索を実行できませんでした。');
+    return {
+      success: false,
+      error: '検索サービスが初期化されていません',
+      content: '検索サービスが利用できません。'
+    };
+  }
+  
   try {
     logger.debug(`検索実行: "${query}"`);
     const searchResults = await searchService.performSearchNew(query);
     
-    if (!searchResults.success) {
-      logger.warn(`検索失敗: ${searchResults.error}`);
+    if (!searchResults || !searchResults.success) { // searchResults自体もチェック
+      logger.warn(`検索失敗: ${searchResults?.error || '不明なエラー'}`);
       return {
         success: false,
-        content: '検索結果の取得に失敗しました。'
+        error: searchResults?.error || '検索に失敗しました',
+        content: searchResults?.message || '検索結果の取得に失敗しました。'
       };
+    }
+    
+    // formattedResultsが存在するか確認
+    if (!searchResults.formattedResults) {
+      logger.warn('検索結果のフォーマットに失敗しました。');
+       return {
+         success: false,
+         error: '検索結果のフォーマットエラー',
+         content: '検索結果の表示形式に問題がありました。'
+       };
     }
     
     return {
       success: true,
       content: searchResults.formattedResults,
-      sourcesList: searchResults.sourcesList || ''
+      sourcesList: searchResults.sourcesList || '' // sourcesListがない場合も考慮
     };
   } catch (error) {
     logger.error(`検索エラー: ${error.message}`);
     return {
       success: false,
+      error: `検索エラー: ${error.message}`,
       content: '検索処理中にエラーが発生しました。'
     };
   }

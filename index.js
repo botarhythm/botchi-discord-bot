@@ -292,14 +292,6 @@ async function initializeBot() {
       logger.info('AIサービスの初期化に成功しました');
     }
     
-    // 検索サービスの初期化
-    const searchInitResult = await searchService.initialize();
-    if (!searchInitResult) {
-      logger.warn('検索サービスの初期化に失敗しました。検索機能は無効です。');
-    } else {
-      logger.info('検索サービスの初期化に成功しました');
-    }
-    
     // その他の初期化処理...
     
     logger.info('初期化完了');
