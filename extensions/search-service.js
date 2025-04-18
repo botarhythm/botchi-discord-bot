@@ -58,9 +58,11 @@ let isInitialized = false;
  */
 function initialize() {
   try {
-    const apiKey = config.get('BRAVE_SEARCH_API_KEY') || process.env.BRAVE_API_KEY;
+    // APIキーを process.env から直接読み込み
+    const apiKey = process.env.BRAVE_API_KEY || process.env.BRAVE_SEARCH_API_KEY;
+    
     if (!apiKey) {
-      logger.warn('Brave検索APIキーが設定されていません。検索機能は無効です。');
+      logger.warn('Brave検索APIキーが環境変数に設定されていません。検索機能は無効です。');
       isInitialized = false;
       return false;
     }

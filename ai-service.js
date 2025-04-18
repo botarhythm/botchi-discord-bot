@@ -31,19 +31,22 @@ let provider = null;
 // AIプロバイダーの初期化
 async function initialize() {
   try {
-    // 設定の確認
-    const apiKey = config.get('OPENAI_API_KEY');
-    const apiModel = config.get('OPENAI_MODEL');
+    // 設定の確認 (process.envから直接読み込み)
+    const apiKey = process.env.OPENAI_API_KEY;
+    const apiModel = process.env.OPENAI_MODEL || 'gpt-4o-mini';
     
     if (!apiKey) {
-      logger.warn('OpenAI APIキーが設定されていません');
+      logger.warn('OpenAI APIキーが環境変数に設定されていません');
       return false;
     }
     
     logger.info(`AI Service initialized with model: ${apiModel}`);
     
     // 検索サービスの初期化
-    await searchService.initialize();
+    const searchInitialized = await searchService.initialize();
+    if (!searchInitialized) {
+        logger.warn('Search service failed to initialize, proceeding without search capabilities.')
+    }
     
     return true;
   } catch (error) {
@@ -77,8 +80,8 @@ async function checkHealth() {
 function getConfig() {
   return {
     initialized: true,
-    model: config.get('OPENAI_MODEL') || 'gpt-4o-mini',
-    endpoint: config.get('OPENAI_ENDPOINT') || 'https://api.openai.com/v1/chat/completions',
+    model: process.env.OPENAI_MODEL || 'gpt-4o-mini', // process.envから読み込み
+    endpoint: process.env.OPENAI_ENDPOINT || 'https://api.openai.com/v1/chat/completions', // process.envから読み込み
     searchEnabled: searchService.isInitialized()
   };
 }
@@ -224,17 +227,17 @@ async function getResponse(context) {
       return getResponseWithSearch(context);
     }
     
-    // OpenAI APIキーを取得
-    const apiKey = config.get('OPENAI_API_KEY');
+    // OpenAI APIキーを取得 (process.envから)
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      logger.error('OpenAI APIキーが設定されていません');
+      logger.error('OpenAI APIキーが環境変数に設定されていません');
       return '申し訳ありません、AI機能が現在利用できません。';
     }
     
-    // APIモデルを取得（デフォルトはgpt-4o-mini）
-    const model = config.get('OPENAI_MODEL') || 'gpt-4o-mini';
-    // API URLを取得（デフォルトはOpenAIのエンドポイント）
-    const apiUrl = config.get('OPENAI_ENDPOINT') || 'https://api.openai.com/v1/chat/completions';
+    // APIモデルを取得 (process.envから)
+    const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+    // API URLを取得 (process.envから)
+    const apiUrl = process.env.OPENAI_ENDPOINT || 'https://api.openai.com/v1/chat/completions';
     
     logger.debug(`OpenAI API呼び出し: モデル=${model}`);
     
