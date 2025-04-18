@@ -9,6 +9,8 @@ const logger = require('../system/logger');
 class DateHandler {
   constructor() {
     this.japanTimeZone = 'Asia/Tokyo';
+    this.timeZoneOffset = '+09:00';
+    this.timeZoneName = 'JST (UTC+9)';
     logger.info('日付処理モジュールが初期化されました');
   }
 
@@ -35,6 +37,8 @@ class DateHandler {
       hour: japanTime.hour,
       minute: japanTime.minute,
       timezone: this.japanTimeZone,
+      timezoneOffset: this.timeZoneOffset,
+      timezoneName: this.timeZoneName,
       formattedTime: this.getFormattedTimeString(japanTime),
       formattedDate: this.getFormattedDateString(japanTime)
     };
@@ -85,7 +89,7 @@ class DateHandler {
    */
   getFormattedDateTimeString() {
     const japanTime = this.getCurrentJapanTime();
-    return `${this.getFormattedDateString(japanTime)} ${this.getFormattedTimeString(japanTime)}`;
+    return `${this.getFormattedDateString(japanTime)} ${this.getFormattedTimeString(japanTime)} (${this.timeZoneName})`;
   }
 }
 
