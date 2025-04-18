@@ -402,8 +402,8 @@ async function performSearchNew(query) {
     if (cachedResult) {
       logger.info(`キャッシュから検索結果を使用: "${queryAnalysis.optimizedQuery}"`);
       return processResults(
-        cachedResult,
-        queryAnalysis.queryType,
+        cachedResult, 
+        queryAnalysis.queryType, 
         queryAnalysis.originalQuery
       );
     }
@@ -412,10 +412,12 @@ async function performSearchNew(query) {
     logger.info(`検索実行: "${queryAnalysis.optimizedQuery}"`);
     const searchResponse = await braveClient.search(queryAnalysis.optimizedQuery, searchOptions);
     
-    if (!searchResponse || !searchResponse.results) {
+    if (!searchResponse || !searchResponse.success) {
+      const errorMsg = searchResponse?.error || '検索結果が取得できませんでした';
+      logger.warn(`検索APIエラーまたは結果なし: ${errorMsg}`);
       return {
         success: false,
-        error: '検索結果が取得できませんでした',
+        error: errorMsg,
         message: '検索結果の取得に失敗しました。'
       };
     }

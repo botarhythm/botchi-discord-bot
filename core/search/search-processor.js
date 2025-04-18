@@ -170,17 +170,20 @@ function generateMetadataMessage(analysis, resultCount) {
 
 /**
  * 検索結果を総合的に処理する
- * @param {Object} searchResponse - 検索API応答
+ * @param {Object} searchResponse - 検索API応答 (期待する形式: { success: boolean, results: Array|undefined, error: string|undefined })
  * @param {string} queryType - 検索クエリのタイプ
  * @param {string} originalQuery - 元の検索クエリ
  * @returns {Object} 処理結果
  */
 function processResults(searchResponse, queryType, originalQuery) {
   try {
-    if (!searchResponse || !searchResponse.results || !Array.isArray(searchResponse.results)) {
+    // ★ API応答自体の成功/失敗をチェック
+    if (!searchResponse || !searchResponse.success || !Array.isArray(searchResponse.results)) {
+      const errorMsg = searchResponse?.error || '有効な検索結果が提供されていません';
+      logger.warn(`processResults: 不正な入力または検索失敗。Error: ${errorMsg}`);
       return {
         success: false,
-        error: '有効な検索結果が提供されていません',
+        error: errorMsg,
         message: '検索結果を取得できませんでした。'
       };
     }
@@ -190,16 +193,20 @@ function processResults(searchResponse, queryType, originalQuery) {
     
     // 結果がない場合
     if (resultCount === 0) {
+      logger.info('processResults: 検索結果が0件でした。');
       return {
-        success: true,
+        success: true, // 検索自体は成功したが結果がなかった
         formattedResults: '検索結果が見つかりませんでした。',
+        sourcesList: '', // 空のソースリスト
         metadataMessage: '[検索結果: 0件]',
         analysis: {
           reliability: 'none',
           diversity: 'none',
           freshness: 'unknown',
           domains: []
-        }
+        },
+        resultCount: 0,
+        originalQuery
       };
     }
     
@@ -209,16 +216,28 @@ function processResults(searchResponse, queryType, originalQuery) {
     // メタデータメッセージの生成
     const metadataMessage = generateMetadataMessage(analysis, resultCount);
     
-    // 結果の整形
+    // 結果の整形 (AI用コンテンツ)
     const formattedResults = formatSearchResultForAI(results, queryType);
+
+    // ★ 出典リスト (sourcesList) の生成を追加
+    const sourcesList = results.slice(0, 10).map((result, index) => {
+      let hostname = '不明なドメイン';
+      try {
+        hostname = new URL(result.url).hostname;
+      } catch (e) {
+        logger.warn(`URLの解析に失敗: ${result.url}`);
+      }
+      return `${index + 1}. [${result.title}](${result.url}) - ${hostname}`;
+    }).join('\n');
     
-    logger.debug(`検索結果処理完了: ${resultCount}件、信頼性=${analysis.reliability}、多様性=${analysis.diversity}`);
+    logger.debug(`検索結果処理完了: ${resultCount}件`);
     
     return {
       success: true,
-      formattedResults,
-      metadataMessage,
-      analysis,
+      formattedResults, // AI用コンテンツ
+      sourcesList,      // ★ 出典リストを追加
+      metadataMessage,  // メタデータ文字列
+      analysis,         // 分析結果オブジェクト
       resultCount,
       originalQuery
     };
