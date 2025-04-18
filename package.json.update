@@ -1,9 +1,0 @@
-{
-  "scripts": {
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "test:unit": "jest --testPathIgnorePatterns=integration",
-    "test:integration": "cross-env TEST_WITH_REAL_API=true jest --testMatch='**/__tests__/integration/**/*.test.js'"
-  }
-} 

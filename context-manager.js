@@ -11,13 +11,127 @@ const MESSAGE_TABLE = process.env.SUPABASE_MESSAGE_TABLE || 'messages';
 const memoryCache = new Map();
 
 // 設定
-const CACHE_EXPIRY = 30 * 60 * 1000; // 30分
-const MAX_CONVERSATION_LENGTH = 20;  // 最大会話ターン数
-const MAX_CONTEXT_TOKENS = 4000;     // 最大トークン数（概算）
+const CACHE_EXPIRY = 30 * 60 * 1000;  // 30分
+const MAX_CONVERSATION_LENGTH = 20;    // 20ターン
+const MAX_CONTEXT_TOKENS = 4000;       // 4000トークン
+
+// 文脈管理の設定
+const IMMEDIATE_CONTEXT_SIZE = 2;      // 直前の会話ペア（質問と回答）
+const RECENT_CONTEXT_SIZE = 4;         // 直近の会話（2往復分）
+const CONTEXT_DECAY_RATE = 0.9;        // 文脈の減衰率（より緩やかに）
+const RELEVANCE_THRESHOLD = 0.3;       // 関連性の閾値（より緩く）
 
 // 初期化フラグ
 let isInitialized = false;
 let useSupabase = false;
+
+/**
+ * 文脈の重要度スコアリング
+ * @param {Object} message - 評価対象のメッセージ
+ * @param {Object} currentContext - 現在の文脈情報
+ * @returns {number} 重要度スコア（0-1）
+ */
+function calculateContextScore(message, currentContext) {
+  const messages = currentContext.messages;
+  if (messages.length === 0) return 0.5;
+  
+  // 直前の会話ペア（最新の質問-回答）との関連性
+  const immediateMessages = messages.slice(-IMMEDIATE_CONTEXT_SIZE);
+  const immediateScore = calculateImmediateRelevance(message, immediateMessages);
+  
+  // 直近の会話（2往復分）との関連性
+  const recentMessages = messages.slice(-RECENT_CONTEXT_SIZE);
+  const recentScore = calculateRecentRelevance(message, recentMessages);
+  
+  // 最終スコア（バランスを調整）
+  return immediateScore * 0.6 + recentScore * 0.4;
+}
+
+/**
+ * 直前の会話ペアとの関連性を計算
+ * @param {Object} message - 評価対象のメッセージ
+ * @param {Array} immediateMessages - 直前の会話ペア
+ * @returns {number} 関連性スコア（0-1）
+ */
+function calculateImmediateRelevance(message, immediateMessages) {
+  if (immediateMessages.length === 0) return 0.5;
+  
+  // 質問-回答のペアを考慮
+  const isQuestionAnswerPair = immediateMessages.length === 2 &&
+    immediateMessages[0].role === 'user' &&
+    immediateMessages[1].role === 'assistant';
+  
+  // 直前メッセージとの類似性を計算
+  const lastMessage = immediateMessages[immediateMessages.length - 1];
+  const similarity = calculateMessageSimilarity(message, lastMessage);
+  
+  // 質問-回答のペアの場合のボーナスを控えめに
+  return isQuestionAnswerPair ? 
+    Math.min(1, similarity * 1.1) : similarity;
+}
+
+/**
+ * 直近の会話との関連性を計算
+ * @param {Object} message - 評価対象のメッセージ
+ * @param {Array} recentMessages - 直近の会話履歴
+ * @returns {number} 関連性スコア（0-1）
+ */
+function calculateRecentRelevance(message, recentMessages) {
+  if (recentMessages.length === 0) return 0.5;
+  
+  let totalScore = 0;
+  let weightSum = 0;
+  
+  // 新しい順に重み付けしてスコアを計算
+  recentMessages.reverse().forEach((msg, index) => {
+    const weight = Math.pow(CONTEXT_DECAY_RATE, index);
+    const similarity = calculateMessageSimilarity(message, msg);
+    totalScore += similarity * weight;
+    weightSum += weight;
+  });
+  
+  return totalScore / weightSum;
+}
+
+/**
+ * メッセージ間の類似性を計算
+ * @param {Object} msg1 - 比較対象メッセージ1
+ * @param {Object} msg2 - 比較対象メッセージ2
+ * @returns {number} 類似性スコア（0-1）
+ */
+function calculateMessageSimilarity(msg1, msg2) {
+  const keywords1 = extractKeywords(msg1.content);
+  const keywords2 = extractKeywords(msg2.content);
+  
+  // 共通キーワードの割合を計算
+  const commonKeywords = keywords1.filter(k => keywords2.includes(k));
+  const similarity = commonKeywords.length / Math.max(keywords1.length, keywords2.length);
+  
+  // 会話の役割の関係性を控えめに
+  const roleRelationship = 
+    (msg1.role === 'user' && msg2.role === 'assistant') ||
+    (msg1.role === 'assistant' && msg2.role === 'user') ? 0.1 :
+    (msg1.role === msg2.role) ? 0.05 : 0;
+  
+  return Math.min(1, similarity + roleRelationship);
+}
+
+/**
+ * キーワード抽出
+ * @param {string} text - 対象テキスト
+ * @returns {Array} 抽出されたキーワード配列
+ */
+function extractKeywords(text) {
+  // 日本語と英語の両方に対応
+  const words = text.toLowerCase()
+    .replace(/[。、！？]/g, ' ')  // 日本語の句読点を空白に
+    .replace(/[^\w\s\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/g, ' ')  // 特殊文字を空白に
+    .split(/\s+/)
+    .filter(word => word.length > 1);  // 1文字の単語は除外
+  
+  // 重複を除去して返す
+  return [...new Set(words)];
+}
 
 /**
  * コンテキストマネージャーの初期化
@@ -53,11 +167,12 @@ async function initialize() {
 }
 
 /**
- * 会話履歴の取得
+ * 会話履歴の取得（関連性に基づくフィルタリング付き）
  * @param {string} userId - ユーザーID
  * @param {boolean} detailed - 詳細情報を含めるか
+ * @param {boolean} filterByRelevance - 関連性でフィルタリングするか
  */
-async function getConversationHistory(userId, detailed = false) {
+async function getConversationHistory(userId, detailed = false, filterByRelevance = true) {
   await ensureInitialized();
   
   // メモリキャッシュを確認
@@ -137,6 +252,17 @@ async function getConversationHistory(userId, detailed = false) {
         role: msg.role,
         content: msg.content
       }));
+    }
+    
+    if (filterByRelevance && conversation.messages.length > 0) {
+      const currentContext = {
+        messages: conversation.messages.slice(-RECENT_CONTEXT_SIZE)
+      };
+      
+      // 関連性の低いメッセージをフィルタリング
+      conversation.messages = conversation.messages.filter(message => 
+        calculateContextScore(message, currentContext) >= RELEVANCE_THRESHOLD
+      );
     }
     
     // メモリキャッシュを更新
