@@ -19,8 +19,8 @@ class DateHandler {
    * @returns {DateTime} 日本時間のDateTimeオブジェクト
    */
   getCurrentJapanTime() {
-    // 現在のUTC時間を取得し、JSTに変換
-    return DateTime.now().setZone(this.japanTimeZone, { keepLocalTime: false });
+    // UTC時間を取得し、JSTに変換
+    return DateTime.utc().setZone(this.japanTimeZone);
   }
 
   /**
