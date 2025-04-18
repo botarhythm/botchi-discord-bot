@@ -3,11 +3,11 @@
  * さまざまなAIプロバイダーを抽象化して一貫したインターフェースを提供
  */
 
-const logger = require('./system/logger');
+const logger = require('../../system/logger');
 const axios = require('axios');
-const config = require('./config');
-const searchService = require('./extensions/search-service');
-const dateHandler = require('./extensions/date-handler');
+const config = require('../../config/env');
+const searchService = require('../../extensions/search-service');
+const dateHandler = require('../../extensions/date-handler');
 
 // 環境変数から設定を読み込み
 require('dotenv').config();
