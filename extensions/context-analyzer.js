@@ -110,8 +110,7 @@ function shouldIntervene(options) {
     
     // 特定のキーワードチェック（ボッチー、bocchy）- これらが含まれる場合は必ず介入
     const hasMustInterventionKeyword = lowerContent.includes('ボッチー') || 
-                                     lowerContent.includes('bocchy') ||
-                                     lowerContent.includes('botchi');
+                                     lowerContent.includes('bocchy');
 
     if (hasMustInterventionKeyword) {
       logger.debug('[ANALYZER] Must-intervention keyword found, will force intervention');
