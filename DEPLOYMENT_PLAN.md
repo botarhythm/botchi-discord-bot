@@ -24,6 +24,7 @@
 
 4. Google Custom Search API
    - Web検索機能
+   - ※ API制限時のフォールバック処理を強化 (v1.3.6)
 
 ## デプロイメントプロセス
 
@@ -75,4 +76,17 @@ GOOGLE_CSE_ID=
 ```
 
 ### オプション環境変数
+```bash
+# 機能フラグ
+MEMORY_ENABLED=true
+RAG_ENABLED=true
+
+# デバッグ設定
+DEBUG=false
+
+# パフォーマンス設定
+MESSAGE_HISTORY_LIMIT=100
+CONTEXT_WINDOW_SIZE=4000
 ```
+
+## モニタリング計画

@@ -2,7 +2,7 @@
 
 GraphAI × Discord マルチモーダルチャットボット「Bocchy」- 静かでやわらかな知の伴走者
 
-![Version](https://img.shields.io/badge/version-1.3.5-blue)
+![Version](https://img.shields.io/badge/version-1.3.6-blue)
 ![Node](https://img.shields.io/badge/node-%3E%3D16.9.0-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
@@ -17,6 +17,7 @@ Bocchyは森の奥にひっそりと佇む案内人のような存在。静か�
 - **余白を大切に**: 沈黙も会話と捉え、そっと寄り添う存在
 - **やさしい智慧**: 知性は冷たくなく、湿度と温度のある応答
 - **会話の記憶**: 対話の流れを理解し、自然な会話を継続（v1.2.0～）
+- **耐障害性の向上**: Web検索APIの制限時にも、自身の知識で応答を試みるフォールバック機能を強化 (v1.3.6～)
 
 ## 🪄 Bocchyの機能
 
@@ -26,7 +27,7 @@ Bocchyは森の奥にひっそりと佇む案内人のような存在。静か�
 - **マルチチャネル**: サーバーのメンションとDMの両方で対話可能
 - **ステータス表示**: 詩的な表現で現在の状態を伝える
 - **メモリ管理**: トークン消費を最適化する自動圧縮機能（v1.2.0～）
-- **Web検索機能**: 会話中の質問に対してWeb検索を実行し情報を提供（v1.3.5～）
+- **Web検索機能**: Google Custom Search APIを利用し、会話中の質問に対してWeb検索を実行し情報を提供（v1.3.5～）
 
 ## 🌱 コマンド一覧
 
@@ -48,7 +49,7 @@ Bocchyは森の奥にひっそりと佇む案内人のような存在。静か�
 - Discord Bot Token
 - OpenAI API Key
 - Supabase URL と Key（オプション、v1.2.0～）
-- Google Search API Key と Custom Search Engine ID（オプション、v1.3.5～）
+- Google Custom Search API Key と Custom Search Engine ID（オプション、Web検索機能利用時）
 
 ### インストール手順
 
@@ -79,7 +80,7 @@ Bocchyは森の奥にひっそりと佇む案内人のような存在。静か�
    SUPABASE_URL=your_supabase_url
    SUPABASE_KEY=your_supabase_key
    
-   # Google Search API設定（オプション、v1.3.5～）
+   # Google Search API設定（オプション、Web検索機能利用時）
    GOOGLE_API_KEY=your_google_api_key
    GOOGLE_CSE_ID=your_google_cse_id
    
@@ -156,8 +157,8 @@ Railway を使用してデプロイすることを推奨します。Railway ダ�
 - `OPENAI_MODEL`
 - `SUPABASE_URL`（オプション）
 - `SUPABASE_KEY`（オプション）
-- `GOOGLE_API_KEY`（オプション、v1.3.5～）
-- `GOOGLE_CSE_ID`（オプション、v1.3.5～）
+- `GOOGLE_API_KEY`（オプション、Web検索機能利用時）
+- `GOOGLE_CSE_ID`（オプション、Web検索機能利用時）
 - `DEBUG`（オプション）
 
 ## 🪺 開発ロードマップ
@@ -165,6 +166,7 @@ Railway を使用してデプロイすることを推奨します。Railway ダ�
 - ✅ コンテキスト管理モジュールの導入（v1.2.0）
 - ✅ Supabaseを使用したデータ永続化（v1.2.0）
 - ✅ Google Custom Search APIを使用したWeb検索機能の導入（v1.3.5）
+- ✅ Web検索API制限時のフォールバック処理強化（v1.3.6）
 - メンション外の受動的学習機能（予定）
 - トリガーワードの柔軟化（予定）
 - マルチモーダル機能（画像・音声）の実装（予定）
