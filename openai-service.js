@@ -251,7 +251,15 @@ async function processAIRequest(userId, message, username, isDM = false) {
     userConversation.messages.push({ role: 'system', content: BOCCHY_CHARACTER_PROMPT });
   }
 
-  userConversation.messages.push({ role: 'user', content: message });
+  // 日本時間の情報を取得
+  const dateHandler = require('./date-handler');
+  const japanTime = dateHandler.getCurrentJapanTime();
+  const formattedDate = dateHandler.getFormattedDateString(japanTime);
+  const formattedTime = dateHandler.getFormattedTimeString(japanTime);
+  
+  // ユーザーメッセージに日時情報を追加
+  const enhancedMessage = `[現在の日本時間: ${formattedDate} ${formattedTime}]\n\n${message}`;
+  userConversation.messages.push({ role: 'user', content: enhancedMessage });
 
   if (userConversation.messages.length > 11) {
     const systemPrompt = userConversation.messages[0];
