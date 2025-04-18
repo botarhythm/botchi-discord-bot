@@ -409,7 +409,7 @@ function buildContextPrompt(userMessage, messageContext, conversationHistory = [
   systemPrompt += `- タイムゾーン: ${dateInfo.timezoneName}\n`;
   // Use effectiveUsername when displaying the user's name in the context
   systemPrompt += `- ユーザー名: ${messageContext.effectiveUsername}\n`;
-  
+
   if (messageContext.guildName) {
     systemPrompt += `- サーバー: ${messageContext.guildName}\n`;
     systemPrompt += `- チャンネル: #${messageContext.channelName}\n`;
@@ -422,8 +422,9 @@ function buildContextPrompt(userMessage, messageContext, conversationHistory = [
   systemPrompt += `- 人間らしい温かみのある会話を心がけてください。\n`;
   systemPrompt += `- 時間や日付に関する質問には、必ず${dateInfo.timezoneName}を基準に回答してください。\n`;
   systemPrompt += `- 検索結果を引用する場合は、必ず情報源のURLを含めてください。\n`;
-  // Add specific instruction to use the nickname/effective username
-  systemPrompt += `- ユーザーを呼ぶ際は、必ずここで提供されているユーザー名「${messageContext.effectiveUsername}」を使用し、「あなた」のような一般的な呼び方は避けてください。必要であれば「さん」を付けてください。\n`;
+  // Refined instruction about using nicknames
+  systemPrompt += `- **ニックネームの使用:** このサーバー（${messageContext.guildName || 'この場所'}）では、多くのメンバーがニックネームを使っています。ニックネーム（例：現在話している相手は「${messageContext.effectiveUsername}」さん）は、サーバー内では公開情報として扱われ、メンバー同士の会話で自然に使われます。あなたも会話の中でユーザーや他のメンバーに言及する際は、メンションや会話履歴からわかる範囲で、**必ずニックネームを使用してください**。例えば、「${messageContext.effectiveUsername}さんはどう思いますか？」のように話しかけてください。**「あなた」のような一般的な呼び方は絶対に避けてください。**\n`;
+  systemPrompt += `- **メンバーに関する質問:** もし「このサーバーには誰がいますか？」といった質問を受けた場合は、現在サーバーに参加しているメンバーのニックネーム（またはユーザー名）をリストアップして答えるのが適切です。（現時点ではメンバーリストを直接参照できませんが、応答方針として覚えておいてください）\n`;
   
   // 検索結果を整形してプロンプトに追加
   const searchPromptSection = formatSearchResultsForPrompt(searchResults, messageContext.message);
@@ -438,7 +439,7 @@ function buildContextPrompt(userMessage, messageContext, conversationHistory = [
   systemPrompt += historyPromptSection;
   
   // Add user message
-  const finalPrompt = `${systemPrompt}\n【現在のメッセージ】\n${messageContext.username}: ${userMessage}\n\n${character.name}: `;
+  const finalPrompt = `${systemPrompt}\n【現在のメッセージ】\n${messageContext.effectiveUsername}: ${userMessage}\n\n${character.name}: `;
   
   return finalPrompt;
 }
