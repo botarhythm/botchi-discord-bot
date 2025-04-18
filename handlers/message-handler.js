@@ -11,6 +11,7 @@ const { isValidForIntervention, shouldIntervene } = require('./context-intervent
 const { shouldSearch, processMessage: performSearch } = require('./search-handler');
 const { processResults, formatSearchResultForAI } = require('../extensions/search-processor');
 const dateHandler = require('../extensions/date-handler');
+const crypto = require('crypto');
 
 // Get environment variables
 const MENTIONS_ONLY = process.env.MENTIONS_ONLY === 'true';
@@ -29,130 +30,129 @@ function setAIProvider(provider) {
 }
 
 async function handleMessage(message) {
-  if (message.author.bot) return;
-  
-  // --- Add attachment check --- 
-  if (message.attachments.size > 0) {
-    logger.debug(`メッセージに添付ファイルが含まれています。処理をスキップします。`);
-    await message.reply('すみません、添付ファイルを開いて内容を確認することはできないんです 📂');
-    return;
-  }
-  // --- End attachment check --- 
+  const invocationId = crypto.randomBytes(4).toString('hex'); // Generate a unique ID
+  logger.debug(`[${invocationId}] Received message: "${message.content}" from ${message.author.tag} (${message.author.id})`);
 
   try {
-    // デバッグログを追加：メッセージ受信を記録
-    logger.debug(`メッセージを受信: "${message.content}" from ${message.author.username} (${message.author.id})`);
-    logger.debug(`チャンネル: ${message.channel.type === 1 ? 'DM' : `#${message.channel.name}`} (${message.channel.id})`);
-    
-    const isMention = message.mentions.has(client.user);
-    const isDM = message.channel.type === 1; // DM channels
-    
-    // メンションとDM状態をログに出力
-    logger.debug(`メンション: ${isMention}, DM: ${isDM}`);
-    
+    // Ignore messages from bots or self
+    if (message.author.bot || message.author.id === client.user.id) {
+      // logger.debug(`[${invocationId}] Ignoring message from bot or self`); // Optional: Log ignored messages
+      return;
+    }
+
+    // Log channel info
+    const channelInfo = message.channel.type === 1 ? 'DM' : `#${message.channel.name}`;
+    logger.debug(`[${invocationId}] Channel: ${channelInfo} (${message.channel.id})`);
+
+    // Check for mentions and DMs
+    const isMention = message.mentions.has(client.user.id);
+    const isDM = message.channel.type === 1; // 1 is DMChannel
+
+    // Log mention and DM status
+    logger.debug(`[${invocationId}] Mention: ${isMention}, DM: ${isDM}`);
+
     // Handle commands with prefix
     if (message.content.startsWith(config.commandPrefix)) {
-      logger.debug(`コマンド実行: ${message.content}`);
+      logger.debug(`[${invocationId}] Executing command: ${message.content}`);
       return await handleCommand(message, aiService);
     }
-    
+
     // Skip messages without mentions if mentions_only is enabled and not in DM
     if (MENTIONS_ONLY && !isMention && !isDM) {
-      if (shouldIntervene(message, client)) {
-        logger.debug(`文脈介入判定: 介入する`);
-        await handleIntervention(message);
+      // Pass invocationId to shouldIntervene if it accepts/uses it, otherwise log here
+      if (await shouldIntervene(message, client /*, invocationId */)) {
+        logger.debug(`[${invocationId}] Context intervention check (MENTIONS_ONLY): Intervening`);
+        await handleIntervention(message, invocationId); // Pass ID
       } else {
-        logger.debug(`文脈介入判定: 介入しない`);
+        logger.debug(`[${invocationId}] Context intervention check (MENTIONS_ONLY): Not intervening`);
       }
       return;
     }
-    
+
     // Process message for AI response
     if (isMention || isDM) {
-      logger.debug('メンションまたはDMのため応答処理を開始');
+      logger.debug(`[${invocationId}] Starting response process (mention or DM)`);
       message.channel.sendTyping();
-      
+
       // Clean the message content from mentions
       const cleanContent = message.content
         .replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '')
         .trim();
-      
+
       // Skip empty messages
       if (!cleanContent) {
-        logger.debug('内容が空のため応答しない');
+        logger.debug(`[${invocationId}] Empty content after cleaning, not responding`);
         return;
       }
-      
-      logger.debug(`クリーン化されたメッセージ内容: "${cleanContent}"`);
-      
+
+      logger.debug(`[${invocationId}] Cleaned message content: "${cleanContent}"`);
+
       // Check if we should perform a search
-      logger.debug(`[handleMessage] Checking if search should be performed for: "${cleanContent}"`);
+      logger.debug(`[${invocationId}] [handleMessage] Checking if search should be performed for: "${cleanContent}"`);
       const performSearchCheck = shouldSearch(cleanContent);
-      logger.debug(`[handleMessage] shouldSearch returned: ${performSearchCheck}`);
-      
+      logger.debug(`[${invocationId}] [handleMessage] shouldSearch returned: ${performSearchCheck}`);
+
       if (performSearchCheck) {
-        logger.debug('[handleMessage] Attempting to perform search...');
+        logger.debug(`[${invocationId}] [handleMessage] Attempting to perform search...`);
         try {
-          logger.debug('検索実行が必要と判断');
+          logger.debug(`[${invocationId}] Search determined necessary`);
           const searchResults = await performSearch(message);
-          logger.debug(`[handleMessage] Search process completed. Success: ${searchResults?.success}. Results obtained: ${searchResults?.results?.length || 0}`);
-          await processMessageWithAI(message, cleanContent, searchResults);
+          logger.debug(`[${invocationId}] [handleMessage] Search process completed. Success: ${searchResults?.success}. Results obtained: ${searchResults?.results?.length || 0}`);
+          await processMessageWithAI(message, cleanContent, searchResults, false, invocationId); // Pass ID
         } catch (err) {
-          logger.error(`[handleMessage] Error during performSearch (processMessage): ${err.message}`);
-          await processMessageWithAI(message, cleanContent);
+          logger.error(`[${invocationId}] [handleMessage] Error during performSearch (processMessage): ${err.message}`);
+          await processMessageWithAI(message, cleanContent, null, false, invocationId); // Pass ID
         }
       } else {
-        logger.debug('[handleMessage] Search not required. Proceeding without search.');
-        logger.debug('検索なしでAI処理を実行');
-        await processMessageWithAI(message, cleanContent);
+        logger.debug(`[${invocationId}] [handleMessage] Search not required. Proceeding without search.`);
+        logger.debug(`[${invocationId}] Executing AI process without search`);
+        await processMessageWithAI(message, cleanContent, null, false, invocationId); // Pass ID
       }
-    } else if (shouldIntervene(message, client)) {
-      logger.debug('文脈介入の条件に合致');
-      await handleIntervention(message);
+    } else if (await shouldIntervene(message, client /*, invocationId */)) {
+      logger.debug(`[${invocationId}] Context intervention criteria met`); // Changed log message slightly for clarity
+      await handleIntervention(message, invocationId); // Pass ID
     } else {
-      logger.debug('処理条件に合致せず、応答しない');
+      logger.debug(`[${invocationId}] No processing conditions met, not responding`);
     }
   } catch (error) {
-    logger.error(`Error handling message: ${error.stack}`);
+    // Include invocationId if available, otherwise log globally
+    const idPrefix = typeof invocationId !== 'undefined' ? `[${invocationId}] ` : '';
+    logger.error(`${idPrefix}Error handling message: ${error.stack}`);
   }
 }
 
-async function handleIntervention(message) {
+async function handleIntervention(message, invocationId = 'N/A') { // Accept ID
   try {
-    logger.info(`Intervening in conversation in #${message.channel.name}`);
+    logger.info(`[${invocationId}] Intervening in conversation in ${message.channel.type === 1 ? 'DM' : '#' + message.channel.name}`);
     message.channel.sendTyping();
-    
+
     // Process the message for intervention
-    await processMessageWithAI(message, message.content, null, true);
+    await processMessageWithAI(message, message.content, null, true, invocationId); // Pass ID
   } catch (error) {
-    logger.error(`Error handling intervention: ${error.stack}`);
+    logger.error(`[${invocationId}] Error handling intervention: ${error.stack}`);
   }
 }
 
-async function processMessageWithAI(message, cleanContent, searchResults = null, isIntervention = false) {
-  try {
-    // --- Add check for empty cleanContent --- 
-    if (!cleanContent || cleanContent.trim() === '') {
-        logger.warn('[processMessageWithAI] cleanContent is empty, skipping AI processing.');
-        // Optionally send a message back to the user
-        // await message.reply('メッセージの内容が見当たりませんでした。');
-        return; 
-    }
-    // --- End check --- 
+async function processMessageWithAI(message, cleanContent, searchResults = null, isIntervention = false, invocationId = 'N/A') {
+  // Prepend invocationId to logs within this function
+  const idLog = `[${invocationId}]`;
 
-    // デバッグログ：AI処理開始
-    logger.debug(`AI処理開始: ${isIntervention ? '介入モード' : '通常モード'}`);
-    
-    // Exit if no AI service is set
+  try {
+    if (!cleanContent || cleanContent.trim() === '') {
+        logger.warn(`${idLog} [processMessageWithAI] cleanContent is empty, skipping AI processing.`);
+        return;
+    }
+
+    logger.debug(`${idLog} AI Processing Start: ${isIntervention ? 'Intervention Mode' : 'Normal Mode'}`);
+
     if (!aiService) {
-      logger.error('No AI service set in message handler');
+      logger.error(`${idLog} No AI service set in message handler`);
       await message.reply('申し訳ありませんが、AIサービスに接続できません。しばらく経ってからお試しください。');
       return;
     }
-    
-    logger.debug(`AIサービス: ${aiService ? '設定済み' : '未設定'}`);
-    
-    // Set up message context
+
+    logger.debug(`${idLog} AI Service: ${aiService ? 'Set' : 'Not Set'}`);
+
     const messageContext = {
       userId: message.author.id,
       username: message.author.username,
@@ -163,10 +163,11 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
       guildName: message.guild?.name,
       message: cleanContent,
       contextType: isIntervention ? 'intervention' : (message.channel.type === 1 ? 'direct_message' : 'channel'),
-      isIntervention: isIntervention
+      isIntervention: isIntervention,
+      invocationId: invocationId // Add invocationId to context if needed downstream
     };
     
-    logger.debug(`メッセージコンテキスト生成: ${JSON.stringify(messageContext)}`);
+    logger.debug(`${idLog} Message context generated: ${JSON.stringify(messageContext).substring(0, 200)}...`); // Shorten potentially long log
     
     // Get conversation history if memory is enabled
     let conversationHistory = [];
@@ -176,9 +177,9 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
           messageContext.channelId, 
           10
         );
-        logger.debug(`Retrieved ${conversationHistory.length} history items`);
+        logger.debug(`${idLog} Retrieved ${conversationHistory.length} history items`);
       } catch (err) {
-        logger.error(`Error getting conversation history: ${err.message}`);
+        logger.error(`${idLog} Error getting conversation history: ${err.message}`);
       }
     }
     
@@ -189,10 +190,10 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
         const ragSystem = getRAGSystem();
         if (ragSystem) {
           ragResults = await ragSystem.query(cleanContent);
-          logger.debug('RAG results retrieved successfully');
+          logger.debug(`${idLog} RAG results retrieved successfully`);
         }
       } catch (err) {
-        logger.error(`Error getting RAG results: ${err.message}`);
+        logger.error(`${idLog} Error getting RAG results: ${err.message}`);
       }
     }
     
@@ -200,7 +201,7 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
     if (searchResults) {
       // 検索結果の全体をコンテキストに設定
       messageContext.searchResults = searchResults;
-      logger.debug(`検索結果をコンテキストに追加: ${searchResults.summary?.substring(0, 50)}...`);
+      logger.debug(`${idLog} Search results added to context: ${searchResults.summary?.substring(0, 50)}...`);
       
       // クエリタイプに関する情報も別途設定
       if (searchResults.queryType) {
@@ -233,27 +234,27 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
     
     if (ragResults) {
       messageContext.ragResults = ragResults;
-      logger.debug('RAG結果をコンテキストに追加');
+      logger.debug(`${idLog} RAG results added to context`);
     }
     
     if (conversationHistory && conversationHistory.length > 0) {
       messageContext.conversationHistory = conversationHistory;
-      logger.debug(`会話履歴をコンテキストに追加: ${conversationHistory.length}件`);
+      logger.debug(`${idLog} Conversation history added to context: ${conversationHistory.length} items`);
     }
     
     // AI応答を取得 - 抽象化レイヤーを使用
-    logger.debug('AIサービスにリクエスト送信');
+    logger.debug(`${idLog} Sending request to AI service`);
     const aiResponse = await aiService.getResponse(messageContext);
-    logger.debug(`AI応答受信: ${aiResponse ? aiResponse.substring(0, 50) + '...' : '応答なし'}`);
+    logger.debug(`${idLog} Received AI response: ${aiResponse ? aiResponse.substring(0, 50) + '...' : 'No response'}`);
     
     // Send response back to Discord
     if (aiResponse && aiResponse.trim()) {
       const chunks = chunkMessage(aiResponse);
-      logger.debug(`応答を${chunks.length}個のチャンクに分割`);
+      logger.debug(`${idLog} Answer split into ${chunks.length} chunks`);
       
       for (const chunk of chunks) {
         await message.reply(chunk);
-        logger.debug('応答送信完了');
+        logger.debug(`${idLog} Answer sent`);
       }
       
       // Store the conversation in memory if enabled
@@ -265,21 +266,21 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
             cleanContent,
             aiResponse
           );
-          logger.debug('会話履歴を保存');
+          logger.debug(`${idLog} Conversation history saved`);
         } catch (err) {
-          logger.error(`Error storing conversation: ${err.message}`);
+          logger.error(`${idLog} Error storing conversation: ${err.message}`);
         }
       }
     } else {
-      logger.warn('AIから空の応答を受信');
+      logger.warn(`${idLog} AI returned empty response`);
       await message.reply('申し訳ありません、応答を生成できませんでした。別の質問をお試しください。');
     }
   } catch (error) {
-    logger.error(`AI処理エラー: ${error.stack}`);
+    logger.error(`${idLog} Error in processMessageWithAI: ${error.stack}`);
     try {
       await message.reply('申し訳ありませんが、応答の処理中にエラーが発生しました。しばらく経ってからお試しください。');
     } catch (replyError) {
-      logger.error(`返信エラー: ${replyError.message}`);
+      logger.error(`${idLog} Reply error: ${replyError.message}`);
     }
   }
 }
@@ -347,7 +348,7 @@ function formatConversationHistoryForPrompt(conversationHistory, messageContext,
     conversationHistory.forEach(item => {
       // roleが'user'または'assistant'以外の場合、ログを出力してスキップ
       if (item.role !== 'user' && item.role !== 'assistant') {
-        logger.warn(`会話履歴に不明なroleが含まれています: ${item.role}`);
+        logger.warn(`${idLog} Conversation history contains unknown role: ${item.role}`);
         return; // 不明なroleはスキップ
       }
       const speaker = item.role === 'user' ? messageContext.username : character.name;
