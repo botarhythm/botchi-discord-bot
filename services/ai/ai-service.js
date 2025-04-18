@@ -177,54 +177,81 @@ async function performSearch(query) {
  */
 async function getResponseWithSearch(context) {
   const { message } = context;
-  
+  let searchContext = ''; // AIに渡す検索関連コンテキスト
+  let searchSuccess = false;
+  let searchErrorType = null;
+
   try {
-    // 検索を実行
-    const searchResult = await performSearch(message);
+    // 検索を実行 (provideSearchForAIを使うように修正)
+    const searchResult = await searchService.provideSearchForAI(message);
+    searchSuccess = searchResult && !searchResult.error; // エラーがない場合に成功とみなす
+    searchErrorType = searchResult?.errorType || null;
     
-    // 検索が成功した場合
-    if (searchResult.success) {
-      // 検索結果を含めたプロンプトを作成
-      const searchContext = `
-以下は「${message}」という質問に関する検索結果です：
+    if (searchSuccess) {
+      // 検索成功: 結果を整形してコンテキストに追加
+      if (searchResult.summary && searchResult.sources) {
+        searchContext = `
+以下は「${searchResult.query || message}」という質問に関するWeb検索結果です。これを最優先の情報源として回答を生成してください。
 
-${searchResult.content}
+### 検索結果の要約:
+${searchResult.summary}
 
-出典：
-${searchResult.sourcesList || '(出典情報なし)'}
+### 参照ソース:
+${searchResult.sources}
 
-上記の検索結果を参考にして、ユーザーの質問に答えてください。必ず情報源を引用し、出典を明記してください。
-検索結果にない情報は推測せず、わからないことははっきりとその旨を伝えてください。
+上記の検索結果に基づいて、ユーザーの質問に具体的に答えてください。情報源を適切に引用・要約し、検索結果にない情報は推測しないでください。
 `;
-      
-      // 検索結果を含むコンテキストを作成
-      const searchEnhancedContext = {
-        ...context,
-        searchResults: searchResult, // 成功した結果を渡す
-        additionalContext: searchContext
-      };
-      
-      // 拡張コンテキストでAI応答を取得
-      logger.debug('検索結果を含めてAI応答を取得します');
-      return getResponse(searchEnhancedContext);
-    }
-    // 検索が失敗した場合
-    else {
-      // レート制限エラーの場合、専用メッセージを返して終了
-      if (searchResult.error === 'RATE_LIMITED') {
-        logger.warn('検索APIレート制限のため、処理を中断します。');
-        return searchResult.content; // レート制限メッセージを返す
+        logger.debug('検索結果をAIコンテキストに追加しました。');
+      } else {
+        searchContext = `
+「${searchResult.query || message}」についてWeb検索を行いましたが、関連性の高い情報は見つかりませんでした。検索結果には頼らず、あなたの知識に基づいて回答してください。
+`;
+        logger.debug('検索結果が空のため、その旨をAIコンテキストに追加しました。');
       }
-      // その他の検索エラーの場合、通常の応答にフォールバック
-      else {
-        logger.warn(`検索に失敗 (${searchResult.error}) したため、通常の応答を返します`);
-        return getResponse(context); // 検索結果なしでAI応答を試みる
+    } else {
+      // 検索失敗
+      logger.warn(`検索に失敗しました。Error: ${searchResult.error || '不明'}, Type: ${searchErrorType || '不明'}`);
+      if (searchErrorType === 'RATE_LIMITED') {
+        searchContext = `
+Web検索機能を利用しようとしましたが、一時的なAPI利用制限のため情報を取得できませんでした。この状況をユーザーに伝えた上で、検索結果には頼らず、あなたの知識の範囲で質問に答えてください。
+`;
+        logger.warn('検索APIレート制限のため、AIには検索不可で応答するよう指示します。');
+      } else {
+        searchContext = `
+Web検索を試みましたが、技術的な問題により失敗しました。検索結果には頼らず、あなたの知識に基づいてユーザーの質問に答えてください。
+`;
+        logger.warn(`検索エラー(${searchErrorType || '不明'})のため、AIには検索不可で応答するよう指示します。`);
       }
+      // 失敗した場合でも、エラーメッセージ自体を応答として返すわけではない
+      // AIにフォールバック応答を生成させる
     }
+
+    // 検索コンテキストを含む拡張コンテキストを作成
+    const enhancedContext = {
+      ...context,
+      searchInfo: { // searchResults を searchInfo に変更し、より詳細な情報を持たせる
+          performed: true,
+          success: searchSuccess,
+          errorType: searchErrorType,
+          query: searchResult?.query || message
+      },
+      additionalContext: searchContext // AIへの指示を含む
+    };
+    
+    // 拡張コンテキストでAI応答を取得
+    logger.debug(`AI応答生成を呼び出します (検索成功: ${searchSuccess}, エラータイプ: ${searchErrorType})`);
+    return getResponse(enhancedContext); // getResponseに処理を委譲
+
   } catch (error) {
-    logger.error(`検索+AI応答取得中の予期せぬエラー: ${error.message}`, error);
-    // 予期せぬエラーの場合は通常の応答にフォールバック
-    return getResponse(context);
+    logger.error(`getResponseWithSearch 内で予期せぬエラー: ${error.message}`, error);
+    // 予期せぬエラーの場合は、検索なしでAI応答を試みる
+    logger.warn('予期せぬエラーのため、検索なしでAI応答を試みます。');
+    const fallbackContext = {
+        ...context,
+        searchInfo: { performed: false }, // 検索が実行されなかったことを示す
+        additionalContext: '\n(内部エラーによりWeb検索は実行できませんでした。知識のみで回答してください)\n'
+    };
+    return getResponse(fallbackContext);
   }
 }
 
@@ -248,137 +275,6 @@ function isSearchQuery(message) {
   ];
   
   return searchPatterns.some(pattern => pattern.test(message));
-}
-
-/**
- * AI応答を取得
- * @param {Object} context - リクエストコンテキスト
- * @returns {Promise<string>} AI応答
- */
-async function getResponse(context) {
-  try {
-    // 日時関連の質問かチェック
-    const isDateTimeRelated = isDateTimeQuestion(context.message);
-    
-    // 検索クエリかチェック
-    const needsSearch = isSearchQuery(context.message);
-    
-    // 日時関連または検索クエリの場合
-    if (needsSearch) {
-      logger.debug(`検索が必要なクエリと判断: "${context.message}"`);
-      return getResponseWithSearch(context);
-    }
-    
-    // OpenAI APIキーを取得 (process.envから)
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      logger.error('OpenAI APIキーが環境変数に設定されていません');
-      return '申し訳ありません、AI機能が現在利用できません。';
-    }
-    
-    // APIモデルを取得 (process.envから)
-    const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-    // API URLを取得 (process.envから)
-    const apiUrl = process.env.OPENAI_ENDPOINT || 'https://api.openai.com/v1/chat/completions';
-    
-    logger.debug(`OpenAI API呼び出し: モデル=${model}`);
-    
-    // 追加コンテキストがある場合は含める
-    const additionalContextText = context.additionalContext || '';
-    
-    // システムプロンプトを作成
-    const systemPrompt = `あなたは「Bocchy（ボッチー）」という名前のAIアシスタントです。
-静かでやわらかく、詩のような語り口をもち、深い知識と経験に基づいた回答をします。
-現在の日本時間は ${new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })} です。`;
-    
-    // メッセージ配列を作成
-    const messages = [
-      { role: 'system', content: systemPrompt }
-    ];
-    
-    // 追加コンテキストがある場合は含める
-    if (additionalContextText) {
-      messages.push({ 
-        role: 'system', 
-        content: additionalContextText 
-      });
-    }
-    
-    // ユーザーメッセージを追加
-    messages.push({
-      role: 'user',
-      content: context.message
-    });
-    
-    // OpenAI APIリクエストの作成
-    const requestBody = {
-      model: model,
-      messages: messages,
-      temperature: 0.7,
-      max_tokens: 1000
-    };
-    
-    // OpenAI APIを呼び出し
-    logger.debug('[Bocchy] OpenAI API呼び出し開始');
-    const startTime = Date.now();
-    
-    const response = await axios.post(apiUrl, requestBody, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      timeout: 30000 // 30秒でタイムアウト
-    });
-    
-    const duration = Date.now() - startTime;
-    logger.debug(`[Bocchy] 応答完了 in ${duration}ms`);
-    
-    // レスポンスからテキストを抽出
-    if (response.data && 
-        response.data.choices && 
-        response.data.choices.length > 0 && 
-        response.data.choices[0].message &&
-        response.data.choices[0].message.content) {
-      
-      const responseText = response.data.choices[0].message.content.trim();
-      
-      // 日時関連の質問の場合、現在の日本時間を確認
-      if (isDateTimeRelated && !responseText.includes(new Date().getFullYear())) {
-        const now = new Date();
-        const japanTime = now.toLocaleString('ja-JP', { 
-          timeZone: 'Asia/Tokyo',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          weekday: 'long' 
-        });
-        
-        return `今日は${japanTime}です🌿\n\n${responseText}`;
-      }
-      
-      return responseText;
-    }
-    
-    logger.warn('OpenAI APIから有効な応答が得られませんでした');
-    return '申し訳ありません、応答の取得に失敗しました。もう一度お試しください。';
-  } catch (error) {
-    logger.error(`AI応答取得エラー: ${error.message}`);
-    
-    // エラータイプに基づいたメッセージ
-    if (error.response) {
-      logger.error(`API応答エラー: ${error.response.status} - ${JSON.stringify(error.response.data)}`);
-      
-      if (error.response.status === 401) {
-        return '申し訳ありません、APIの認証に失敗しました。管理者に連絡してください。';
-      } else if (error.response.status === 429) {
-        return '申し訳ありません、APIのレート制限に達しました。しばらく経ってからもう一度お試しください。';
-      }
-    } else if (error.code === 'ECONNABORTED') {
-      return '申し訳ありません、応答がタイムアウトしました。しばらく経ってからもう一度お試しください。';
-    }
-    
-    return '申し訳ありません、処理中にエラーが発生しました。しばらく経ってからもう一度お試しください。';
-  }
 }
 
 /**

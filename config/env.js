@@ -24,23 +24,17 @@ const RAG_ENABLED = process.env.RAG_ENABLED === 'true';
 // 日時表示設定 - DMと通常チャンネルの一貫性確保用
 const SHOW_DATETIME = process.env.SHOW_DATETIME === 'true';
 
-// Web検索API設定 - BRAVE_API_KEYに統一
-// 環境変数から直接読み込み、APIキーが存在すればその値を使用
-// APIキーは 'BSA' で始まる32文字程度の文字列
-const BRAVE_API_KEY = process.env.BRAVE_API_KEY || 
-                      process.env.BRAVE_SEARCH_API_KEY || 
-                      'BSAThZH8RcPF6tqem02e4zuVp1j9Yja'; // フォールバック値
+// Google Search API設定
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || ''; // 環境変数から読み込み
+const GOOGLE_CSE_ID = process.env.GOOGLE_CSE_ID || ''; // 環境変数から読み込み
 
 // Web検索機能の有効/無効設定
-// 明示的に'false'と設定された場合のみ無効に、それ以外はデフォルトで有効
-const BRAVE_SEARCH_ENABLED = process.env.BRAVE_SEARCH_ENABLED === 'false' ? false : true;
-
-// 後方互換性のため両方の変数を保持
-const SEARCH_ENABLED = BRAVE_SEARCH_ENABLED;
+// APIキーとCSE IDの両方が設定されている場合に有効
+const SEARCH_ENABLED = !!(GOOGLE_API_KEY && GOOGLE_CSE_ID);
 
 // 設定のデバッグログ（デバッグモード時のみ）
 if (process.env.DEBUG === 'true') {
-  console.log(`[ENV] Web検索 API設定: BRAVE_API_KEY=${Boolean(BRAVE_API_KEY)}, BRAVE_SEARCH_ENABLED=${BRAVE_SEARCH_ENABLED}`);
+  console.log(`[ENV] Web検索 API設定: GOOGLE_API_KEY=${Boolean(GOOGLE_API_KEY)}, GOOGLE_CSE_ID=${Boolean(GOOGLE_CSE_ID)}, SEARCH_ENABLED=${SEARCH_ENABLED}`);
 }
 
 // デバッグモード
@@ -85,8 +79,8 @@ module.exports = {
   RAG_ENABLED,
   
   // 検索API設定
-  BRAVE_API_KEY,
-  BRAVE_SEARCH_ENABLED,
+  GOOGLE_API_KEY,
+  GOOGLE_CSE_ID,
   SEARCH_ENABLED,
   
   // 日時表示設定

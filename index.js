@@ -17,17 +17,16 @@ const syncUtil = require('./local-sync-utility');
 // ロガーを初期化
 const logger = syncUtil.safeRequire('./system/logger', syncUtil.createSimpleLogger());
 
-// 設定を読み込み
+// 設定を読み込み (./config/env.js に依存)
 const config = syncUtil.safeRequire('./config/env', {
-  INTERVENTION_MODE: process.env.INTERVENTION_MODE || 'balanced',
-  INTERVENTION_KEYWORDS: (process.env.INTERVENTION_KEYWORDS || 'ボッチー,Bocchy,ボット,Bot').split(','),
-  INTERVENTION_COOLDOWN: parseInt(process.env.INTERVENTION_COOLDOWN || '60', 10),
-  AI_PROVIDER: process.env.AI_PROVIDER || 'openai',
-  DM_MESSAGE_HANDLER: process.env.DM_MESSAGE_HANDLER || 'legacy',
-  DEBUG: process.env.DEBUG === 'true',
-  BOT_VERSION: '1.3.5', // 安定性改善版
-  GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
-  GOOGLE_CSE_ID: process.env.GOOGLE_CSE_ID
+  // 必須ではない設定のフォールバックのみ記述
+  INTERVENTION_MODE: 'balanced',
+  INTERVENTION_KEYWORDS: ['ボッチー','Bocchy','ボット','Bot'],
+  INTERVENTION_COOLDOWN: 60,
+  AI_PROVIDER: 'openai',
+  DM_MESSAGE_HANDLER: 'legacy',
+  DEBUG: false,
+  BOT_VERSION: '1.3.5'
 });
 
 // Bocchyのバージョン情報を表示
@@ -38,9 +37,9 @@ logger.info(`Context intervention mode: ${config.INTERVENTION_MODE || 'balanced'
 logger.info(`Running environment: ${syncUtil.isRailwayEnvironment ? 'Railway' : 'Local'}`);
 logger.info(`Application root: ${syncUtil.appRoot}`);
 
-// 検索API機能の状態確認
+// 検索API機能の状態確認 (config から直接参照)
 if (config.GOOGLE_API_KEY && config.GOOGLE_CSE_ID) {
-  logger.info(`Google Search API is configured (key: ${config.GOOGLE_API_KEY.substring(0, 3)}..., CSE ID: ${config.GOOGLE_CSE_ID.substring(0, 3)}...)`);
+  logger.info(`Google Search API is configured (key: ${String(config.GOOGLE_API_KEY).substring(0, 3)}..., CSE ID: ${String(config.GOOGLE_CSE_ID).substring(0, 3)}...)`);
 } else {
   logger.warn('Google Search API is not configured - search functionality will be disabled');
 }
