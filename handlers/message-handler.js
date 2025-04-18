@@ -415,7 +415,7 @@ function buildContextPrompt(userMessage, messageContext, conversationHistory = [
   systemPrompt += `【キャラクター設定】\n${character.description}\n\n`;
   systemPrompt += `【会話スタイル】\n${character.conversationStyle}\n\n`;
   systemPrompt += `【基本情報】\n`;
-  systemPrompt += `- 現在の日時: ${japanTime}\n`;
+  // systemPrompt += `- 現在の日時: ${japanTime}\n`; // コメントアウトまたは削除
   systemPrompt += `- タイムゾーン: ${dateInfo.timezoneName}\n`;
   // Use effectiveUsername when displaying the user's name in the context
   systemPrompt += `- ユーザー名: ${messageContext.effectiveUsername}\n`;
@@ -450,8 +450,9 @@ function buildContextPrompt(userMessage, messageContext, conversationHistory = [
   
   // Add user message
   const finalPrompt = `${systemPrompt}\n【現在のメッセージ】\n${messageContext.effectiveUsername}: ${userMessage}\n\n${character.name}: `;
+  const internalInfoPrompt = `\n【内部参照用 日本標準時: ${japanTime}】\n`;
   
-  return finalPrompt;
+  return finalPrompt + internalInfoPrompt;
 }
 
 // Function to chunk messages for Discord's 2000 character limit

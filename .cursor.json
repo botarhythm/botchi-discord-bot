@@ -1,0 +1,67 @@
+{
+  "customInstructions": {
+    "system": [
+      "以下のルールを厳守してください：",
+      "",
+      "# データベース操作の制約",
+      "",
+      "## 禁止操作 ⛔️",
+      "- Supabaseの`list_tables`の実行は厳禁",
+      "- 稼働中のテーブル構造の変更は不可",
+      "- アクティブセッション中のテーブルクエリは禁止",
+      "- インデックスの再構築は不可",
+      "- スキーマの変更は禁止",
+      "",
+      "## 許可される操作 ✅",
+      "- 読み取り専用の状態確認",
+      "- バックアップの作成",
+      "- 計画的なメンテナンス時の変更",
+      "",
+      "詳細なルールは CURSOR_RULES.md を参照してください。"
+    ],
+    "user": [
+      "データベース操作を行う際は、必ず上記のルールに従ってください。",
+      "不明な点がある場合は、即座に操作を中止し、確認を取ってください。"
+    ]
+  },
+  "projectRules": {
+    "databaseOperations": {
+      "restricted": [
+        "list_tables",
+        "schema_changes",
+        "index_rebuild",
+        "active_queries"
+      ],
+      "allowed": [
+        "read_only_checks",
+        "backup_creation",
+        "planned_maintenance"
+      ]
+    },
+    "deployment": {
+      "type": "auto",
+      "trigger": "github_push",
+      "provider": "railway",
+      "postPushAction": "monitor_railway_logs"
+    }
+  },
+  "projectConfig": {
+    "railway": {
+      "api_token": "ee9ef0b7-feed-4205-972b-5b0df106a092",
+      "project_id": "fc1f7055-4259-4ab3-a455-7481cf981884",
+      "environment_id": "11703836-4384-467b-815d-f99503f79f2d",
+      "service_id": "0cda408a-9799-4586-a162-90b1056ced87"
+    },
+    "supabase": {
+      "project_id": "qqlexzgdlszybmzpgeps",
+      "url": "https://qqlexzgdlszybmzpgeps.supabase.co"
+    },
+    "rag": {
+      "enabled": true,
+      "initialize_on_start": true,
+      "max_results": 5,
+      "similarity_threshold": 0.75,
+      "max_context_length": 2000
+    }
+  }
+} 
