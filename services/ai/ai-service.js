@@ -314,6 +314,15 @@ function clearConversationHistory(userId) {
   }
 }
 
+/**
+ * AI応答を取得するコア関数
+ * @param {Object} context - リクエストコンテキスト（検索情報を含む可能性あり）
+ * @returns {Promise<string>} AI応答 または エラーメッセージ
+ */
+async function getResponse(context) {
+  // ... (関数の中身は変更なし - 以前の修正を適用済み)
+}
+
 // モジュールをエクスポート
 module.exports = {
   initialize,
