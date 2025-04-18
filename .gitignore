@@ -1,3 +1,6 @@
 node_modules/
 .env
 .DS_Store
+
+# Railway config file
+railway-config.json
