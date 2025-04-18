@@ -270,3 +270,73 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
+
+// 必要なモジュールを読み込み
+const searchService = require('./extensions/search-service');
+
+/**
+ * ボットの初期化処理
+ */
+async function initializeBot() {
+  try {
+    logger.info('Botchiを初期化中...');
+    
+    // 設定の読み込み
+    await config.loadConfig();
+    
+    // AIサービスの初期化
+    const aiInitResult = await aiService.initialize();
+    if (!aiInitResult) {
+      logger.error('AIサービスの初期化に失敗しました');
+    } else {
+      logger.info('AIサービスの初期化に成功しました');
+    }
+    
+    // 検索サービスの初期化
+    const searchInitResult = await searchService.initialize();
+    if (!searchInitResult) {
+      logger.warn('検索サービスの初期化に失敗しました。検索機能は無効です。');
+    } else {
+      logger.info('検索サービスの初期化に成功しました');
+    }
+    
+    // その他の初期化処理...
+    
+    logger.info('初期化完了');
+    return true;
+  } catch (error) {
+    logger.error(`初期化エラー: ${error.message}`);
+    return false;
+  }
+}
+
+/**
+ * メッセージ処理メイン関数
+ * @param {Object} messageData - メッセージデータ
+ * @returns {Promise<string>} 処理結果
+ */
+async function processMessage(messageData) {
+  try {
+    const { message, userId, username, channelId, channelName, guildId, guildName } = messageData;
+    
+    // メッセージコンテキストを作成
+    const context = {
+      userId,
+      username,
+      channelId,
+      channelName,
+      channelType: messageData.channelType || 0,
+      guildId,
+      guildName,
+      message,
+      contextType: messageData.contextType || 'message',
+      isIntervention: messageData.isIntervention || false
+    };
+    
+    // AIサービスに応答を依頼
+    return await aiService.getResponse(context);
+  } catch (error) {
+    logger.error(`メッセージ処理エラー: ${error.message}`);
+    return '申し訳ありません、処理中にエラーが発生しました。';
+  }
+}

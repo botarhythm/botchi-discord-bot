@@ -51,23 +51,27 @@ function encodeSearchQuery(query) {
 
 // Brave検索クライアントのインスタンス
 let braveClient = null;
+let isInitialized = false;
 
 /**
  * 検索サービスの初期化
  */
 function initialize() {
   try {
-    const apiKey = config.get('BRAVE_SEARCH_API_KEY');
+    const apiKey = config.get('BRAVE_SEARCH_API_KEY') || process.env.BRAVE_API_KEY;
     if (!apiKey) {
       logger.warn('Brave検索APIキーが設定されていません。検索機能は無効です。');
+      isInitialized = false;
       return false;
     }
     
     braveClient = new BraveSearchClient(apiKey);
     logger.info('検索サービスが初期化されました');
+    isInitialized = true;
     return true;
   } catch (error) {
     logger.error(`検索サービスの初期化に失敗しました: ${error.message}`);
+    isInitialized = false;
     return false;
   }
 }
@@ -211,6 +215,66 @@ function clearCache() {
 }
 
 /**
+ * 検索結果をキャッシュに保存する
+ * @param {string} query - 検索クエリ
+ * @param {Object} result - 検索結果
+ * @param {Object} options - 検索オプション
+ */
+function cacheSearchResult(query, result, options = {}) {
+  try {
+    const cacheKey = `${query}:${options.count || 5}:${options.language || 'jp'}`;
+    searchCache.set(cacheKey, {
+      timestamp: Date.now(),
+      data: result
+    });
+    logger.debug(`検索結果をキャッシュに保存: "${query}"`);
+    
+    // キャッシュサイズの管理（50件を超えた場合、古いものから削除）
+    if (searchCache.size > 50) {
+      const oldestKey = [...searchCache.entries()]
+        .sort((a, b) => a[1].timestamp - b[1].timestamp)[0][0];
+      searchCache.delete(oldestKey);
+      logger.debug(`古いキャッシュを削除: "${oldestKey}"`);
+    }
+  } catch (error) {
+    logger.warn(`検索結果のキャッシュに失敗: ${error.message}`);
+  }
+}
+
+/**
+ * キャッシュから検索結果を取得
+ * @param {string} query - 検索クエリ
+ * @param {Object} options - 検索オプション
+ * @returns {Object|null} キャッシュされた検索結果、または null
+ */
+function getFromCache(query, options = {}) {
+  try {
+    const cacheKey = `${query}:${options.count || 5}:${options.language || 'jp'}`;
+    
+    // キャッシュに存在しない場合
+    if (!searchCache.has(cacheKey)) {
+      return null;
+    }
+    
+    const cachedResult = searchCache.get(cacheKey);
+    
+    // キャッシュが有効期間内か確認
+    if (Date.now() - cachedResult.timestamp < CACHE_DURATION) {
+      logger.debug(`キャッシュからの検索結果を使用: "${query}"`);
+      return cachedResult.data;
+    }
+    
+    // 期限切れの場合は削除
+    logger.debug(`期限切れのキャッシュを削除: "${query}"`);
+    searchCache.delete(cacheKey);
+    return null;
+  } catch (error) {
+    logger.warn(`キャッシュ取得中にエラー: ${error.message}`);
+    return null;
+  }
+}
+
+/**
  * 検索を実行して結果を返す
  * @param {string} query - 検索クエリ
  * @param {Object} options - 検索オプション
@@ -331,7 +395,19 @@ async function performSearchNew(query) {
       safeSearch: queryAnalysis.safeSearch
     };
     
+    // キャッシュから検索結果を取得
+    const cachedResult = getFromCache(queryAnalysis.optimizedQuery, searchOptions);
+    if (cachedResult) {
+      logger.info(`キャッシュから検索結果を使用: "${queryAnalysis.optimizedQuery}"`);
+      return processResults(
+        cachedResult,
+        queryAnalysis.queryType,
+        queryAnalysis.originalQuery
+      );
+    }
+    
     // 検索実行
+    logger.info(`検索実行: "${queryAnalysis.optimizedQuery}"`);
     const searchResponse = await braveClient.search(queryAnalysis.optimizedQuery, searchOptions);
     
     if (!searchResponse || !searchResponse.results) {
@@ -341,6 +417,9 @@ async function performSearchNew(query) {
         message: '検索結果の取得に失敗しました。'
       };
     }
+    
+    // 結果をキャッシュに保存
+    cacheSearchResult(queryAnalysis.optimizedQuery, searchResponse, searchOptions);
     
     // 検索結果を処理
     const processedResults = processResults(
@@ -393,5 +472,6 @@ module.exports = {
   processSearchResults,
   initialize,
   performSearchNew,
-  provideSearchForAI
+  provideSearchForAI,
+  isInitialized: () => isInitialized
 };
