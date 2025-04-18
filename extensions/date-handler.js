@@ -19,7 +19,8 @@ class DateHandler {
    * @returns {DateTime} 日本時間のDateTimeオブジェクト
    */
   getCurrentJapanTime() {
-    return DateTime.now().setZone(this.japanTimeZone);
+    // 正確に日本時間を取得するためにUTCから変換
+    return DateTime.utc().plus({ hours: 9 });
   }
 
   /**
@@ -28,7 +29,8 @@ class DateHandler {
    * @returns {Object} 整形された日付情報
    */
   formatDateForAI(date) {
-    const japanTime = date.setZone(this.japanTimeZone);
+    // 確実にJSTに変換
+    const japanTime = date.toUTC().plus({ hours: 9 });
     return {
       year: japanTime.year,
       month: japanTime.month,
@@ -65,7 +67,7 @@ class DateHandler {
    * @returns {string} フォーマットされた日付文字列
    */
   getFormattedDateString(date = null) {
-    const japanTime = date ? date.setZone(this.japanTimeZone) : this.getCurrentJapanTime();
+    const japanTime = date || this.getCurrentJapanTime();
     return `${japanTime.year}年${japanTime.month}月${japanTime.day}日(${japanTime.weekdayLong})`;
   }
 
@@ -75,7 +77,7 @@ class DateHandler {
    * @returns {string} フォーマットされた時間文字列
    */
   getFormattedTimeString(date = null) {
-    const japanTime = date ? date.setZone(this.japanTimeZone) : this.getCurrentJapanTime();
+    const japanTime = date || this.getCurrentJapanTime();
     const hour = japanTime.hour;
     const minute = japanTime.minute;
     const period = hour < 12 ? '午前' : '午後';
