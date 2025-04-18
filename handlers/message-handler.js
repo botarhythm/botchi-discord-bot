@@ -358,21 +358,12 @@ function formatConversationHistoryForPrompt(conversationHistory, messageContext,
 }
 
 function buildContextPrompt(userMessage, messageContext, conversationHistory = [], searchResults = null, ragResults = null) {
-  // Get current time in Japan
-  const now = new Date();
-  const japanTime = new Intl.DateTimeFormat('ja-JP', {
-    timeZone: 'Asia/Tokyo',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-    hour: 'numeric',
-    minute: 'numeric',
-    hour12: false
-  }).format(now);
+  // Get current time in Japan using the date handler
+  const dateInfo = dateHandler.formatDateForAI(dateHandler.getCurrentJapanTime());
+  const japanTime = dateHandler.getFormattedDateTimeString();
   
   // Time-based greeting
-  const hour = now.getHours();
+  const hour = dateInfo.hour;
   let timeGreeting = '';
   
   if (hour >= 5 && hour < 12) {
