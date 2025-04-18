@@ -175,7 +175,7 @@ if (process.env.RAG_ENABLED === 'true') {
 
 // 1. AIサービスモジュールを読み込み
 logger.info('Loading AI service module...');
-const aiService = syncUtil.safeRequire('./ai-service', {
+const aiService = syncUtil.safeRequire('./services/ai/ai-service.js', {
   initialize: () => Promise.reject(new Error('AI service module not found')),
   getResponse: () => Promise.reject(new Error('AI service not initialized')),
   checkHealth: () => Promise.reject(new Error('AI service health check failed'))
