@@ -1,10 +1,10 @@
 /**
- * 検索ハンドラー - Brave Searchを使用したウェブ検索機能
+ * 検索ハンドラー - Google Search APIを使用したウェブ検索機能
  * 
  * @module handlers/search-handler
  */
 
-const braveSearch = require('../core/search/brave-search');
+const searchService = require('../extensions/search-service');
 const logger = require('../system/logger');
 const config = require('../config/env');
 
@@ -95,9 +95,8 @@ function isSearchEnabled() {
   const enabled = config.SEARCH_ENABLED !== false;
   
   // APIキーが設定されているかどうかも確認
-  const apiKeyStatus = Boolean(process.env.BRAVE_API_KEY || 
-                              process.env.BRAVE_SEARCH_API_KEY || 
-                              config.BRAVE_API_KEY);
+  const apiKeyStatus = Boolean(process.env.GOOGLE_API_KEY && 
+                               process.env.GOOGLE_CSE_ID);
                            
   // APIキーが設定されていなければ機能は無効
   const isAvailable = enabled && apiKeyStatus;
@@ -107,17 +106,16 @@ function isSearchEnabled() {
     logger.debug(`検索機能ステータス: ${isAvailable ? '有効' : '無効'} (機能スイッチ: ${enabled ? 'ON' : 'OFF'}, APIキー: ${apiKeyStatus ? '設定済み' : '未設定'})`);
     
     // APIキーのソースを診断
-    const keySource = process.env.BRAVE_API_KEY ? 'process.env.BRAVE_API_KEY' : 
-                     process.env.BRAVE_SEARCH_API_KEY ? 'process.env.BRAVE_SEARCH_API_KEY' : 
-                     config.BRAVE_API_KEY ? 'config.BRAVE_API_KEY' : 'なし';
+    const keySource = process.env.GOOGLE_API_KEY ? 'process.env.GOOGLE_API_KEY' : 'なし';
+    const cseIdSource = process.env.GOOGLE_CSE_ID ? 'process.env.GOOGLE_CSE_ID' : 'なし';
     
     // 環境変数の状態も詳細に出力
-    logger.debug(`環境変数: BRAVE_SEARCH_ENABLED=${process.env.BRAVE_SEARCH_ENABLED || 'undefined'}, config.BRAVE_SEARCH_ENABLED=${config.BRAVE_SEARCH_ENABLED}`);
-    logger.debug(`APIキー状態: ソース=${keySource}, キー長=${config.BRAVE_API_KEY ? config.BRAVE_API_KEY.length : 0}文字`);
+    logger.debug(`環境変数: SEARCH_ENABLED=${process.env.SEARCH_ENABLED || 'undefined'}, config.SEARCH_ENABLED=${config.SEARCH_ENABLED}`);
+    logger.debug(`APIキー状態: キーソース=${keySource}, CSE IDソース=${cseIdSource}`);
     
     // APIキーが設定されていないときの警告
     if (!apiKeyStatus) {
-      logger.warn('Brave Search APIキーが設定されていないため、検索機能は使用できません');
+      logger.warn('Google Search APIキーまたはCSE IDが設定されていないため、検索機能は使用できません');
     }
   }
   
@@ -461,123 +459,94 @@ function isLocalSearchQuery(query) {
 /**
  * メッセージを処理して検索を実行する
  * @param {Object} message Discordメッセージオブジェクト
- * @returns {Promise<Object|null>} 検索結果またはnull
+ * @returns {Promise<Object>} 検索結果
  */
 async function processMessage(message) {
-  if (!message || !message.content) {
-    return null;
-  }
-  
-  // メッセージから検索トリガーを検出
-  const triggerInfo = detectSearchTrigger(message.content);
-  
-  if (!triggerInfo) {
-    return null; // 検索トリガーが見つからない場合
-  }
-  
-  // 検索クライアントのインスタンスを取得
-  let clientInstance;
-  try {
-    // braveSearch モジュールがクラスコンストラクタや getInstance をエクスポートしているか確認が必要
-    // ここでは getInstance が存在すると仮定
-    if (typeof braveSearch.getInstance === 'function') {
-        clientInstance = braveSearch.getInstance();
-    } else if (typeof braveSearch === 'function') { 
-        // もし braveSearch が直接クラスなら new でインスタンス化 (要APIキー)
-        // このケースはAPIキーの渡し方によるため、一旦保留。getInstance優先。
-        // const apiKey = config.get('BRAVE_SEARCH_API_KEY'); 
-        // clientInstance = new braveSearch(apiKey);
-        logger.warn('braveSearch is likely a class, but getInstance() is preferred. Check brave-search.js export structure.');
-        // 仮にモジュール自体がインスタンスの場合 (シングルトンエクスポート)
-        if(typeof braveSearch.search === 'function') { // Check if it has search method directly
-             clientInstance = braveSearch;
-        } else {
-             throw new Error('Cannot determine how to get Brave Search client instance.');
-        }
-    } else if (typeof braveSearch.search === 'function') { 
-         // モジュールが直接インスタンスをエクスポートしている場合
-         clientInstance = braveSearch;
-    } else {
-        throw new Error('Cannot determine how to get Brave Search client instance from the imported module.');
-    }
-    
-  } catch (error) {
-    logger.error(`Brave Search クライアントの取得に失敗: ${error.message}`);
+  // 検索機能が有効かチェック
+  if (!isSearchEnabled()) {
+    logger.warn('検索機能が無効なため検索を実行できません');
     return {
       success: false,
-      error: `Brave Search client initialization failed: ${error.message}`,
-      results: []
+      error: '検索機能が現在利用できません',
+      message: '申し訳ありませんが、検索機能は現在ご利用いただけません。設定を確認してください。'
     };
   }
-  
-  // 取得したインスタンスの準備ができているか確認
-  if (!clientInstance || typeof clientInstance.isReady !== 'function' || !clientInstance.isReady()) {
-    logger.warn('Search was triggered but Brave Search client instance is not ready or configured.');
-    // isReadyがない、またはfalseの場合のエラー詳細
-    if (!clientInstance) logger.warn('Client instance could not be obtained.');
-    else if (typeof clientInstance.isReady !== 'function') logger.warn('clientInstance.isReady is not a function.');
-    else logger.warn('clientInstance.isReady() returned false.');
-    
-    return {
-      success: false,
-      error: 'Brave Search client is not ready or not configured properly',
-      results: []
-    };
-  }
-  
+
   try {
-    // 検索タイプを判定（ローカル検索か通常検索か）
-    const isLocal = isLocalSearchQuery(triggerInfo.query);
+    // 検索トリガーを検出
+    const content = message.content;
+    const triggerResult = detectSearchTrigger(content);
     
-    // タイピング表示を送信（長い検索の場合）
-    if (message.channel && typeof message.channel.sendTyping === 'function') {
-      await message.channel.sendTyping();
+    if (!triggerResult) {
+      logger.debug(`検索トリガーが検出されませんでした: "${content}"`);
+      return null;
     }
     
-    // 検索を実行 (インスタンスを使用)
-    let searchResult;
-    if (isLocal) {
-      if (config.DEBUG) {
-        logger.debug(`ローカル検索を実行: "${triggerInfo.query}"`);
-      }
-      searchResult = await clientInstance.localSearch(triggerInfo.query); 
-      logger.debug(`[processMessage] Local search result: ${JSON.stringify(searchResult)}`);
-    } else {
-      if (config.DEBUG) {
-        logger.debug(`ウェブ検索を実行: "${triggerInfo.query}"`);
-      }
-      searchResult = await clientInstance.search(triggerInfo.query); 
-      logger.debug(`[processMessage] Web search result raw data keys: ${Object.keys(searchResult || {}).join(', ')}`);
-      if (searchResult?.web?.results) {
-           logger.debug(`[processMessage] Web search found ${searchResult.web.results.length} results.`);
-      } else {
-           logger.debug(`[processMessage] Web search did not return results in expected format.`);
-      }
+    const { trigger, query, commandTriggered, localSearch } = triggerResult;
+    
+    if (!query || query.trim() === '') {
+      logger.warn('検索クエリが空です');
+      await message.reply('検索するキーワードを指定してください。例: `!search 東京タワー` や `東京タワーについて調べて`');
+      return null;
     }
     
-    // 検索結果にクエリ情報を追加 (結果がない場合も考慮)
-    searchResult = searchResult || { success: false, results: [], query: triggerInfo.query }; 
-    searchResult.queryInfo = triggerInfo;
-    searchResult.query = triggerInfo.query; 
-    searchResult.queryType = getQueryTypeInfo(triggerInfo);
+    logger.info(`検索実行: "${query}" (トリガー: ${trigger}, コマンド: ${commandTriggered || false}, ローカル検索: ${localSearch || false})`);
     
-    // デバッグ用のログ出力
     if (config.DEBUG) {
-       const queryType = searchResult.queryType || {}; 
-       const typeStr = Object.keys(queryType).filter(k => queryType[k]).join(', ') || 'なし';
-       logger.debug(`検索クエリタイプ: ${typeStr}`);
-       logger.debug(`[processMessage] Returning searchResult: success=${searchResult.success}, results_length=${searchResult.results?.length || 0}, error=${searchResult.error || 'none'}`);
+      logger.debug(`[processMessage] 検索サービスを呼び出します。APIキー状態: ${Boolean(process.env.GOOGLE_API_KEY)}, CSE ID状態: ${Boolean(process.env.GOOGLE_CSE_ID)}`);
     }
     
-    return searchResult;
+    // ユーザーに検索中メッセージを表示
+    const typingPromise = message.channel.sendTyping();
+    const searchIndicator = message.reply(`🔍 「${query}」を検索しています...`);
+    
+    // 検索オプションの設定
+    const options = {
+      count: 5, // デフォルトの結果数
+      useCache: true, // キャッシュを使用
+      language: 'lang_ja', // 日本語検索
+      country: 'jp', // 日本のリージョン
+      useMockOnError: true // エラー時にモックデータを使用
+    };
+    
+    // searchServiceを使用して検索を実行
+    const searchResult = await searchService.performSearch(query, options);
+    
+    // タイピングインジケータの処理を完了させる
+    await typingPromise;
+    
+    // 検索インジケータメッセージを削除
+    try {
+      const searchReply = await searchIndicator;
+      if (searchReply && searchReply.deletable) {
+        await searchReply.delete();
+      }
+    } catch (err) {
+      logger.error(`検索インジケータの削除に失敗: ${err.message}`);
+    }
+    
+    // 結果の処理
+    return {
+      success: true,
+      query: query,
+      results: searchResult.sources || [],
+      summary: searchResult.summary || `「${query}」の検索結果はありませんでした。`,
+      sources: searchResult.sourcesList || '',
+      totalResults: searchResult.totalResults || 0,
+      queryType: searchResult.queryType || {}
+    };
+    
   } catch (error) {
-    logger.error(`検索処理エラー: ${error.message}`);
+    logger.error(`検索処理中にエラーが発生しました: ${error.stack}`);
+    
+    if (message && message.reply) {
+      await message.reply('検索中にエラーが発生しました。しばらく経ってからもう一度お試しください。');
+    }
+    
     return {
       success: false,
-      query: triggerInfo.query,
-      queryInfo: triggerInfo,
       error: error.message,
-      results: []
+      message: '検索処理中にエラーが発生しました。'
     };
   }
 }
@@ -595,7 +564,7 @@ async function sendSearchResult(message, searchResult) {
   
   try {
     // 検索結果をテキスト形式に変換
-    const resultText = braveSearch.formatSearchResultText(searchResult);
+    const resultText = searchService.formatSearchResultText(searchResult);
     
     // 結果をDiscordに送信
     if (resultText) {

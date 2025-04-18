@@ -25,7 +25,9 @@ const config = syncUtil.safeRequire('./config/env', {
   AI_PROVIDER: process.env.AI_PROVIDER || 'openai',
   DM_MESSAGE_HANDLER: process.env.DM_MESSAGE_HANDLER || 'legacy',
   DEBUG: process.env.DEBUG === 'true',
-  BOT_VERSION: '1.3.5' // 安定性改善版
+  BOT_VERSION: '1.3.5', // 安定性改善版
+  GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
+  GOOGLE_CSE_ID: process.env.GOOGLE_CSE_ID
 });
 
 // Bocchyのバージョン情報を表示
@@ -37,10 +39,10 @@ logger.info(`Running environment: ${syncUtil.isRailwayEnvironment ? 'Railway' : 
 logger.info(`Application root: ${syncUtil.appRoot}`);
 
 // 検索API機能の状態確認
-if (config.BRAVE_API_KEY) {
-  logger.info(`Brave Search API is configured (key: ${config.BRAVE_API_KEY.substring(0, 3)}...)`);
+if (config.GOOGLE_API_KEY && config.GOOGLE_CSE_ID) {
+  logger.info(`Google Search API is configured (key: ${config.GOOGLE_API_KEY.substring(0, 3)}..., CSE ID: ${config.GOOGLE_CSE_ID.substring(0, 3)}...)`);
 } else {
-  logger.warn('Brave Search API is not configured - search functionality will be disabled');
+  logger.warn('Google Search API is not configured - search functionality will be disabled');
 }
 
 // ヘルスチェックサーバーを起動

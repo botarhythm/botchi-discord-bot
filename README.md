@@ -48,7 +48,7 @@ Bocchyは森の奥にひっそりと佇む案内人のような存在。静か�
 - Discord Bot Token
 - OpenAI API Key
 - Supabase URL と Key（オプション、v1.2.0～）
-- Brave Search API Key（オプション、v1.3.5～）
+- Google Search API Key と Custom Search Engine ID（オプション、v1.3.5～）
 
 ### インストール手順
 
@@ -79,8 +79,9 @@ Bocchyは森の奥にひっそりと佇む案内人のような存在。静か�
    SUPABASE_URL=your_supabase_url
    SUPABASE_KEY=your_supabase_key
    
-   # Brave Search API設定（オプション、v1.3.5～）
-   BRAVE_API_KEY=your_brave_search_api_key
+   # Google Search API設定（オプション、v1.3.5～）
+   GOOGLE_API_KEY=your_google_api_key
+   GOOGLE_CSE_ID=your_google_cse_id
    
    DEBUG=false
    ```
@@ -155,14 +156,15 @@ Railway を使用してデプロイすることを推奨します。Railway ダ�
 - `OPENAI_MODEL`
 - `SUPABASE_URL`（オプション）
 - `SUPABASE_KEY`（オプション）
-- `BRAVE_API_KEY`（オプション、v1.3.5～）
+- `GOOGLE_API_KEY`（オプション、v1.3.5～）
+- `GOOGLE_CSE_ID`（オプション、v1.3.5～）
 - `DEBUG`（オプション）
 
 ## 🪺 開発ロードマップ
 
 - ✅ コンテキスト管理モジュールの導入（v1.2.0）
 - ✅ Supabaseを使用したデータ永続化（v1.2.0）
-- ✅ Brave Search APIを使用したWeb検索機能の導入（v1.3.5）
+- ✅ Google Custom Search APIを使用したWeb検索機能の導入（v1.3.5）
 - メンション外の受動的学習機能（予定）
 - トリガーワードの柔軟化（予定）
 - マルチモーダル機能（画像・音声）の実装（予定）

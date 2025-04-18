@@ -1,19 +1,18 @@
 /**
  * Bocchy Discord Bot - 検索サービス
- * BraveSearchを使用してウェブ検索と結果の要約を行う
+ * Google Custom Search APIを使用してウェブ検索と結果の要約を行う
  */
 
 const axios = require('axios');
 const logger = require('../system/logger');
-const BraveSearchClient = require('../core/search/brave-search');
 const config = require('../config');
 const searchProcessor = require('./search-processor');
 const { analyzeSearch } = require('./search-analyzer');
-const { processResults } = require('../core/search/search-processor');
 
-// BraveSearchの設定（環境変数から取得）
-const BRAVE_SEARCH_API_KEY = process.env.BRAVE_API_KEY || process.env.BRAVE_SEARCH_API_KEY || '';
-const BRAVE_SEARCH_API_URL = 'https://api.search.brave.com/res/v1/web/search';
+// Google Search APIの設定（環境変数から取得）
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || '';
+const GOOGLE_CSE_ID = process.env.GOOGLE_CSE_ID || '';
+const GOOGLE_SEARCH_API_URL = 'https://www.googleapis.com/customsearch/v1';
 
 // APIキャッシュ（トークン制限回避と高速化のため）
 const CACHE_DURATION = 5 * 60 * 1000; // 5分間
@@ -49,8 +48,6 @@ function encodeSearchQuery(query) {
     .replace(/%2B/g, '+'); // エンコードされた+記号を+に戻す
 }
 
-// Brave検索クライアントのインスタンス
-let braveClient = null;
 let isInitialized = false;
 
 /**
@@ -59,15 +56,15 @@ let isInitialized = false;
 function initialize() {
   try {
     // APIキーを process.env から直接読み込み
-    const apiKey = process.env.BRAVE_API_KEY || process.env.BRAVE_SEARCH_API_KEY;
+    const apiKey = process.env.GOOGLE_API_KEY;
+    const cseId = process.env.GOOGLE_CSE_ID;
     
-    if (!apiKey) {
-      logger.warn('Brave検索APIキーが環境変数に設定されていません。検索機能は無効です。');
+    if (!apiKey || !cseId) {
+      logger.warn('Google検索APIキーまたはCSE IDが環境変数に設定されていません。検索機能は無効です。');
       isInitialized = false;
       return false;
     }
     
-    braveClient = new BraveSearchClient(apiKey);
     logger.info('検索サービスが正常に初期化されました。');
     isInitialized = true;
     return true;
@@ -83,17 +80,41 @@ function initialize() {
  * @returns {Promise<Object>} ヘルスチェック結果
  */
 async function checkHealth() {
-  if (!braveClient) {
-    return false;
+  if (!GOOGLE_API_KEY || !GOOGLE_CSE_ID) {
+    return {
+      status: 'unhealthy',
+      message: 'Google検索APIキーまたはCSE IDが設定されていません'
+    };
   }
   
   try {
     // 簡単なテスト検索を実行
-    const testResponse = await braveClient.search('test', { count: 1 });
-    return !!testResponse && !!testResponse.results;
+    const testResponse = await axios.get(GOOGLE_SEARCH_API_URL, {
+      params: {
+        key: GOOGLE_API_KEY,
+        cx: GOOGLE_CSE_ID,
+        q: 'test',
+        num: 1
+      }
+    });
+    
+    if (testResponse.status === 200 && testResponse.data && testResponse.data.items) {
+      return {
+        status: 'healthy',
+        message: 'Google Search APIは正常に動作しています'
+      };
+    } else {
+      return {
+        status: 'unhealthy',
+        message: `API応答エラー: ${testResponse.status}`
+      };
+    }
   } catch (error) {
     logger.error(`検索ヘルスチェックエラー: ${error.message}`);
-    return false;
+    return {
+      status: 'unhealthy',
+      message: `API接続エラー: ${error.message}`
+    };
   }
 }
 
@@ -138,12 +159,12 @@ function analyzeQueryType(query) {
 
 /**
  * 検索結果を処理してAIに提供する形式に整形
- * @param {Object} apiResponse - BraveSearch APIレスポンス
+ * @param {Object} apiResponse - Google Search APIレスポンス
  * @returns {Object} 処理された検索結果
  */
 function processSearchResults(apiResponse) {
   // 検索結果のバリデーション
-  if (!apiResponse || !apiResponse.results || !Array.isArray(apiResponse.results)) {
+  if (!apiResponse || !apiResponse.items || !Array.isArray(apiResponse.items)) {
     logger.warn('検索結果の処理: 無効なAPIレスポンス形式');
     return {
       summary: '検索結果を取得できませんでした。',
@@ -152,7 +173,7 @@ function processSearchResults(apiResponse) {
   }
   
   // 結果がない場合の処理
-  if (apiResponse.results.length === 0) {
+  if (apiResponse.items.length === 0) {
     return {
       summary: '検索結果はありませんでした。別のキーワードで試してみてください。',
       sources: []
@@ -160,13 +181,13 @@ function processSearchResults(apiResponse) {
   }
   
   // 結果の整形
-  const sources = apiResponse.results.map((result, index) => {
+  const sources = apiResponse.items.map((result, index) => {
     return {
       index: index + 1,
       title: result.title,
-      url: result.url,
-      description: result.description,
-      hostname: result.source?.name || new URL(result.url).hostname
+      url: result.link,
+      description: result.snippet,
+      hostname: new URL(result.link).hostname
     };
   });
   
@@ -184,8 +205,8 @@ function processSearchResults(apiResponse) {
     summary: summaryText,
     sources: sources,
     sourcesList: sourcesList,
-    query: apiResponse.query || '',
-    totalResults: apiResponse.totalResults || sources.length
+    query: apiResponse.queries?.request[0]?.searchTerms || '',
+    totalResults: parseInt(apiResponse.searchInformation?.totalResults || sources.length)
   };
 }
 
@@ -250,232 +271,154 @@ function cacheSearchResult(query, result, options = {}) {
  * @returns {Object|null} キャッシュされた検索結果、または null
  */
 function getFromCache(query, options = {}) {
-  try {
-    const cacheKey = `${query}:${options.count || 5}:${options.language || 'jp'}`;
+  const cacheKey = `${query}:${options.count || 5}:${options.language || 'jp'}`;
+  const cachedItem = searchCache.get(cacheKey);
+  
+  if (cachedItem) {
+    const now = Date.now();
+    const elapsed = now - cachedItem.timestamp;
     
-    // キャッシュに存在しない場合
-    if (!searchCache.has(cacheKey)) {
-      return null;
+    // キャッシュ有効期限内（デフォルト5分）
+    if (elapsed < (options.cacheDuration || CACHE_DURATION)) {
+      logger.debug(`キャッシュから検索結果を取得: "${query}"`);
+      return cachedItem.data;
+    } else {
+      // 期限切れのキャッシュを削除
+      searchCache.delete(cacheKey);
+      logger.debug(`期限切れのキャッシュを削除: "${query}"`);
     }
-    
-    const cachedResult = searchCache.get(cacheKey);
-    
-    // キャッシュが有効期間内か確認
-    if (Date.now() - cachedResult.timestamp < CACHE_DURATION) {
-      logger.debug(`キャッシュからの検索結果を使用: "${query}"`);
-      return cachedResult.data;
-    }
-    
-    // 期限切れの場合は削除
-    logger.debug(`期限切れのキャッシュを削除: "${query}"`);
-    searchCache.delete(cacheKey);
-    return null;
-  } catch (error) {
-    logger.warn(`キャッシュ取得中にエラー: ${error.message}`);
-    return null;
   }
+  
+  return null;
 }
 
 /**
- * 検索を実行して結果を返す
+ * Web検索を実行する
  * @param {string} query - 検索クエリ
  * @param {Object} options - 検索オプション
  * @returns {Promise<Object>} 検索結果
  */
 async function performSearch(query, options = {}) {
   if (!query) {
-    return {
-      success: false,
-      error: 'Empty search query',
-      query: query
-    };
+    logger.warn('検索クエリが空です');
+    return createMockResult('');
   }
   
-  logger.debug(`検索処理を開始: "${query}"`);
+  const searchQuery = query.trim();
+  logger.info(`検索実行: "${searchQuery}"`);
   
-  // 検索クライアントの取得
-  let searchClient;
-  try {
-    searchClient = BraveSearchClient.getInstance();
-  } catch (error) {
-    logger.error(`検索クライアント初期化エラー: ${error.message}`);
-    return {
-      success: false,
-      error: 'Search client initialization failed',
-      query: query
-    };
+  // オプションの設定
+  const searchOptions = {
+    count: options.count || 5, // 結果の数
+    language: options.language || 'lang_ja', // デフォルトは日本語
+    country: options.country || 'jp', // デフォルトは日本
+    useCache: options.useCache !== false, // デフォルトはキャッシュ使用
+    useMockOnError: options.useMockOnError !== false, // エラー時にモックデータを使用
+    timeout: options.timeout || 10000, // タイムアウト（デフォルト10秒）
+    cacheDuration: options.cacheDuration || CACHE_DURATION
+  };
+  
+  // APIキーの確認
+  if (!GOOGLE_API_KEY || !GOOGLE_CSE_ID) {
+    logger.error('Google Search APIキーまたはCSE IDが設定されていません。モックデータを返します。');
+    return createMockResult(searchQuery);
   }
   
-  // クエリタイプの分析
-  const queryType = analyzeQueryType(query);
-  
-  // 検索実行
-  try {
-    // デフォルトの検索オプション
-    const searchOptions = {
-      count: options.count || 5,  // デフォルトで5件
-      ...options
-    };
-    
-    // 検索実行
-    const results = await searchClient.search(query, searchOptions);
-    
-    if (!results || !results.web || !results.web.results) {
-      logger.warn(`検索 "${query}" で結果が取得できませんでした`);
-      return {
-        success: false,
-        error: 'No search results found',
-        query: query,
-        queryType
-      };
-    }
-    
-    // 検索結果の処理
-    const processedResults = processSearchResults(results);
-    
-    // 検索結果の分析
-    const analysisResult = searchProcessor.analyzeSearchResults({
-      sources: processedResults.sources,
-      query
-    });
-    
-    // AI用に検索結果をフォーマット
-    const formattedForAI = searchProcessor.formatSearchResultForAI({
-      ...processedResults,
-      queryType,
-      analysisMetadata: analysisResult
-    });
-    
-    // メタデータメッセージの生成（オプション）
-    const metadataMessage = searchProcessor.generateMetadataMessage(analysisResult);
-    
-    return {
-      success: true,
-      query,
-      queryType,
-      ...processedResults,
-      formattedForAI: formattedForAI.content,
-      analysisMetadata: analysisResult,
-      metadataMessage
-    };
-    
-  } catch (error) {
-    logger.error(`検索実行エラー: ${error.message}`, error);
-    return {
-      success: false,
-      error: `Search execution failed: ${error.message}`,
-      query,
-      queryType
-    };
-  }
-}
-
-/**
- * 検索を実行し、結果を処理する
- * @param {string} query - 検索クエリ
- * @returns {Promise<Object>} 処理された検索結果
- */
-async function performSearchNew(query) {
-  if (!braveClient) {
-    return {
-      success: false,
-      error: '検索サービスが初期化されていません',
-      message: '申し訳ありませんが、現在検索機能をご利用いただけません。'
-    };
-  }
-  
-  try {
-    // クエリを分析
-    const queryAnalysis = analyzeSearch(query);
-    logger.debug(`検索クエリ分析: ${JSON.stringify(queryAnalysis)}`);
-    
-    // 検索オプションの設定
-    const searchOptions = {
-      count: queryAnalysis.resultCount,
-      country: queryAnalysis.country,
-      language: queryAnalysis.language,
-      safeSearch: queryAnalysis.safeSearch
-    };
-    
-    // キャッシュから検索結果を取得
-    const cachedResult = getFromCache(queryAnalysis.optimizedQuery, searchOptions);
+  // キャッシュをチェック
+  if (searchOptions.useCache) {
+    const cachedResult = getFromCache(searchQuery, searchOptions);
     if (cachedResult) {
-      logger.info(`キャッシュから検索結果を使用: "${queryAnalysis.optimizedQuery}"`);
-      return processResults(
-        cachedResult, 
-        queryAnalysis.queryType, 
-        queryAnalysis.originalQuery
-      );
+      return cachedResult;
     }
+  }
+  
+  try {
+    // 検索クエリを分析
+    const queryType = analyzeQueryType(searchQuery);
     
-    // 検索実行
-    logger.info(`検索実行: "${queryAnalysis.optimizedQuery}"`);
-    const searchResponse = await braveClient.search(queryAnalysis.optimizedQuery, searchOptions);
+    // Google Search APIにリクエスト
+    const response = await axios.get(GOOGLE_SEARCH_API_URL, {
+      params: {
+        key: GOOGLE_API_KEY,
+        cx: GOOGLE_CSE_ID,
+        q: searchQuery,
+        num: searchOptions.count,
+        lr: searchOptions.language,
+        gl: searchOptions.country
+      },
+      timeout: searchOptions.timeout
+    });
     
-    if (!searchResponse || !searchResponse.success) {
-      const errorMsg = searchResponse?.error || '検索結果が取得できませんでした';
-      logger.warn(`検索APIエラーまたは結果なし: ${errorMsg}`);
-      return {
-        success: false,
-        error: errorMsg,
-        message: '検索結果の取得に失敗しました。'
-      };
+    if (response.status !== 200) {
+      throw new Error(`API応答エラー: ${response.status}`);
     }
-    
-    // 結果をキャッシュに保存
-    cacheSearchResult(queryAnalysis.optimizedQuery, searchResponse, searchOptions);
     
     // 検索結果を処理
-    const processedResults = processResults(
-      searchResponse,
-      queryAnalysis.queryType,
-      queryAnalysis.originalQuery
-    );
+    const processedResults = processSearchResults(response.data);
+    
+    // クエリタイプ情報を追加
+    processedResults.queryType = queryType;
+    processedResults.timestamp = new Date().toISOString();
+    
+    // 結果をキャッシュに保存
+    if (searchOptions.useCache) {
+      cacheSearchResult(searchQuery, processedResults, searchOptions);
+    }
     
     return processedResults;
+    
   } catch (error) {
-    logger.error(`検索実行エラー: ${error.message}`);
-    return {
-      success: false,
-      error: `検索中にエラーが発生しました: ${error.message}`,
-      message: '検索処理中にエラーが発生しました。しばらく経ってからもう一度お試しください。'
-    };
+    logger.error(`検索エラー: ${error.message}`);
+    
+    // エラー時のフォールバック
+    if (searchOptions.useMockOnError) {
+      logger.warn(`API呼び出しが失敗しました。モックデータを返します: ${error.message}`);
+      return createMockResult(searchQuery);
+    }
+    
+    throw error;
   }
 }
 
 /**
- * AIに適した形式で検索結果を提供する
+ * AI用の検索結果を提供する
  * @param {string} query - 検索クエリ
- * @returns {Promise<Object>} AI用に整形された検索結果
+ * @returns {Promise<Object>} 検索結果
  */
 async function provideSearchForAI(query) {
-  const result = await performSearchNew(query);
-  
-  if (!result.success) {
+  try {
+    // 検索を実行し、結果を取得
+    const searchResults = await performSearch(query, {
+      count: 5,
+      useCache: true,
+      useMockOnError: true
+    });
+    
+    // AI用に整形したレスポンス
     return {
-      success: false,
-      content: result.message || '検索に失敗しました。',
-      metadataMessage: '[検索エラー]'
+      summary: searchResults.summary || `「${query}」の検索結果はありませんでした。`,
+      sources: searchResults.sourcesList || '',
+      query: searchResults.query || query,
+      totalResults: searchResults.totalResults || 0,
+      timestamp: searchResults.timestamp || new Date().toISOString()
+    };
+  } catch (error) {
+    logger.error(`AI用検索処理エラー: ${error.message}`);
+    return {
+      summary: `検索処理中にエラーが発生しました: ${error.message}`,
+      sources: '',
+      query: query,
+      error: error.message,
+      timestamp: new Date().toISOString()
     };
   }
-  
-  return {
-    success: true,
-    content: result.formattedResults,
-    metadataMessage: result.metadataMessage,
-    analysis: result.analysis
-  };
 }
 
-// エクスポート
 module.exports = {
-  performSearch,
-  clearCache,
-  checkHealth,
-  analyzeQueryType,
-  processSearchResults,
   initialize,
-  performSearchNew,
+  checkHealth,
+  performSearch,
   provideSearchForAI,
-  isInitialized: () => isInitialized
+  clearCache,
+  analyzeQueryType
 };
