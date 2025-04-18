@@ -318,13 +318,7 @@ async function performSearch(query, options = {}) {
     cacheDuration: options.cacheDuration || CACHE_DURATION
   };
   
-  // APIキーの確認
-  if (!GOOGLE_API_KEY || !GOOGLE_CSE_ID) {
-    logger.error('Google Search APIキーまたはCSE IDが設定されていません。モックデータを返します。');
-    return createMockResult(searchQuery);
-  }
-  
-  // キャッシュをチェック
+  // APIキャッシュをチェック
   if (searchOptions.useCache) {
     const cachedResult = getFromCache(searchQuery, searchOptions);
     if (cachedResult) {
@@ -370,13 +364,58 @@ async function performSearch(query, options = {}) {
   } catch (error) {
     logger.error(`検索エラー: ${error.message}`);
     
+    let errorType = 'UNKNOWN_ERROR';
+    let errorMessage = `検索中に不明なエラーが発生しました: ${error.message}`;
+    let statusCode = null;
+
+    if (error.response) {
+      // HTTPエラーの場合
+      statusCode = error.response.status;
+      errorMessage = `API応答エラー: ステータスコード ${statusCode}`;
+      if (statusCode === 429) {
+        errorType = 'RATE_LIMITED';
+        errorMessage = '検索APIの利用制限に達しました。しばらくしてから再試行してください。';
+        logger.warn('Google Search API rate limit reached.');
+      } else if (statusCode >= 400 && statusCode < 500) {
+        errorType = 'CLIENT_ERROR';
+        errorMessage = `検索リクエストに問題があります (コード: ${statusCode})。`;
+      } else if (statusCode >= 500) {
+        errorType = 'SERVER_ERROR';
+        errorMessage = `検索サービス側で問題が発生しています (コード: ${statusCode})。`;
+      }
+    } else if (error.request) {
+      // リクエストは行われたが応答がない場合
+      errorType = 'NO_RESPONSE';
+      errorMessage = '検索サービスから応答がありませんでした。';
+    } else if (error.code === 'ECONNABORTED') {
+      // タイムアウトエラー
+       errorType = 'TIMEOUT';
+       errorMessage = `検索リクエストがタイムアウトしました (タイムアウト設定: ${searchOptions.timeout}ms)。`;
+    }
+
     // エラー時のフォールバック
     if (searchOptions.useMockOnError) {
-      logger.warn(`API呼び出しが失敗しました。モックデータを返します: ${error.message}`);
-      return createMockResult(searchQuery);
+      logger.warn(`API呼び出しが失敗しました。モックデータを返します: ${errorMessage}`);
+      // モックデータにもエラー情報を付与する
+      const mockResult = createMockResult(searchQuery);
+      mockResult.error = errorMessage;
+      mockResult.errorType = errorType; // エラータイプを追加
+      mockResult.statusCode = statusCode; // ステータスコードを追加
+      return mockResult;
     }
     
-    throw error;
+    // useMockOnErrorがfalseの場合は、エラー情報をそのまま返す
+    return {
+        summary: `検索エラー: ${errorMessage}`,
+        sources: [],
+        sourcesList: '',
+        query: searchQuery,
+        totalResults: 0,
+        error: errorMessage,
+        errorType: errorType, // エラータイプを追加
+        statusCode: statusCode, // ステータスコードを追加
+        timestamp: new Date().toISOString()
+    };
   }
 }
 
