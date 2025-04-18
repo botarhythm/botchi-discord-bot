@@ -103,7 +103,8 @@ function formatSearchResultForAI(results, queryType, dateInfo = null) {
     formattedContent += `【情報源${index + 1}】\n`;
     formattedContent += `タイトル: ${sourceInfo.title}\n`;
     formattedContent += `内容: ${sourceInfo.description}\n`;
-    formattedContent += `出典: ${sourceInfo.hostname}\n\n`;
+    formattedContent += `出典: ${sourceInfo.hostname}\n`;
+    formattedContent += `URL: ${sourceInfo.url}\n\n`; // URLを明示的に表示
   });
   
   return formattedContent;
@@ -160,7 +161,7 @@ function generateSummary(results, queryType, originalQuery, dateInfo = null) {
   
   // 日付情報がある場合は要約に追加
   if (dateInfo) {
-    summary += `現在の日本時間: ${dateInfo.year}年${dateInfo.month}月${dateInfo.day}日(${dateInfo.weekday})\n\n`;
+    summary += `現在の日本時間: ${dateInfo.year}年${dateInfo.month}月${dateInfo.day}日(${dateInfo.weekday}) ${dateInfo.hour}時${dateInfo.minute}分\n\n`;
   }
   
   // クエリタイプに応じた要約を生成
@@ -187,7 +188,9 @@ function generateSummary(results, queryType, originalQuery, dateInfo = null) {
   // 上位3件の結果を要約に追加
   results.slice(0, 3).forEach((result, index) => {
     summary += `${index + 1}. ${result.title}\n`;
-    summary += `   ${result.description}\n\n`;
+    summary += `   ${result.description}\n`;
+    summary += `   出典: ${new URL(result.url).hostname}\n`;
+    summary += `   URL: ${result.url}\n\n`; // URLを明示的に表示
   });
   
   return summary;

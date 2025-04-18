@@ -389,9 +389,6 @@ function buildContextPrompt(userMessage, messageContext, conversationHistory = [
     continuityMsg = '（会話を継続しています）';
   }
   
-  // Personalized prefix for the user - DMと通常チャンネルで同じ処理にする
-  let personalizedPrefix = ''; // 常に空の文字列を設定
-  
   // Character definition
   const character = characterDefinitions.default;
   
@@ -400,7 +397,7 @@ function buildContextPrompt(userMessage, messageContext, conversationHistory = [
   systemPrompt += `【キャラクター設定】\n${character.description}\n\n`;
   systemPrompt += `【会話スタイル】\n${character.conversationStyle}\n\n`;
   systemPrompt += `【基本情報】\n`;
-  systemPrompt += `- 現在の日時: ${japanTime}\n`;
+  systemPrompt += `- 現在の日時: ${japanTime}（日本時間）\n`;
   systemPrompt += `- ユーザー名: ${messageContext.username}\n`;
   
   if (messageContext.guildName) {
@@ -413,7 +410,8 @@ function buildContextPrompt(userMessage, messageContext, conversationHistory = [
   systemPrompt += `\n【重要な指示】\n`;
   systemPrompt += `- 日本語で応答してください。\n`;
   systemPrompt += `- 人間らしい温かみのある会話を心がけてください。\n`;
-  systemPrompt += `- 上記の「現在の日時 (${japanTime})」は、現在の正確な日本時間です。時間、日付、季節に関する話題や質問には、この情報を考慮して応答してください。ただし、毎回応答に含める必要はありません。\n`;
+  systemPrompt += `- 時間や日付に関する質問には、必ず日本時間（${japanTime}）を基準に回答してください。\n`;
+  systemPrompt += `- 検索結果を引用する場合は、必ず情報源のURLを含めてください。\n`;
   
   // 検索結果を整形してプロンプトに追加
   const searchPromptSection = formatSearchResultsForPrompt(searchResults, messageContext.message);
