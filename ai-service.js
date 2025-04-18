@@ -89,15 +89,14 @@ function getConfig() {
 /**
  * 検索を実行してAIに送信する
  * @param {string} query - 検索クエリ
- * @returns {Promise<Object>} 処理された検索結果
+ * @returns {Promise<Object>} 処理された検索結果 または エラー情報
  */
 async function performSearch(query) {
-  // まず検索サービスが初期化されているか確認
   if (!searchService.isInitialized()) {
     logger.warn('検索サービスが初期化されていないため、検索を実行できませんでした。');
     return {
       success: false,
-      error: '検索サービスが初期化されていません',
+      error: 'SERVICE_UNINITIALIZED',
       content: '検索サービスが利用できません。'
     };
   }
@@ -106,36 +105,55 @@ async function performSearch(query) {
     logger.debug(`検索実行: "${query}"`);
     const searchResults = await searchService.performSearchNew(query);
     
-    if (!searchResults || !searchResults.success) { // searchResults自体もチェック
-      logger.warn(`検索失敗: ${searchResults?.error || '不明なエラー'}`);
+    // searchResults 自体のチェックを追加
+    if (!searchResults) {
+        logger.error('searchService.performSearchNew returned undefined or null');
+        return {
+          success: false,
+          error: 'SEARCH_FAILED',
+          content: '検索処理中に予期せぬエラーが発生しました。'
+        };
+    }
+    
+    // 検索が成功した場合
+    if (searchResults.success) {
+      // formattedResults が存在するか確認
+      if (!searchResults.formattedResults) {
+         logger.warn('検索結果のフォーマットに失敗しました。');
+         return {
+           success: false,
+           error: 'FORMATTING_ERROR',
+           content: '検索結果の表示形式に問題がありました。'
+         };
+      }
       return {
-        success: false,
-        error: searchResults?.error || '検索に失敗しました',
-        content: searchResults?.message || '検索結果の取得に失敗しました。'
+        success: true,
+        content: searchResults.formattedResults,
+        sourcesList: searchResults.sourcesList || '' 
       };
+    } 
+    // 検索が失敗した場合 (success: false)
+    else {
+        logger.warn(`検索失敗: ${searchResults.error || '不明なエラー'}. Message: ${searchResults.message || ''}`);
+        // レート制限エラーかどうかを判定 (エラーメッセージにRATE_LIMITEDが含まれるか)
+        const isRateLimited = searchResults.error && searchResults.error.includes('RATE_LIMITED');
+        
+        return {
+          success: false,
+          error: isRateLimited ? 'RATE_LIMITED' : (searchResults.error || 'SEARCH_FAILED'),
+          content: isRateLimited ? '検索APIの利用制限に達しました。しばらく時間を置いてからお試しください。⏳' : (searchResults.message || '検索結果の取得に失敗しました。')
+        };
     }
-    
-    // formattedResultsが存在するか確認
-    if (!searchResults.formattedResults) {
-      logger.warn('検索結果のフォーマットに失敗しました。');
-       return {
-         success: false,
-         error: '検索結果のフォーマットエラー',
-         content: '検索結果の表示形式に問題がありました。'
-       };
-    }
-    
-    return {
-      success: true,
-      content: searchResults.formattedResults,
-      sourcesList: searchResults.sourcesList || '' // sourcesListがない場合も考慮
-    };
+
   } catch (error) {
-    logger.error(`検索エラー: ${error.message}`);
+    logger.error(`検索中の予期せぬエラー: ${error.message}`, error);
+    // レート制限エラーかどうかを判定 (エラーメッセージ本文やスタックトレースで判断)
+    const isRateLimited = error.message && (error.message.includes('429') || error.message.includes('RATE_LIMITED'));
+    
     return {
       success: false,
-      error: `検索エラー: ${error.message}`,
-      content: '検索処理中にエラーが発生しました。'
+      error: isRateLimited ? 'RATE_LIMITED' : 'UNEXPECTED_SEARCH_ERROR',
+      content: isRateLimited ? '検索APIの利用制限に達しました。しばらく時間を置いてからお試しください。⏳' : '検索処理中に予期せぬエラーが発生しました。'
     };
   }
 }
@@ -143,7 +161,7 @@ async function performSearch(query) {
 /**
  * 検索結果を含めたAI応答を取得
  * @param {Object} context - リクエストコンテキスト
- * @returns {Promise<string>} AI応答
+ * @returns {Promise<string>} AI応答 または エラーメッセージ
  */
 async function getResponseWithSearch(context) {
   const { message } = context;
@@ -152,13 +170,10 @@ async function getResponseWithSearch(context) {
     // 検索を実行
     const searchResult = await performSearch(message);
     
-    if (!searchResult.success) {
-      logger.warn('検索に失敗したため、通常の応答を返します');
-      return getResponse(context);
-    }
-    
-    // 検索結果を含めたプロンプトを作成
-    const searchContext = `
+    // 検索が成功した場合
+    if (searchResult.success) {
+      // 検索結果を含めたプロンプトを作成
+      const searchContext = `
 以下は「${message}」という質問に関する検索結果です：
 
 ${searchResult.content}
@@ -169,19 +184,34 @@ ${searchResult.sourcesList || '(出典情報なし)'}
 上記の検索結果を参考にして、ユーザーの質問に答えてください。必ず情報源を引用し、出典を明記してください。
 検索結果にない情報は推測せず、わからないことははっきりとその旨を伝えてください。
 `;
-    
-    // 検索結果を含むコンテキストを作成
-    const searchEnhancedContext = {
-      ...context,
-      searchResults: searchResult,
-      additionalContext: searchContext
-    };
-    
-    // 拡張コンテキストでAI応答を取得
-    logger.debug('検索結果を含めてAI応答を取得します');
-    return getResponse(searchEnhancedContext);
+      
+      // 検索結果を含むコンテキストを作成
+      const searchEnhancedContext = {
+        ...context,
+        searchResults: searchResult, // 成功した結果を渡す
+        additionalContext: searchContext
+      };
+      
+      // 拡張コンテキストでAI応答を取得
+      logger.debug('検索結果を含めてAI応答を取得します');
+      return getResponse(searchEnhancedContext);
+    }
+    // 検索が失敗した場合
+    else {
+      // レート制限エラーの場合、専用メッセージを返して終了
+      if (searchResult.error === 'RATE_LIMITED') {
+        logger.warn('検索APIレート制限のため、処理を中断します。');
+        return searchResult.content; // レート制限メッセージを返す
+      }
+      // その他の検索エラーの場合、通常の応答にフォールバック
+      else {
+        logger.warn(`検索に失敗 (${searchResult.error}) したため、通常の応答を返します`);
+        return getResponse(context); // 検索結果なしでAI応答を試みる
+      }
+    }
   } catch (error) {
-    logger.error(`検索+AI応答取得エラー: ${error.message}`);
+    logger.error(`検索+AI応答取得中の予期せぬエラー: ${error.message}`, error);
+    // 予期せぬエラーの場合は通常の応答にフォールバック
     return getResponse(context);
   }
 }
