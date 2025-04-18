@@ -173,8 +173,6 @@ if (process.env.RAG_ENABLED === 'true') {
   };
 }
 
-// ===== 修正された初期化フロー =====
-
 // 1. AIサービスモジュールを読み込み
 logger.info('Loading AI service module...');
 const aiService = syncUtil.safeRequire('./ai-service', {
@@ -195,36 +193,7 @@ const discordInit = syncUtil.safeRequire('./core/discord-init', {
   loginClient: () => Promise.reject(new Error('Discord login module not found'))
 });
 
-// 2. クライアントを初期化（メッセージハンドラーの登録なし）
-const client = discordInit.setupClient();
-if (!client) {
-  logger.error('Failed to initialize Discord client');
-  process.exit(1);
-}
-
-// 3. AIサービスを初期化
-logger.info(`Initializing AI service with provider: ${config.AI_PROVIDER}...`);
-aiService.initialize(config.AI_PROVIDER)
-  .then(result => {
-    // 新しいai-service.jsでは結果形式が変わっているため、互換性を持たせる
-    const isInitialized = result.success === true || result.initialized === true;
-    logger.info(`AI service initialized: ${isInitialized ? 'Success' : 'Failed'}`);
-    if (isInitialized) {
-      logger.info(`Active AI provider: ${result.provider || config.AI_PROVIDER}, Model: ${result.model || 'Unknown'}`);
-    } else {
-      logger.warn(`AI service initialization failed: ${result.error || 'Unknown error'}`);
-    }
-    return aiService.checkHealth();
-  })
-  .then(health => {
-    logger.info(`AI service health: ${health.status}, provider: ${health.provider || 'Unknown'}`);
-  })
-  .catch(error => {
-    logger.error('Failed to initialize AI service:', error);
-    logger.warn('Continuing with limited AI functionality');
-  });
-
-// 4. メッセージハンドラーの読み込み（循環参照を解消）
+// 3. メッセージハンドラーの読み込み
 const messageHandlerModule = syncUtil.safeRequire('./handlers/message-handler', {
   handleMessage: () => {
     logger.error('Message handler module not found or invalid');
@@ -233,37 +202,77 @@ const messageHandlerModule = syncUtil.safeRequire('./handlers/message-handler', 
   setAIProvider: () => {}
 });
 
-// 5. AIサービスをメッセージハンドラーに登録
-if (typeof messageHandlerModule.setAIProvider === 'function') {
-  messageHandlerModule.setAIProvider(aiService);
-  logger.info('AI service registered with message handler');
-} else {
-  logger.warn('Failed to register AI service with message handler - setAIProvider method not found');
+/**
+ * ボット起動メイン関数
+ */
+async function startBot() {
+  logger.info('Starting Bot initialization...');
+  
+  try {
+    // 1. AIサービスと関連サービス（検索など）を初期化し、完了を待つ
+    logger.info(`Initializing AI service with provider: ${config.AI_PROVIDER}...`);
+    const aiInitResult = await aiService.initialize(); 
+    
+    if (!aiInitResult) { // aiService.initialize() は boolean を返すように変更した想定
+      logger.error('AI service (and potentially search service) failed to initialize. Exiting.');
+      process.exit(1); // 致命的エラーとして終了
+    } else {
+      logger.info('AI service and related services initialized successfully.');
+      
+      // ヘルスチェック（オプション）
+      try {
+        const health = await aiService.checkHealth();
+        logger.info(`AI service health: ${health.status}, provider: ${health.provider || 'Unknown'}`);
+      } catch (healthError) {
+        logger.warn(`AI service health check failed after initialization: ${healthError.message}`);
+      }
+    }
+    
+    // 2. Discordクライアントを初期化
+    const client = discordInit.setupClient();
+    if (!client) {
+      logger.error('Failed to initialize Discord client. Exiting.');
+      process.exit(1);
+    }
+    
+    // 3. AIサービスをメッセージハンドラーに登録
+    if (typeof messageHandlerModule.setAIProvider === 'function') {
+      messageHandlerModule.setAIProvider(aiService);
+      logger.info('AI service registered with message handler');
+    } else {
+      logger.warn('Failed to register AI service with message handler - setAIProvider method not found');
+      // 続行するが、AI機能は動作しない可能性
+    }
+    
+    // 4. メッセージイベントハンドラを設定
+    client.on('messageCreate', async (message) => {
+      try {
+        // handleMessage が Promise を返すことを確認
+        await messageHandlerModule.handleMessage(message);
+      } catch (error) {
+        logger.error('Error handling message:', error);
+      }
+    });
+    logger.debug('Message handler registered successfully');
+    
+    // 5. Discordクライアントにログイン
+    logger.info('Logging into Discord...');
+    await discordInit.loginClient();
+    logger.info('Bocchy Discord Bot is ready!');
+    
+  } catch (error) {
+    logger.error('Failed to start Bocchy Discord Bot during initialization:', error);
+    process.exit(1); // 初期化中のエラーは致命的
+  }
 }
 
-// 6. メッセージイベントを直接登録
-client.on('messageCreate', async (message) => {
-  try {
-    await messageHandlerModule.handleMessage(message);
-  } catch (error) {
-    logger.error('Error handling message:', error);
-  }
-});
-logger.debug('Message handler registered successfully');
-
-// 7. クライアントにログイン
-discordInit.loginClient()
-  .then(() => {
-    logger.info('Bocchy Discord Bot is ready!');
-  })
-  .catch(error => {
-    logger.error('Failed to start Bocchy Discord Bot:', error);
-    process.exit(1);
-  });
+// ボットを起動
+startBot();
 
 // 未処理の例外ハンドラ
 process.on('uncaughtException', (error) => {
   logger.error('Uncaught Exception:', error);
+  // 必要に応じてプロセスを再起動するなどの処理を追加検討
 });
 
 // 未処理のPromise拒否ハンドラ
@@ -271,64 +280,13 @@ process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-// 必要なモジュールを読み込み
-const searchService = require('./extensions/search-service');
+// initializeBot と processMessage 関数はメインの起動ロジックには不要なため削除
+// // /**
+// //  * ボットの初期化処理
+// //  */
+// // async function initializeBot() { ... }
 
-/**
- * ボットの初期化処理
- */
-async function initializeBot() {
-  try {
-    logger.info('Botchiを初期化中...');
-    
-    // 設定の読み込み
-    await config.loadConfig();
-    
-    // AIサービスの初期化
-    const aiInitResult = await aiService.initialize();
-    if (!aiInitResult) {
-      logger.error('AIサービスの初期化に失敗しました');
-    } else {
-      logger.info('AIサービスの初期化に成功しました');
-    }
-    
-    // その他の初期化処理...
-    
-    logger.info('初期化完了');
-    return true;
-  } catch (error) {
-    logger.error(`初期化エラー: ${error.message}`);
-    return false;
-  }
-}
-
-/**
- * メッセージ処理メイン関数
- * @param {Object} messageData - メッセージデータ
- * @returns {Promise<string>} 処理結果
- */
-async function processMessage(messageData) {
-  try {
-    const { message, userId, username, channelId, channelName, guildId, guildName } = messageData;
-    
-    // メッセージコンテキストを作成
-    const context = {
-      userId,
-      username,
-      channelId,
-      channelName,
-      channelType: messageData.channelType || 0,
-      guildId,
-      guildName,
-      message,
-      contextType: messageData.contextType || 'message',
-      isIntervention: messageData.isIntervention || false
-    };
-    
-    // AIサービスに応答を依頼
-    return await aiService.getResponse(context);
-  } catch (error) {
-    logger.error(`メッセージ処理エラー: ${error.message}`);
-    return '申し訳ありません、処理中にエラーが発生しました。';
-  }
-}
+// // /**
+// //  * メッセージ処理メイン関数
+// //  */
+// // async function processMessage(messageData) { ... }

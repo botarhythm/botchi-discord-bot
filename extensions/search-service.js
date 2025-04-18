@@ -66,11 +66,11 @@ function initialize() {
     }
     
     braveClient = new BraveSearchClient(apiKey);
-    logger.info('検索サービスが初期化されました');
+    logger.info('検索サービスが正常に初期化されました。');
     isInitialized = true;
     return true;
   } catch (error) {
-    logger.error(`検索サービスの初期化に失敗しました: ${error.message}`);
+    logger.error(`検索サービスの初期化中にエラーが発生しました: ${error.message}`);
     isInitialized = false;
     return false;
   }
