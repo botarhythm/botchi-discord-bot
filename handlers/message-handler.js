@@ -9,6 +9,8 @@ const characterDefinitions = require('../extensions/character');
 const { handleCommand } = require('./command-handler');
 const { isValidForIntervention, shouldIntervene } = require('./context-intervention');
 const { shouldSearch, processMessage: performSearch } = require('./search-handler');
+const { processResults, formatSearchResultForAI } = require('../extensions/search-processor');
+const dateHandler = require('../extensions/date-handler');
 
 // Get environment variables
 const MENTIONS_ONLY = process.env.MENTIONS_ONLY === 'true';
@@ -283,95 +285,38 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
 }
 
 /**
- * 検索結果をプロンプト用に整形し、応答指示を生成する関数
- * @param {Object} searchResults - BraveSearchからの検索結果
- * @param {Object} messageContext - メッセージコンテキスト (クエリタイプ情報を含む)
- * @returns {string} プロンプトに追加する検索結果と応答指示の文字列
+ * 検索結果をプロンプトに統合する
+ * @param {Object} searchResults - 検索結果
+ * @param {string} userMessage - ユーザーメッセージ
+ * @returns {string} 統合されたプロンプト
  */
-function formatSearchResultsForPrompt(searchResults, messageContext) {
-  let promptSection = '';
-
-  if (!searchResults) {
-    return promptSection; // 検索結果がない場合は空文字列を返す
+function formatSearchResultsForPrompt(searchResults, userMessage) {
+  if (!searchResults || !searchResults.success) {
+    return userMessage;
   }
 
-  promptSection += `\n【Web検索結果】\n`;
+  // 日付関連のクエリかどうかを判定
+  const isDateRelated = dateHandler.isDateRelatedQuery(userMessage);
+  const dateInfo = isDateRelated ? dateHandler.formatDateForAI(dateHandler.getCurrentJapanTime()) : null;
 
-  // 検索クエリと成功/失敗状態を追加
-  if (searchResults.query) {
-    promptSection += `検索クエリ: 「${searchResults.query}」\n`;
-  }
+  // 検索結果をAI用に整形
+  const formattedResults = formatSearchResultForAI(
+    searchResults.results,
+    searchResults.queryType,
+    dateInfo
+  );
 
-  // 検索結果のサマリー情報があれば追加
-  if (searchResults.summary) {
-    promptSection += `検索結果サマリー: ${searchResults.summary}\n\n`;
-  }
+  // プロンプトの構築
+  let prompt = `以下の検索結果を参考に、自然な会話形式で回答してください。\n\n`;
+  prompt += `検索クエリ: ${userMessage}\n\n`;
+  prompt += `検索結果:\n${formattedResults}\n\n`;
+  prompt += `回答の指示:\n`;
+  prompt += `1. 検索結果の内容を自然な会話形式で要約してください。\n`;
+  prompt += `2. 情報源を適切に引用してください。\n`;
+  prompt += `3. 日付情報がある場合は、それを含めて回答してください。\n`;
+  prompt += `4. 回答は日本語で、親しみやすい口調でお願いします。\n`;
 
-  // 検索結果の詳細情報
-  if (searchResults.results && searchResults.results.length > 0) {
-    promptSection += `${searchResults.results.length}件の結果が見つかりました\n`;
-
-    searchResults.results.forEach((result, index) => {
-      // 最大3件まで表示 (件数を減らしてプロンプトを簡潔に)
-      if (index < 3) {
-        promptSection += `[${index + 1}] タイトル: ${result.title}\n`;
-
-        // 説明文は短く制限（著作権への配慮）
-        if (result.description) {
-          const shortenedDesc = result.description.length > 100
-            ? result.description.substring(0, 100) + '...'
-            : result.description;
-          promptSection += `    概要: ${shortenedDesc}\n`;
-        }
-
-        // URLのドメイン部分のみ表示
-        if (result.url) {
-          try {
-            const urlObject = new URL(result.url);
-            promptSection += `    出典: ${urlObject.hostname}\n`;
-            promptSection += `    出典URL: ${result.url}\n\n`;
-          } catch (e) {
-            logger.warn(`Invalid URL encountered in search results: ${result.url}`);
-            promptSection += `    出典: (不明なURL)\n\n`;
-          }
-        }
-      }
-    });
-    // 結果が3件より多い場合、省略していることを示す
-    if (searchResults.results.length > 3) {
-       promptSection += `(他 ${searchResults.results.length - 3} 件の結果は省略)\n\n`;
-    }
-
-  } else {
-    promptSection += `関連する検索結果は見つかりませんでした。\n\n`;
-  }
-
-  // 著作権への配慮の指示 (簡略化)
-  promptSection += `【応答指示】検索結果を参考に、ユーザーの質問に自然に答えてください。検索結果から引用する場合は、短く要約して出典（ドメイン名）を添えてください。\n`;
-
-  // クエリタイプに応じた応答指示 (簡略化)
-  if (messageContext.queryType) {
-    const queryType = messageContext.queryType;
-    let specificInstruction = '';
-
-    if (queryType.isCurrentInfoQuery) {
-      specificInstruction = `特に最新の情報に注目してください。`;
-    } else if (queryType.isDefinitionQuery) {
-      specificInstruction = `定義や意味を明確に説明してください。`;
-    } else if (queryType.isHowToQuery) {
-      specificInstruction = `手順や方法を分かりやすく説明してください。`;
-    } else if (queryType.isFactCheckQuery) {
-      specificInstruction = `事実確認を行い、客観的に説明してください。`;
-    } else if (queryType.isLocalQuery) {
-      specificInstruction = `場所に関する情報を伝えてください。`;
-    }
-
-    if (specificInstruction) {
-      promptSection += `    - ${specificInstruction}\n`;
-    }
-  }
-
-  return promptSection;
+  return prompt;
 }
 
 /**
@@ -471,7 +416,7 @@ function buildContextPrompt(userMessage, messageContext, conversationHistory = [
   systemPrompt += `- 上記の「現在の日時 (${japanTime})」は、現在の正確な日本時間です。時間、日付、季節に関する話題や質問には、この情報を考慮して応答してください。ただし、毎回応答に含める必要はありません。\n`;
   
   // 検索結果を整形してプロンプトに追加
-  const searchPromptSection = formatSearchResultsForPrompt(searchResults, messageContext);
+  const searchPromptSection = formatSearchResultsForPrompt(searchResults, messageContext.message);
   systemPrompt += searchPromptSection;
 
   // RAG結果を整形してプロンプトに追加

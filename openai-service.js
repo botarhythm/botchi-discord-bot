@@ -274,7 +274,7 @@ async function processAIRequest(userId, message, username, isDM = false) {
   });
 
   const responseText = extractResponseText(response);
-  const validatedResponse = validateResponse(responseText);
+  const validatedResponse = validateResponse(responseText, message);
 
   userConversation.messages.push({ role: 'assistant', content: validatedResponse });
   userConversation.lastUpdated = Date.now();
@@ -291,9 +291,90 @@ function extractResponseText(response) {
   return response?.data?.choices?.[0]?.message?.content || '（応答が見つかりませんでした）';
 }
 
-function validateResponse(responseText) {
+function validateResponse(responseText, userMessage = '') {
   if (!responseText || responseText.trim() === '') return '🌿 言葉が見つからないようです。もう一度、お話しませんか？';
   if (responseText.length < MIN_ACCEPTABLE_LENGTH) return '🍃 うまく言葉が紡げなかったようです。違う角度から話してみませんか？';
+  
+  // 日付・時間に関する質問への対応
+  const dateTimeQuestion = isDateTimeQuestion(userMessage);
+  if (dateTimeQuestion) {
+    return fixDateTimeInResponse(responseText);
+  }
+  
+  return responseText;
+}
+
+/**
+ * ユーザーメッセージが日付や時間に関する質問かどうかを判定
+ * @param {string} message ユーザーメッセージ
+ * @returns {boolean} 日付・時間の質問であればtrue
+ */
+function isDateTimeQuestion(message) {
+  if (!message) return false;
+  
+  // 日付・時間に関する質問パターン
+  const dateTimePatterns = [
+    /今日は何日/i,
+    /今日の日付/i,
+    /今日は.+(日|月|年)/i,
+    /今何時/i,
+    /現在.+時刻/i,
+    /何月何日/i,
+    /日付.*教えて/i,
+    /今日.*何曜日/i,
+    /今日|本日/i,
+    /現在|今の時間/i
+  ];
+
+  // ニュースに関連する質問パターン（こちらも日付情報が重要）
+  const newsPatterns = [
+    /今日のニュース/i,
+    /最新ニュース/i,
+    /最近のニュース/i,
+    /今日の出来事/i,
+    /今日起きた/i,
+    /今朝のニュース/i,
+    /今日の天気/i
+  ];
+  
+  return dateTimePatterns.some(pattern => pattern.test(message)) || 
+         newsPatterns.some(pattern => pattern.test(message));
+}
+
+/**
+ * 応答テキストに正確な日付情報を含める
+ * @param {string} responseText 元の応答テキスト
+ * @returns {string} 日付情報を含めた応答テキスト
+ */
+function fixDateTimeInResponse(responseText) {
+  // 現在の日本時間を取得
+  const now = new Date();
+  const japanTime = new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false
+  }).format(now);
+  
+  // 日付の間違いを検出するパターン
+  const wrongDatePattern = /(\d{4})年(\d{1,2})月(\d{1,2})日/;
+  const hasWrongDate = wrongDatePattern.test(responseText);
+  
+  // 間違った日付を検出した場合は修正
+  if (hasWrongDate) {
+    // 間違った日付を正しい日付に置き換え
+    return responseText.replace(wrongDatePattern, `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`);
+  }
+  
+  // 日付を含まない場合は先頭に追加
+  if (!responseText.includes('年') || !responseText.includes('月') || !responseText.includes('日')) {
+    return `今日は${japanTime}です🌿\n\n${responseText}`;
+  }
+  
   return responseText;
 }
 
@@ -477,14 +558,46 @@ async function getResponse(context) {
     const { userId, username = 'User', message, contextType = 'unknown' } = context;
     console.log(`OpenAI getResponse呼び出し: userId=${userId}, contextType=${contextType}`);
     
+    // 日時関連の質問かチェック
+    const isDateTimeRelated = isDateTimeQuestion(message);
+    if (isDateTimeRelated) {
+      console.log(`日付・時間関連の質問を検出: "${message}"`);
+    }
+    
     // getAIResponseメソッドに変換して呼び出し
     const isDM = contextType === 'direct_message';
-    return await getAIResponse(
+    const response = await getAIResponse(
       userId,
       message,
       username,
       isDM
     );
+    
+    // 日時関連の質問に対しては、応答後も再確認
+    if (isDateTimeRelated) {
+      // 現在の日本時間を取得
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const day = now.getDate();
+      
+      // 応答に現在の年が含まれているかチェック
+      if (!response.includes(String(year))) {
+        console.log(`日付修正: 応答に現在の年(${year})が含まれていないため修正します`);
+        // 現在の日本時間を取得して応答の先頭に追加
+        const japanTime = new Intl.DateTimeFormat('ja-JP', {
+          timeZone: 'Asia/Tokyo',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          weekday: 'long'
+        }).format(now);
+        
+        return `今日は${japanTime}です🌿\n\n${response}`;
+      }
+    }
+    
+    return response;
   } catch (error) {
     console.error(`OpenAI getResponse呼び出しエラー: ${error.message}`);
     throw error;
