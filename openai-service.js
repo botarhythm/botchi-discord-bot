@@ -4,7 +4,7 @@ const contextManager = require('./context-manager');
 
 // 環境変数から設定を読み込む
 const API_KEY = process.env.OPENAI_API_KEY;
-const API_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const API_MODEL = process.env.OPENAI_MODEL || 'gpt-4-turbo-preview';
 const API_ENDPOINT = process.env.OPENAI_ENDPOINT || 'https://api.openai.com/v1/chat/completions';
 
 // 会話履歴キャッシュ (ユーザーIDをキーとする)

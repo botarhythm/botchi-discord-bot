@@ -33,7 +33,7 @@ async function initialize() {
   try {
     // 設定の確認 (process.envから直接読み込み)
     const apiKey = process.env.OPENAI_API_KEY;
-    const apiModel = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+    const apiModel = process.env.OPENAI_MODEL || 'gpt-4-turbo-preview';
     
     if (!apiKey) {
       logger.warn('OpenAI APIキーが環境変数に設定されていません');
