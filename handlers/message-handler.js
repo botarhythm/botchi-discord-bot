@@ -273,7 +273,12 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
     
     // Send response back to Discord
     if (aiResponse && aiResponse.trim()) {
-      const chunks = chunkMessage(aiResponse);
+      // ★★★ 修正点: AI応答をフォーマットする ★★★
+      const formattedResponse = characterDefinitions.formatMessage(aiResponse);
+      // ★★★ 修正点ここまで ★★★
+
+      // 修正: フォーマットされた応答を分割する
+      const chunks = chunkMessage(formattedResponse, 1990); // chunkSizeは適宜調整
       logger.debug(`${idLog} Answer split into ${chunks.length} chunks`);
       
       for (const chunk of chunks) {
@@ -288,7 +293,8 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
             messageContext.channelId,
             messageContext.userId,
             cleanContent,
-            aiResponse
+            // 修正: フォーマット後の応答ではなく、元のAI応答を保存する
+            aiResponse 
           );
           logger.debug(`${idLog} Conversation history saved`);
         } catch (err) {
@@ -387,12 +393,11 @@ function formatConversationHistoryForPrompt(conversationHistory, messageContext,
 function buildContextPrompt(userMessage, messageContext, conversationHistory = [], searchResults = null, ragResults = null) {
   // Get current time in Japan using the date handler
   const dateInfo = dateHandler.formatDateForAI(dateHandler.getCurrentJapanTime());
-  const japanTime = dateHandler.getFormattedDateTimeString();
+  const japanTime = dateHandler.getFormattedDateTimeString(); // 例: "2024年MM月DD日(曜日) 午後3時32分 (JST (UTC+9))"
+  const hour = dateInfo.hour; // 現在の時 (0-23)
   
-  // Time-based greeting
-  const hour = dateInfo.hour;
-  let timeGreeting = '';
-  
+  // Time-based greeting calculation (used in prompt instructions now)
+  let timeGreeting = ''; 
   if (hour >= 5 && hour < 12) {
     timeGreeting = 'おはようございます！';
   } else if (hour >= 12 && hour < 18) {
@@ -428,13 +433,25 @@ function buildContextPrompt(userMessage, messageContext, conversationHistory = [
   }
   
   systemPrompt += `\n【重要な指示】\n`;
-  systemPrompt += `- 日本語で応答してください。\n`;
-  systemPrompt += `- 人間らしい温かみのある会話を心がけてください。\n`;
-  systemPrompt += `- 時間や日付に関する質問には、必ず${dateInfo.timezoneName}を基準に回答してください。\n`;
-  systemPrompt += `- 検索結果を引用する場合は、必ず情報源のURLを含めてください。\n`;
+  systemPrompt += `- 日本語で応答してください。
+`;
+  systemPrompt += `- 人間らしい温かみのある会話を心がけてください。
+`;
+  // --- 新しい指示を追加 ---
+  systemPrompt += `- **時間帯への配慮:** 現在の日本時間は ${japanTime} (${hour}時台) です。この時間帯を応答内容や会話のトーンに自然に反映させてください。例えば、夜遅くなら相手を気遣う言葉、朝なら活気のある言葉を選ぶなど、状況に応じた人間らしい配慮をお願いします。
+`;
+  systemPrompt += `- **挨拶の対応:** もしユーザーが「おはよう」「こんにちは」「こんばんは」といった挨拶からメッセージを始めた場合は、あなたも現在の時間帯 (${hour}時台) に合った適切な挨拶（${timeGreeting} など）を返してください。ユーザーからの挨拶がない場合は、必ずしも挨拶で応答を開始する必要はありません。
+`;
+  // --- ここまで ---
+  systemPrompt += `- 時間や日付に関する質問には、必ず${dateInfo.timezoneName}を基準に回答してください。
+`;
+  systemPrompt += `- 検索結果を引用する場合は、必ず情報源のURLを含めてください。
+`;
   // Refined instruction about using nicknames
-  systemPrompt += `- **ニックネームの使用:** このサーバー（${messageContext.guildName || 'この場所'}）では、多くのメンバーがニックネームを使っています。ニックネーム（例：現在話している相手は「${messageContext.effectiveUsername}」さん）は、サーバー内では公開情報として扱われ、メンバー同士の会話で自然に使われます。あなたも会話の中でユーザーや他のメンバーに言及する際は、メンションや会話履歴からわかる範囲で、**必ずニックネームを使用してください**。例えば、「${messageContext.effectiveUsername}さんはどう思いますか？」のように話しかけてください。**「あなた」のような一般的な呼び方は絶対に避けてください。**\n`;
-  systemPrompt += `- **メンバーに関する質問:** もし「このサーバーには誰がいますか？」といった質問を受けた場合は、現在サーバーに参加しているメンバーのニックネーム（またはユーザー名）をリストアップして答えるのが適切です。（現時点ではメンバーリストを直接参照できませんが、応答方針として覚えておいてください）\n`;
+  systemPrompt += `- **ニックネームの使用:** このサーバー（${messageContext.guildName || 'この場所'}）では、多くのメンバーがニックネームを使っています。ニックネーム（例：現在話している相手は「${messageContext.effectiveUsername}」さん）は、サーバー内では公開情報として扱われ、メンバー同士の会話で自然に使われます。あなたも会話の中でユーザーや他のメンバーに言及する際は、メンションや会話履歴からわかる範囲で、**必ずニックネームを使用してください**。例えば、「${messageContext.effectiveUsername}さんはどう思いますか？」のように話しかけてください。**「あなた」のような一般的な呼び方は絶対に避けてください。**
+`;
+  systemPrompt += `- **メンバーに関する質問:** もし「このサーバーには誰がいますか？」といった質問を受けた場合は、現在サーバーに参加しているメンバーのニックネーム（またはユーザー名）をリストアップして答えるのが適切です。（現時点ではメンバーリストを直接参照できませんが、応答方針として覚えておいてください）
+`;
   
   // 検索結果を整形してプロンプトに追加
   const searchPromptSection = formatSearchResultsForPrompt(searchResults, messageContext.message);
@@ -448,11 +465,10 @@ function buildContextPrompt(userMessage, messageContext, conversationHistory = [
   const historyPromptSection = formatConversationHistoryForPrompt(conversationHistory, messageContext, character);
   systemPrompt += historyPromptSection;
   
-  // Add user message
+  // Add user message - Remove the forced timeGreeting from the previous attempt
   const finalPrompt = `${systemPrompt}\n【現在のメッセージ】\n${messageContext.effectiveUsername}: ${userMessage}\n\n${character.name}: `;
-  const internalInfoPrompt = `\n【内部参照用 日本標準時: ${japanTime}】\n`;
   
-  return finalPrompt + internalInfoPrompt;
+  return finalPrompt;
 }
 
 // Function to chunk messages for Discord's 2000 character limit
