@@ -187,6 +187,6 @@ module.exports = {
   getRandomFallbackResponse,
   getEmoji,
   formatMessage,
-  // 修正: 新しい定数名をエイリアスでエクスポート
-  POETIC_COMPRESSED_CHARACTER_PROMPT as BASE_CHARACTER_PROMPT 
+  // 修正: 正しい構文でエイリアスを指定
+  BASE_CHARACTER_PROMPT: POETIC_COMPRESSED_CHARACTER_PROMPT 
 };
