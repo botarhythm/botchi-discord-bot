@@ -89,26 +89,28 @@ function analyzeQueryTypeLocally(query) {
 async function testApiDirectly() {
   console.log(`\n${colors.cyan}APIの直接診断を実行します...${colors.reset}`);
   
-  const apiKey = process.env.BRAVE_API_KEY || process.env.BRAVE_SEARCH_API_KEY;
-  const apiUrl = 'https://api.search.brave.com/res/v1/web/search';
+  const apiKey = process.env.GOOGLE_API_KEY;
+  const cseId = process.env.GOOGLE_CSE_ID;
+  const apiUrl = 'https://www.googleapis.com/customsearch/v1';
   
-  if (!apiKey) {
-    console.error(`${colors.red}エラー: APIキーが設定されていません${colors.reset}`);
+  if (!apiKey || !cseId) {
+    console.error(`${colors.red}エラー: APIキーまたはCSE IDが設定されていません${colors.reset}`);
     return false;
   }
   
   try {
     console.log(`APIキー: ${apiKey.substring(0, 5)}...`);
+    console.log(`CSE ID: ${cseId.substring(0, 5)}...`);
     console.log(`APIエンドポイント: ${apiUrl}`);
     
     const testResponse = await axios.get(apiUrl, {
       params: {
-        q: 'test query',
-        count: 1
+        key: apiKey,
+        cx: cseId,
+        q: 'test query'
       },
       headers: {
-        'Accept': 'application/json',
-        'X-Subscription-Token': apiKey
+        'Accept': 'application/json'
       },
       timeout: 15000,
       validateStatus: () => true // 全てのステータスコードを許可
@@ -151,12 +153,14 @@ async function testSearchFeature() {
   console.log(`${colors.bright}${colors.cyan}===== 検索機能テスト =====${colors.reset}\n`);
   
   // APIキーの確認
-  const apiKey = process.env.BRAVE_API_KEY || process.env.BRAVE_SEARCH_API_KEY;
-  if (!apiKey) {
-    console.error(`${colors.red}エラー: BRAVE_API_KEYが設定されていません。.envファイルを確認してください。${colors.reset}`);
+  const apiKey = process.env.GOOGLE_API_KEY;
+  const cseId = process.env.GOOGLE_CSE_ID;
+  if (!apiKey || !cseId) {
+    console.error(`${colors.red}エラー: GOOGLE_API_KEYまたはGOOGLE_CSE_IDが設定されていません。.envファイルを確認してください。${colors.reset}`);
     return;
   }
-  console.log(`${colors.green}BRAVE_API_KEY: 設定されています (${apiKey.substring(0, 3)}...)${colors.reset}\n`);
+  console.log(`${colors.green}GOOGLE_API_KEY: 設定されています (${apiKey.substring(0, 3)}...)${colors.reset}`);
+  console.log(`${colors.green}GOOGLE_CSE_ID: 設定されています (${cseId.substring(0, 3)}...)${colors.reset}\n`);
   
   // API診断テスト
   const apiDiagnostic = await testApiDirectly();

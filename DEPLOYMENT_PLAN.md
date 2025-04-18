@@ -22,7 +22,7 @@
    - テキスト生成
    - コンテキスト処理
 
-4. Brave Search API
+4. Google Custom Search API
    - Web検索機能
 
 ## デプロイメントプロセス
@@ -69,74 +69,10 @@ OPENAI_API_KEY=
 SUPABASE_URL=
 SUPABASE_KEY=
 
-# Brave Search設定
-BRAVE_API_KEY=
+# Google Search設定
+GOOGLE_API_KEY=
+GOOGLE_CSE_ID=
 ```
 
 ### オプション環境変数
-```bash
-# 機能フラグ
-MEMORY_ENABLED=true
-RAG_ENABLED=true
-
-# デバッグ設定
-DEBUG=false
-
-# パフォーマンス設定
-MESSAGE_HISTORY_LIMIT=100
-CONTEXT_WINDOW_SIZE=4000
 ```
-
-## モニタリング計画
-
-### 監視項目
-1. アプリケーションヘルス
-   - エンドポイントの応答
-   - メモリ使用量
-   - CPU使用率
-
-2. 機能ヘルス
-   - OpenAI API接続状態
-   - Supabase接続状態
-   - Discord WebSocket接続
-
-3. パフォーマンス指標
-   - 応答時間
-   - エラーレート
-   - メモリリーク
-
-## ロールバック手順
-
-### 即時ロールバック
-```bash
-# 前回の安定バージョンに戻す
-git revert HEAD
-git push origin main
-```
-
-### 段階的ロールバック
-1. 問題の特定
-2. 影響範囲の評価
-3. ロールバック実行
-4. 影響確認
-5. 再デプロイ計画
-
-## 緊急時対応
-
-### 1. サービス停止時
-1. Railwayダッシュボードで状態確認
-2. ログ確認
-3. 必要に応じて再起動
-4. 原因特定と修正
-
-### 2. API障害時
-1. フォールバックモードに切り替え
-2. ユーザーへの通知
-3. APIプロバイダーのステータス確認
-4. 復旧待機または代替手段検討
-
-## 注意事項
-- デプロイ前に必ずテストを実行
-- 環境変数の完全性を確認
-- ログ出力の確認
-- メモリ使用量の監視
