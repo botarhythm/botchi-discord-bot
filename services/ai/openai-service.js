@@ -205,11 +205,14 @@ async function getAIResponse(userId, message, username, isDM = false, additional
   while (retries <= MAX_RETRIES) {
     try {
       if (retries > 0) {
-        // 指数バックオフでリトライ
         const delay = RETRY_DELAY * Math.pow(2, retries - 1);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
-      return await processAIRequest(userId, message, username, isDM, additionalContext);
+      if (Array.isArray(message)) {
+        return await processAIRequestWithMessages(message);
+      } else {
+        return await processAIRequest(userId, message, username, isDM, additionalContext);
+      }
     } catch (error) {
       const isRetryableError = isErrorRetryable(error);
       retries++;
@@ -720,6 +723,32 @@ function getConfig() {
     healthStatus: safeHealthStatus,
     contextManager: contextManagerConfig
   };
+}
+
+// 新規追加: messages配列をそのままAPIに渡す
+async function processAIRequestWithMessages(messages) {
+  const requestData = {
+    model: API_MODEL,
+    messages: messages,
+    temperature: 0.8,
+    max_tokens: 1000,
+    top_p: 0.95
+  };
+  // --- デバッグ用詳細ログ出力 ---
+  console.log('【DEBUG】OpenAI APIに送信するmessages配列:');
+  console.log(JSON.stringify(requestData.messages, null, 2));
+  // --- ここまで ---
+  const url = API_ENDPOINT;
+  const response = await axios.post(url, requestData, {
+    timeout: REQUEST_TIMEOUT,
+    headers: getApiHeaders()
+  });
+  // --- デバッグ用: AIから返ってきた生の応答を出力 ---
+  console.log('【DEBUG】OpenAI APIから返ってきた生の応答:');
+  console.log(JSON.stringify(response?.data, null, 2));
+  // --- ここまで ---
+  const responseText = extractResponseText(response);
+  return validateResponse(responseText);
 }
 
 module.exports = {
