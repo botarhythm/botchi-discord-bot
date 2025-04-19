@@ -496,10 +496,6 @@ async function processMessage(message) {
       logger.debug(`[processMessage] 検索サービスを呼び出します。APIキー状態: ${Boolean(process.env.GOOGLE_API_KEY)}, CSE ID状態: ${Boolean(process.env.GOOGLE_CSE_ID)}`);
     }
     
-    // ユーザーに検索中メッセージを表示
-    const typingPromise = message.channel.sendTyping();
-    const searchIndicator = message.reply(`🔍 「${query}」を検索しています...`);
-    
     // 検索オプションの設定
     const options = {
       count: 5, // デフォルトの結果数
@@ -511,19 +507,6 @@ async function processMessage(message) {
     
     // searchServiceを使用して検索を実行
     const searchResult = await searchService.performSearch(query, options);
-    
-    // タイピングインジケータの処理を完了させる
-    await typingPromise;
-    
-    // 検索インジケータメッセージを削除
-    try {
-      const searchReply = await searchIndicator;
-      if (searchReply && searchReply.deletable) {
-        await searchReply.delete();
-      }
-    } catch (err) {
-      logger.error(`検索インジケータの削除に失敗: ${err.message}`);
-    }
     
     // 結果の処理
     return {
@@ -539,10 +522,7 @@ async function processMessage(message) {
   } catch (error) {
     logger.error(`検索処理中にエラーが発生しました: ${error.stack}`);
     
-    if (message && message.reply) {
-      await message.reply('検索中にエラーが発生しました。しばらく経ってからもう一度お試しください。');
-    }
-    
+    // エラー時も仮応答は送信しない
     return {
       success: false,
       error: error.message,
