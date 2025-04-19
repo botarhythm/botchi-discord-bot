@@ -201,13 +201,17 @@ function processSearchResults(apiResponse) {
     `${source.index}. [${source.title}](${source.url}) - ${source.hostname}`
   ).join('\n');
   
-  return {
+  const resultObj = {
     summary: summaryText,
     sources: sources,
     sourcesList: sourcesList,
     query: apiResponse.queries?.request[0]?.searchTerms || '',
     totalResults: parseInt(apiResponse.searchInformation?.totalResults || sources.length)
   };
+  // 生成したsourcesやsourcesListをデバッグ出力
+  logger.debug('Processed search results (sources):', JSON.stringify(resultObj.sources, null, 2));
+  logger.debug('Processed search results (sourcesList):', resultObj.sourcesList);
+  return resultObj;
 }
 
 /**

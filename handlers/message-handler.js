@@ -242,6 +242,7 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
     }
     
     // AI応答を取得 - 抽象化レイヤーを使用
+    logger.debug(`${idLog} additionalContext to AI: ${additionalContext}`);
     logger.debug(`${idLog} Sending request to AI service`);
     const aiResponse = await aiService.getResponse({
       ...messageContext,
