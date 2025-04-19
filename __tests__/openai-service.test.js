@@ -16,7 +16,7 @@ const {
 jest.mock('../context-manager', () => mockContextManager());
 
 // テスト対象モジュール
-const openaiService = require('../openai-service');
+const openaiService = require('../services/ai/openai-service');
 const axios = require('axios');
 
 // モック応答を作成

@@ -453,11 +453,20 @@ async function provideSearchForAI(query) {
   }
 }
 
+/**
+ * 検索サービスの初期化状態を返す
+ * @returns {boolean} 初期化されていればtrue
+ */
+function getInitializationStatus() {
+  return isInitialized;
+}
+
+// エクスポートする関数リスト
 module.exports = {
   initialize,
   checkHealth,
   performSearch,
   provideSearchForAI,
-  clearCache,
-  analyzeQueryType
+  analyzeQueryType,
+  getInitializationStatus
 };

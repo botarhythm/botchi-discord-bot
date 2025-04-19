@@ -379,8 +379,8 @@ async function handleSearch(args, message) {
       const searchService = require('../extensions/search-service');
       
       // APIキー情報をデバッグ出力
-      logger.debug(`BRAVE_SEARCH_API_KEY: ${process.env.BRAVE_SEARCH_API_KEY ? 'defined' : 'undefined'}`);
-      logger.debug(`BRAVE_API_KEY: ${process.env.BRAVE_API_KEY ? 'defined' : 'undefined'}`);
+      logger.debug(`GOOGLE_API_KEY: ${process.env.GOOGLE_API_KEY ? 'defined' : 'undefined'}`);
+      logger.debug(`GOOGLE_CSE_ID: ${process.env.GOOGLE_CSE_ID ? 'defined' : 'undefined'}`);
       
       // 検索実行
       const searchResults = await searchService.performSearch(query);
@@ -402,7 +402,7 @@ async function handleSearch(args, message) {
             .addFields(
               { name: '情報源', value: searchResults.sources || '情報なし' }
             )
-            .setFooter({ text: 'Brave Search APIを使用' });
+            .setFooter({ text: 'Google Custom Search APIを使用' });
           
           await message.reply({ embeds: [embed] });
           logger.debug('通常チャンネルに検索結果を埋め込みメッセージとして返信しました');

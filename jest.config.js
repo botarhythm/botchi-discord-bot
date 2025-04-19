@@ -4,8 +4,21 @@ module.exports = {
   
   // テストファイルのパターン
   testMatch: [
-    '**/__tests__/**/*.js',
+    '**/__tests__/**/*.test.js',
     '**/?(*.)+(spec|test).js'
+  ],
+  
+  // テスト対象外のファイル/ディレクトリパターン
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/coverage/',
+    '/supabase-mcp-server-official/',
+    '/logs/',
+    '__tests__/helpers/',
+    '__tests__/mocks/',
+    '__tests__/test-search.js',
+    '__tests__/gemini-test.js',
+    '__tests__/debug-path-test.js',
   ],
   
   // カバレッジの設定

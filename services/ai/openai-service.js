@@ -1,6 +1,6 @@
 // OpenAI統合サービス - Bocchy用カスタマイズ版
 const axios = require('axios');
-const contextManager = require('./context-manager');
+const contextManager = require('../../context-manager');
 
 // 環境変数から設定を読み込む
 const API_KEY = process.env.OPENAI_API_KEY;

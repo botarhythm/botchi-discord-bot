@@ -36,7 +36,7 @@ const {
 } = require('./helpers/test-utils');
 
 // テスト対象のモジュール
-const openaiService = require('../openai-service');
+const openaiService = require('../services/ai/openai-service');
 
 describe('OpenAI Service 強化テスト', () => {
   // 各テストの前にモックをリセット

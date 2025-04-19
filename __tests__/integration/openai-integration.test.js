@@ -6,7 +6,7 @@
  * TEST_WITH_REAL_API環境変数が設定されている場合のみ実行されます。
  */
 
-const openaiService = require('../../openai-service');
+const openaiService = require('../../services/ai/openai-service');
 const { createTestContext, mockEnvironment } = require('../helpers/test-utils');
 
 // APIキーがない場合はテストをスキップ

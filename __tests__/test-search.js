@@ -5,8 +5,8 @@
 
 // 環境変数の読み込み
 require('dotenv').config();
-const searchService = require('./extensions/search-service');
-const logger = require('./system/logger');
+const searchService = require('../extensions/search-service');
+const logger = require('../system/logger');
 const axios = require('axios');
 
 // カラー出力用

@@ -1,6 +1,6 @@
-/**
+/*
  * 検索結果処理モジュール
- * Brave検索結果をAI向けに処理・最適化する
+ * Google Custom Search APIの検索結果をAI向けに処理・最適化する
  */
 const logger = require('../system/logger');
 const { QUERY_TYPES } = require('./search-analyzer');
@@ -8,7 +8,7 @@ const dateHandler = require('./date-handler');
 
 /**
  * 検索結果を処理する
- * @param {Object} searchResults - Brave検索API結果
+ * @param {Object} searchResults - Google Custom Search APIの結果
  * @param {Object} searchParams - 検索パラメータ
  * @returns {Object} 処理済み検索結果
  */

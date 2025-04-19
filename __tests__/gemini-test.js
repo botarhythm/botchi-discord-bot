@@ -1,6 +1,7 @@
 // Gemini API接続テストユーティリティ
 require('dotenv').config();
-const geminiService = require('./gemini-service');
+
+const geminiService = require('../services/ai/gemini-service');
 
 // テスト用コンソール出力ユーティリティ
 function logSection(title) {
