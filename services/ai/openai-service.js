@@ -282,11 +282,21 @@ async function processAIRequest(userId, message, username, isDM = false, additio
     top_p: 0.95
   };
 
+  // --- デバッグ用詳細ログ出力 ---
+  console.log('【DEBUG】OpenAI APIに送信するmessages配列:');
+  console.log(JSON.stringify(requestData.messages, null, 2));
+  // --- ここまで ---
+
   const url = API_ENDPOINT;
   const response = await axios.post(url, requestData, {
     timeout: REQUEST_TIMEOUT,
     headers: getApiHeaders()
   });
+
+  // --- デバッグ用: AIから返ってきた生の応答を出力 ---
+  console.log('【DEBUG】OpenAI APIから返ってきた生の応答:');
+  console.log(JSON.stringify(response?.data, null, 2));
+  // --- ここまで ---
 
   const responseText = extractResponseText(response);
   const validatedResponse = validateResponse(responseText, message);
