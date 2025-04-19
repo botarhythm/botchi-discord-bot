@@ -116,7 +116,7 @@ async function initialize() {
 /**
  * Anthropic APIを使用してメッセージに応答（リトライ機能付き）
  */
-async function getAIResponse(userId, message, username, isDM = false) {
+async function getAIResponse(userId, message, username, isDM = false, additionalContext = null) {
   // テスト環境ではモック応答を使用
   if (process.env.NODE_ENV === 'test') {
     // テスト用変数から現在のテスト環境を取得
@@ -161,7 +161,7 @@ async function getAIResponse(userId, message, username, isDM = false) {
       if (retries > 0) {
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * Math.pow(2, retries - 1)));
       }
-      response = await processAIRequest(userId, message, username, isDM);
+      response = await processAIRequest(userId, message, username, isDM, additionalContext);
       return response; // 成功したら即座に返す
     } catch (error) {
       const isRetryableError = isErrorRetryable(error);
@@ -185,29 +185,18 @@ async function getAIResponse(userId, message, username, isDM = false) {
  */
 async function getResponse(context) {
   try {
-    // コンテキストから必要な情報を抽出
-    const { userId, username = 'User', message, contextType = 'unknown' } = context;
-    console.log(`Anthropic getResponse呼び出し: userId=${userId}, contextType=${contextType}`);
-    
-    // テスト環境では例外処理のテストが可能
-    if (process.env.NODE_ENV === 'test' && context.throwError) {
-      throw new Error('API error');
-    }
-    
-    // getAIResponseメソッドに変換して呼び出し
+    const { userId, username = 'User', message, contextType = 'unknown', additionalContext } = context;
     const isDM = contextType === 'direct_message';
     const response = await getAIResponse(
       userId,
       message,
       username,
-      isDM
+      isDM,
+      additionalContext
     );
-    
-    // 応答がundefinedまたはnullの場合は代替メッセージを返す
     if (response === undefined || response === null) {
       return '（応答が見つかりませんでした）';
     }
-    
     return response;
   } catch (error) {
     console.error(`Anthropic getResponse呼び出しエラー: ${error.message}`);
@@ -235,7 +224,7 @@ function formatErrorResponse(error) {
   }
 }
 
-async function processAIRequest(userId, message, username, isDM = false) {
+async function processAIRequest(userId, message, username, isDM = false, additionalContext = null) {
   const startTime = Date.now();
 
   const userConversation = getConversationHistory(userId);
@@ -268,6 +257,11 @@ async function processAIRequest(userId, message, username, isDM = false) {
       .slice(-10);
     
     messages = [...messages, ...nonSystemMessages];
+  }
+  
+  // 追加: additionalContextがあればsystem roleで挿入
+  if (additionalContext) {
+    messages.push({ role: 'system', content: additionalContext });
   }
   
   // 新しいユーザーメッセージを追加

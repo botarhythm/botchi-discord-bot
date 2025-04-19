@@ -180,9 +180,10 @@ async function initialize() {
  * @param {string} message - ユーザーメッセージ
  * @param {string} username - ユーザー名
  * @param {boolean} isDM - DMかどうか
+ * @param {string} additionalContext - 追加のコンテキスト
  * @returns {Promise<string>} AIからの応答
  */
-async function getAIResponse(userId, message, username, isDM = false) {
+async function getAIResponse(userId, message, username, isDM = false, additionalContext = null) {
   // API設定状態を確認
   const isApiConfigured = !!(API_KEY && API_KEY !== '');
   
@@ -208,7 +209,7 @@ async function getAIResponse(userId, message, username, isDM = false) {
         const delay = RETRY_DELAY * Math.pow(2, retries - 1);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
-      return await processAIRequest(userId, message, username, isDM);
+      return await processAIRequest(userId, message, username, isDM, additionalContext);
     } catch (error) {
       const isRetryableError = isErrorRetryable(error);
       retries++;
@@ -244,12 +245,17 @@ function formatErrorResponse(error) {
   }
 }
 
-async function processAIRequest(userId, message, username, isDM = false) {
+async function processAIRequest(userId, message, username, isDM = false, additionalContext = null) {
   const startTime = Date.now();
 
   const userConversation = getConversationHistory(userId);
   if (userConversation.messages.length === 0) {
     userConversation.messages.push({ role: 'system', content: BOCCHY_CHARACTER_PROMPT });
+  }
+
+  // 追加: additionalContextがあればsystem roleで挿入
+  if (additionalContext) {
+    userConversation.messages.push({ role: 'system', content: additionalContext });
   }
 
   // 日本時間の情報を取得
@@ -562,8 +568,7 @@ function __getConversationCache() {
  */
 async function getResponse(context) {
   try {
-    // コンテキストから必要な情報を抽出
-    const { userId, username = 'User', message, contextType = 'unknown' } = context;
+    const { userId, username = 'User', message, contextType = 'unknown', additionalContext } = context;
     console.log(`OpenAI getResponse呼び出し: userId=${userId}, contextType=${contextType}`);
     
     // 日時関連の質問かチェック
@@ -578,7 +583,8 @@ async function getResponse(context) {
       userId,
       message,
       username,
-      isDM
+      isDM,
+      additionalContext
     );
     
     // 日時関連の質問に対しては、応答後も再確認

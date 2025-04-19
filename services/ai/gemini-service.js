@@ -94,7 +94,7 @@ async function initialize() {
 /**
  * Gemini APIを使用してメッセージに応答（リトライ機能付き）
  */
-async function getAIResponse(userId, message, username, isDM = false) {
+async function getAIResponse(userId, message, username, isDM = false, additionalContext = null) {
   if (!API_KEY) {
     console.error('Gemini API Key が設定されていません');
     return '🌿 API設定に問題があるようです。少し待ってみてください。';
@@ -106,7 +106,7 @@ async function getAIResponse(userId, message, username, isDM = false) {
       if (retries > 0) {
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * Math.pow(2, retries - 1)));
       }
-      return await processAIRequest(userId, message, username, isDM);
+      return await processAIRequest(userId, message, username, isDM, additionalContext);
     } catch (error) {
       const isRetryableError = isErrorRetryable(error);
       retries++;
@@ -126,17 +126,16 @@ async function getAIResponse(userId, message, username, isDM = false) {
  */
 async function getResponse(context) {
   try {
-    // コンテキストから必要な情報を抽出
-    const { userId, username = 'User', message, contextType = 'unknown' } = context;
+    const { userId, username = 'User', message, contextType = 'unknown', additionalContext } = context;
     console.log(`Gemini getResponse呼び出し: userId=${userId}, contextType=${contextType}`);
     
-    // getAIResponseメソッドに変換して呼び出し
     const isDM = contextType === 'direct_message';
     return await getAIResponse(
       userId,
       message,
       username,
-      isDM
+      isDM,
+      additionalContext
     );
   } catch (error) {
     console.error(`Gemini getResponse呼び出しエラー: ${error.message}`);
@@ -164,7 +163,7 @@ function formatErrorResponse(error) {
   }
 }
 
-async function processAIRequest(userId, message, username, isDM = false) {
+async function processAIRequest(userId, message, username, isDM = false, additionalContext = null) {
   const startTime = Date.now();
 
   const userConversation = getConversationHistory(userId);
@@ -177,6 +176,13 @@ async function processAIRequest(userId, message, username, isDM = false) {
     userConversation.messages.push({
       role: 'model',
       parts: [{text: '了解しました。Bocchy（ボッチー）として会話を進めていきます。'}]
+    });
+  }
+
+  if (additionalContext) {
+    userConversation.messages.push({
+      role: 'user',
+      parts: [{text: additionalContext}]
     });
   }
 
