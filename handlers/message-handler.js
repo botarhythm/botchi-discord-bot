@@ -221,44 +221,19 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
       }
     }
     
-    // 検索結果やRAG結果をコンテキストに追加
+    // Web検索・RAGの優先順位を明示したadditionalContext生成
+    let additionalContext = '';
     if (searchResults) {
-      // 検索結果の全体をコンテキストに設定
-      messageContext.searchResults = searchResults;
-      logger.debug(`${idLog} Search results added to context: ${searchResults.summary?.substring(0, 50)}...`);
-      
-      // クエリタイプに関する情報も別途設定
-      if (searchResults.queryType) {
-        messageContext.queryType = searchResults.queryType;
-      }
-      
-      // 検索結果タイプに応じたフラグを設定（AIモデルが適切な応答方法を判断できるように）
-      if (searchResults.queryType) {
-        const queryType = searchResults.queryType;
-        
-        // 時事性の高い情報を求めるクエリかどうか
-        messageContext.isCurrentInfoQuery = queryType.isCurrentInfoQuery || false;
-        
-        // 定義や意味を尋ねるクエリかどうか
-        messageContext.isDefinitionQuery = queryType.isDefinitionQuery || false;
-        
-        // ハウツー系のクエリかどうか
-        messageContext.isHowToQuery = queryType.isHowToQuery || false;
-        
-        // 事実確認のクエリかどうか
-        messageContext.isFactCheckQuery = queryType.isFactCheckQuery || false;
-        
-        // 一般的な情報を求めるクエリかどうか
-        messageContext.isGeneralInfoQuery = queryType.isGeneralInfoQuery || false;
-        
-        // 位置情報に関するクエリかどうか
-        messageContext.isLocalQuery = queryType.isLocalQuery || false;
-      }
+      additionalContext += formatSearchResultsForPrompt(searchResults, cleanContent);
+      additionalContext += '\n\n※上記のWeb検索結果を最優先の情報源とし、必ず日本語で要約・引用し、出典URLも明示してください。検索結果にない情報は推測せず、知識ベースや会話文脈で補足する場合は必ずその旨を明記してください。';
     }
-    
     if (ragResults) {
-      messageContext.ragResults = ragResults;
-      logger.debug(`${idLog} RAG results added to context`);
+      additionalContext += '\n\n【会話文脈・個性の参考情報】\n';
+      additionalContext += formatRagResultsForPrompt(ragResults);
+      additionalContext += '\n※この情報は会話の流れやユーザーの個性を理解するための参考です。Web検索結果と矛盾する場合はWeb検索を優先してください。';
+    }
+    if (!additionalContext) {
+      additionalContext = cleanContent;
     }
     
     if (conversationHistory && conversationHistory.length > 0) {
@@ -268,7 +243,10 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
     
     // AI応答を取得 - 抽象化レイヤーを使用
     logger.debug(`${idLog} Sending request to AI service`);
-    const aiResponse = await aiService.getResponse(messageContext);
+    const aiResponse = await aiService.getResponse({
+      ...messageContext,
+      additionalContext
+    });
     logger.debug(`${idLog} Received AI response: ${aiResponse ? aiResponse.substring(0, 50) + '...' : 'No response'}`);
     
     // Send response back to Discord
