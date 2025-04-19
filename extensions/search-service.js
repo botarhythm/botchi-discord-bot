@@ -347,6 +347,9 @@ async function performSearch(query, options = {}) {
       throw new Error(`API応答エラー: ${response.status}`);
     }
     
+    // Google APIからのレスポンス取得直後に生データをデバッグ出力
+    logger.debug('Google API raw response:', JSON.stringify(response?.data || response, null, 2));
+    
     // 検索結果を処理
     const processedResults = processSearchResults(response.data);
     
