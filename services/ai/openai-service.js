@@ -573,6 +573,23 @@ function __getConversationCache() {
 }
 
 /**
+ * 検索結果配列を「要約＋出典URLの箇条書き」形式のテキストに変換
+ * @param {Array} results
+ * @returns {string}
+ */
+function formatSearchResultsForAI(results) {
+  if (!Array.isArray(results) || results.length === 0) {
+    return '';
+  }
+  return results.map((item, idx) => {
+    const title = item.title || '';
+    const snippet = item.snippet || '';
+    const url = item.url || item.link || '';
+    return `${idx + 1}. ${title}\n${snippet}\n出典: ${url}`;
+  }).join('\n\n');
+}
+
+/**
  * 新インターフェース用のレスポンス取得メソッド
  * @param {Object} context - 会話コンテキスト
  * @returns {Promise<string>} AIからの応答
@@ -596,8 +613,19 @@ async function getResponse(context) {
       content: 'あなたはWeb検索結果を最優先に答えるAIです。必ず下記の検索結果を要約・引用し、情報源URLも明示してください。\n「検索中」「少々お待ちください」などの仮応答は絶対に返さず、検索結果がある場合は必ずその内容を日本語で簡潔に答えてください。検索結果がない場合のみ知識ベースで答えてください。'
     });
     // 検索結果（additionalContext）があればuserロールで追加
-    if (additionalContext && additionalContext.trim().length > 0) {
-      promptMessages.push({ role: 'user', content: additionalContext });
+    let formattedContext = '';
+    if (additionalContext) {
+      if (Array.isArray(additionalContext)) {
+        formattedContext = formatSearchResultsForAI(additionalContext);
+      } else if (typeof additionalContext === 'object') {
+        // オブジェクトの場合は配列化して整形
+        formattedContext = formatSearchResultsForAI([additionalContext]);
+      } else if (typeof additionalContext === 'string') {
+        formattedContext = additionalContext;
+      }
+      if (formattedContext.trim().length > 0) {
+        promptMessages.push({ role: 'user', content: formattedContext });
+      }
     }
     // ユーザーの本来のメッセージを追加
     promptMessages.push({ role: 'user', content: message });
@@ -620,7 +648,7 @@ async function getResponse(context) {
       const month = now.getMonth() + 1;
       const day = now.getDate();
 
-      // 応答に現在の年が含まれているかチェック
+      // 応答に現在の年が含まれていないかチェック
       if (!response.includes(String(year))) {
         console.log(`日付修正: 応答に現在の年(${year})が含まれていないため修正します`);
         // 現在の日本時間を取得して応答の先頭に追加
