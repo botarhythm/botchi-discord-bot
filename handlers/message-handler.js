@@ -134,15 +134,12 @@ async function handleIntervention(message, invocationId = 'N/A') { // Accept ID
 }
 
 async function processMessageWithAI(message, cleanContent, searchResults = null, isIntervention = false, invocationId = 'N/A') {
-  // Prepend invocationId to logs within this function
   const idLog = `[${invocationId}]`;
-
-  // Log detailed member information for debugging nickname issues
   logger.debug(`${idLog} Debugging Member Info: message.member exists? ${!!message.member}`);
   if (message.member) {
     logger.debug(`${idLog} Debugging Member Info: Keys: ${Object.keys(message.member).join(', ')}`);
     logger.debug(`${idLog} Debugging Member Info: Nickname: ${message.member.nickname}`);
-    logger.debug(`${idLog} Debugging Member Info: Display Name: ${message.member.displayName}`); // displayName might also be useful
+    logger.debug(`${idLog} Debugging Member Info: Display Name: ${message.member.displayName}`);
   } else {
     logger.debug(`${idLog} Debugging Member Info: message.member object is null or undefined.`);
   }
@@ -163,14 +160,13 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
 
     logger.debug(`${idLog} AI Service: ${aiService ? 'Set' : 'Not Set'}`);
 
-    // Determine the effective username (Nickname > Global Username)
-    let effectiveUsername = message.author.username; // Default to global username
-    let userIdentifier = message.author.username; // For logging/context if needed
+    let effectiveUsername = message.author.username;
+    let userIdentifier = message.author.username;
     if (message.member && message.member.nickname) {
-        effectiveUsername = message.member.nickname; // Use nickname if available in guild
+        effectiveUsername = message.member.nickname;
         userIdentifier = `${message.member.nickname} (${message.author.username})`;
         logger.debug(`${idLog} Using server nickname: ${effectiveUsername}`);
-    } else if (message.channel.type === 1) { // DM Channel
+    } else if (message.channel.type === 1) {
         logger.debug(`${idLog} Using global username in DM: ${effectiveUsername}`);
     } else {
         logger.debug(`${idLog} No server nickname found, using global username: ${effectiveUsername}`);
@@ -178,8 +174,8 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
 
     const messageContext = {
       userId: message.author.id,
-      username: message.author.username, // Keep original global username
-      effectiveUsername: effectiveUsername, // Use this for addressing the user
+      username: message.author.username,
+      effectiveUsername: effectiveUsername,
       channelId: message.channel.id,
       channelName: message.channel.name,
       channelType: message.channel.type,
@@ -188,12 +184,10 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
       message: cleanContent,
       contextType: isIntervention ? 'intervention' : (message.channel.type === 1 ? 'direct_message' : 'channel'),
       isIntervention: isIntervention,
-      invocationId: invocationId // Add invocationId to context if needed downstream
+      invocationId: invocationId
     };
-    
-    logger.debug(`${idLog} Message context generated: ${JSON.stringify(messageContext).substring(0, 200)}...`); // Shorten potentially long log
-    
-    // Get conversation history if memory is enabled
+    logger.debug(`${idLog} Message context generated: ${JSON.stringify(messageContext).substring(0, 200)}...`);
+
     let conversationHistory = [];
     if (MEMORY_ENABLED && global.botchiMemory?.manager) {
       try {
@@ -206,8 +200,7 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
         logger.error(`${idLog} Error getting conversation history: ${err.message}`);
       }
     }
-    
-    // Get RAG results if enabled
+
     let ragResults = null;
     if (RAG_ENABLED) {
       try {
@@ -220,28 +213,24 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
         logger.error(`${idLog} Error getting RAG results: ${err.message}`);
       }
     }
-    
-    // Web検索・RAGの優先順位を明示したadditionalContext生成
+
     let additionalContext = '';
-    if (searchResults) {
-      additionalContext += formatSearchResultsForPrompt(searchResults, cleanContent);
-      additionalContext += '\n\n※上記のWeb検索結果を最優先の情報源とし、必ず日本語で要約・引用し、出典URLも明示してください。検索結果にない情報は推測せず、知識ベースや会話文脈で補足する場合は必ずその旨を明記してください。';
-    }
-    if (ragResults) {
-      additionalContext += '\n\n【会話文脈・個性の参考情報】\n';
+    if (searchResults && searchResults.success && Array.isArray(searchResults.results) && searchResults.results.length > 0) {
+      additionalContext = formatSearchResultsForPrompt(searchResults, cleanContent);
+      additionalContext += '\n\n※上記のWeb検索結果を必ず参照し、要約・コメント・出典URLを明示してください。検索結果にない情報は推測せず、知識ベースや会話文脈で補足する場合は必ずその旨を明記してください。';
+    } else if (ragResults) {
+      additionalContext = '\n\n【会話文脈・個性の参考情報】\n';
       additionalContext += formatRagResultsForPrompt(ragResults);
       additionalContext += '\n※この情報は会話の流れやユーザーの個性を理解するための参考です。Web検索結果と矛盾する場合はWeb検索を優先してください。';
-    }
-    if (!additionalContext) {
+    } else {
       additionalContext = cleanContent;
     }
-    
+
     if (conversationHistory && conversationHistory.length > 0) {
       messageContext.conversationHistory = conversationHistory;
       logger.debug(`${idLog} Conversation history added to context: ${conversationHistory.length} items`);
     }
-    
-    // AI応答を取得 - 抽象化レイヤーを使用
+
     logger.debug(`${idLog} additionalContext to AI: ${additionalContext}`);
     logger.debug(`${idLog} Sending request to AI service`);
     const aiResponse = await aiService.getResponse({
@@ -249,30 +238,21 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
       additionalContext
     });
     logger.debug(`${idLog} Received AI response: ${aiResponse ? aiResponse.substring(0, 50) + '...' : 'No response'}`);
-    
-    // Send response back to Discord
-    if (aiResponse && aiResponse.trim()) {
-      // ★★★ 修正点: AI応答をフォーマットする ★★★
-      const formattedResponse = characterDefinitions.formatMessage(aiResponse);
-      // ★★★ 修正点ここまで ★★★
 
-      // 修正: フォーマットされた応答を分割する
-      const chunks = chunkMessage(formattedResponse, 1990); // chunkSizeは適宜調整
+    if (aiResponse && aiResponse.trim()) {
+      const formattedResponse = characterDefinitions.formatMessage(aiResponse);
+      const chunks = chunkMessage(formattedResponse, 1990);
       logger.debug(`${idLog} Answer split into ${chunks.length} chunks`);
-      
       for (const chunk of chunks) {
         await message.reply(chunk);
         logger.debug(`${idLog} Answer sent`);
       }
-      
-      // Store the conversation in memory if enabled
       if (MEMORY_ENABLED && global.botchiMemory?.manager) {
         try {
           await global.botchiMemory.manager.storeConversation(
             messageContext.channelId,
             messageContext.userId,
             cleanContent,
-            // 修正: フォーマット後の応答ではなく、元のAI応答を保存する
             aiResponse 
           );
           logger.debug(`${idLog} Conversation history saved`);
