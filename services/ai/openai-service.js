@@ -1,6 +1,7 @@
 // OpenAI統合サービス - Bocchy用カスタマイズ版
 const axios = require('axios');
 const contextManager = require('../../context-manager');
+const dateHandler = require('../../extensions/date-handler');
 
 // 環境変数から設定を読み込む
 const API_KEY = process.env.OPENAI_API_KEY;
@@ -252,7 +253,6 @@ async function processAIRequest(userId, message, username, isDM = false) {
   }
 
   // 日本時間の情報を取得
-  const dateHandler = require('./extensions/date-handler');
   const japanTime = dateHandler.getCurrentJapanTime();
   const formattedDate = dateHandler.getFormattedDateString(japanTime);
   const formattedTime = dateHandler.getFormattedTimeString(japanTime);
