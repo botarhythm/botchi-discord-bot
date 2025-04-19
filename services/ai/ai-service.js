@@ -280,39 +280,28 @@ async function getResponseWithSearch(context) {
     searchErrorType = searchResult?.errorType || null;
     
     if (searchSuccess) {
-      // 検索成功: 結果を整形してコンテキストに追加
-      if (searchResult.summary && searchResult.sources) {
-        searchContext = `
-以下は「${searchResult.query || message}」という質問に関するWeb検索結果です。これを最優先の情報源として回答を生成してください。
-
-### 検索結果の要約:
-${searchResult.summary}
-
-### 参照ソース:
-${searchResult.sources}
-
-上記の検索結果に基づいて、ユーザーの質問に具体的に答えてください。情報源を適切に引用・要約し、検索結果にない情報は推測しないでください。
-`;
-        logger.debug('検索結果をAIコンテキストに追加しました。');
+      // 検索成功: 結果を「箇条書き＋URL」形式で整形
+      if (Array.isArray(searchResult.results) && searchResult.results.length > 0) {
+        // 件数分、タイトル・要約・URLを列挙
+        const formattedList = searchResult.results.map((item, idx) => {
+          const title = item.title || '';
+          const snippet = item.description || item.snippet || '';
+          const url = item.url || item.link || '';
+          return `${idx + 1}. ${title}\n${snippet}\n出典: ${url}`;
+        }).join('\n\n');
+        searchContext = `以下は「${searchResult.query || message}」に関するWeb検索結果です。\n\n${formattedList}\n\n上記の検索結果を最優先の情報源として、必ず日本語で簡潔に要約・引用し、出典URLも明示してください。検索結果にない情報は推測せず、知識ベースで補足する場合は必ずその旨を明記してください。`;
+        logger.debug('検索結果をAIコンテキスト（箇条書き＋URL形式）に追加しました。');
       } else {
-        searchContext = `
-「${searchResult.query || message}」についてWeb検索を行いましたが、関連性の高い情報は見つかりませんでした。検索結果には頼らず、あなたの知識に基づいて回答してください。
-`;
+        searchContext = `「${searchResult.query || message}」についてWeb検索を行いましたが、関連性の高い情報は見つかりませんでした。検索結果には頼らず、あなたの知識に基づいて回答してください。`;
         logger.debug('検索結果が空のため、その旨をAIコンテキストに追加しました。');
       }
     } else {
       // 検索失敗
       logger.warn(`検索に失敗しました。Error: ${searchResult.error || '不明'}, Type: ${searchErrorType || '不明'}`);
       if (searchErrorType === 'RATE_LIMITED') {
-        searchContext = `
-Web検索機能を利用しようとしましたが、一時的なAPI利用制限のため情報を取得できませんでした。
-この状況をユーザーに伝えた上で、検索結果には頼らず、あなたの知識の範囲で質問に答えてください。
-`;
+        searchContext = `Web検索機能を利用しようとしましたが、一時的なAPI利用制限のため情報を取得できませんでした。この状況をユーザーに伝えた上で、検索結果には頼らず、あなたの知識の範囲で質問に答えてください。`;
       } else {
-        searchContext = `
-Web検索を試みましたが、技術的な問題により失敗しました。
-検索結果には頼らず、あなたの知識に基づいてユーザーの質問に答えてください。
-`;
+        searchContext = `Web検索を試みましたが、技術的な問題により失敗しました。検索結果には頼らず、あなたの知識に基づいてユーザーの質問に答えてください。`;
         logger.warn(`検索エラー(${searchErrorType || '不明'})のため、AIには検索不可で応答するよう指示します。`);
       }
       // 失敗した場合でも、エラーメッセージ自体を応答として返すわけではない
