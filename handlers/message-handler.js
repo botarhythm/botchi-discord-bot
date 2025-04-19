@@ -201,30 +201,18 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
       }
     }
 
-    let ragResults = null;
-    if (RAG_ENABLED) {
-      try {
-        const ragSystem = getRAGSystem();
-        if (ragSystem) {
-          ragResults = await ragSystem.query(cleanContent);
-          logger.debug(`${idLog} RAG results retrieved successfully`);
-        }
-      } catch (err) {
-        logger.error(`${idLog} Error getting RAG results: ${err.message}`);
-      }
-    }
+    // --- RAG（Supabase等）を完全に無効化 ---
+    // let ragResults = null; // RAG関連の取得・プロンプト挿入を削除
 
+    // 検索結果があればそれを、なければcleanContentのみ
     let additionalContext = '';
     if (searchResults && searchResults.success && Array.isArray(searchResults.results) && searchResults.results.length > 0) {
       additionalContext = formatSearchResultsForPrompt(searchResults, cleanContent);
       additionalContext += '\n\n※上記のWeb検索結果を必ず参照し、要約・コメント・出典URLを明示してください。検索結果にない情報は推測せず、知識ベースや会話文脈で補足する場合は必ずその旨を明記してください。';
-    } else if (ragResults) {
-      additionalContext = '\n\n【会話文脈・個性の参考情報】\n';
-      additionalContext += formatRagResultsForPrompt(ragResults);
-      additionalContext += '\n※この情報は会話の流れやユーザーの個性を理解するための参考です。Web検索結果と矛盾する場合はWeb検索を優先してください。';
     } else {
       additionalContext = cleanContent;
     }
+    // --- ここまで ---
 
     if (conversationHistory && conversationHistory.length > 0) {
       messageContext.conversationHistory = conversationHistory;
