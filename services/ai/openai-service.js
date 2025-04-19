@@ -255,7 +255,8 @@ async function processAIRequest(userId, message, username, isDM = false, additio
 
   // 追加: additionalContextがあればsystem roleで挿入
   if (additionalContext) {
-    userConversation.messages.push({ role: 'system', content: additionalContext });
+    // userロールで挿入することでAIが無視しにくくする
+    userConversation.messages.push({ role: 'user', content: additionalContext });
   }
 
   // 日本時間の情報を取得
