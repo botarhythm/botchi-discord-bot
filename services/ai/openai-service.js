@@ -596,62 +596,51 @@ function formatSearchResultsForAI(results) {
  */
 async function getResponse(context) {
   try {
-    const { userId, username = 'User', message, contextType = 'unknown', additionalContext } = context;
+    const { userId, username = 'User', message, contextType = 'unknown', additionalContext, conversationHistory = [] } = context;
     console.log(`OpenAI getResponse呼び出し: userId=${userId}, contextType=${contextType}`);
 
-    // 日時関連の質問かチェック
-    const isDateTimeRelated = isDateTimeQuestion(message);
-    if (isDateTimeRelated) {
-      console.log(`日付・時間関連の質問を検出: "${message}"`);
+    // --- キャラクター定義・会話スタイルのみをsystemロールで渡す ---
+    const systemPrompt = 'あなたはBocchy（ボッチー）という親しみやすいAIキャラクターです。日本語で、温かみのある会話を心がけてください。';
+    let messages = [
+      { role: 'system', content: systemPrompt }
+    ];
+
+    // --- 直近の会話履歴をuser/assistantロールで追加 ---
+    if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+      for (const item of conversationHistory) {
+        if (item.role === 'user' || item.role === 'assistant') {
+          messages.push({ role: item.role, content: item.content });
+        }
+      }
     }
 
-    // --- プロンプト強化 ---
-    let promptMessages = [];
-    // systemロールでさらに強い指示を先頭に追加
-    promptMessages.push({
-      role: 'system',
-      content: 'あなたはWeb検索結果を最優先に答えるAIです。必ず下記の検索結果を要約・引用し、情報源URLも明示してください。\n「検索中」「少々お待ちください」などの仮応答は絶対に返さず、検索結果がある場合は必ずその内容を日本語で簡潔に答えてください。検索結果がない場合のみ知識ベースで答えてください。'
-    });
-    // 検索結果（additionalContext）があればuserロールで追加
-    let formattedContext = '';
-    if (additionalContext) {
-      if (Array.isArray(additionalContext)) {
-        formattedContext = formatSearchResultsForAI(additionalContext);
-      } else if (typeof additionalContext === 'object') {
-        // オブジェクトの場合は配列化して整形
-        formattedContext = formatSearchResultsForAI([additionalContext]);
-      } else if (typeof additionalContext === 'string') {
-        formattedContext = additionalContext;
-      }
-      if (formattedContext.trim().length > 0) {
-        promptMessages.push({ role: 'user', content: formattedContext });
-      }
+    // --- 検索結果＋指示＋ユーザー質問を1つのuserメッセージとして渡す ---
+    let userPrompt = '';
+    if (additionalContext && additionalContext.trim().length > 0) {
+      userPrompt += `${additionalContext}\n\n`;
     }
-    // ユーザーの本来のメッセージを追加
-    promptMessages.push({ role: 'user', content: message });
+    userPrompt += `【質問】${message}`;
+    messages.push({ role: 'user', content: userPrompt });
+
+    // --- デバッグ用詳細ログ出力 ---
+    console.log('【DEBUG】OpenAI APIに送信するmessages配列:');
+    console.log(JSON.stringify(messages, null, 2));
     // --- ここまで ---
 
     // getAIResponseを修正プロンプトで呼び出し
     const isDM = contextType === 'direct_message';
     const response = await getAIResponse(
       userId,
-      promptMessages, // 配列で渡す
+      messages, // 配列で渡す
       username,
       isDM
     );
 
     // 日時関連の質問に対しては、応答後も再確認
-    if (isDateTimeRelated) {
-      // 現在の日本時間を取得
+    if (isDateTimeQuestion(message)) {
       const now = new Date();
       const year = now.getFullYear();
-      const month = now.getMonth() + 1;
-      const day = now.getDate();
-
-      // 応答に現在の年が含まれていないかチェック
       if (!response.includes(String(year))) {
-        console.log(`日付修正: 応答に現在の年(${year})が含まれていないため修正します`);
-        // 現在の日本時間を取得して応答の先頭に追加
         const japanTime = new Intl.DateTimeFormat('ja-JP', {
           timeZone: 'Asia/Tokyo',
           year: 'numeric',
@@ -659,7 +648,6 @@ async function getResponse(context) {
           day: 'numeric',
           weekday: 'long'
         }).format(now);
-
         return `今日は${japanTime}です🌿\n\n${response}`;
       }
     }
