@@ -8,82 +8,32 @@ const searchService = require('../extensions/search-service');
 const logger = require('../system/logger');
 const config = require('../config/env');
 
-// 検索トリガーフレーズ - 明示的な検索意図のあるトリガーと情報要求トリガーを含む
-const SEARCH_TRIGGERS = {
-  // 日本語
-  ja: [
-    // 直接的な検索トリガー - 明確に検索を指示するフレーズ
-    '検索して', 'けんさくして', 'さがして', 'しらべて', 
-    'ネットで調べて', 'インターネットで検索', 'ウェブで検索',
-    'オンラインで調べて', 'インターネットで確認',
-    // 丁寧な依頼フレーズ - 明確な検索指示
-    '検索してください', 'さがしてください', '調べてください', 
-    '検索してくれる', '調べてくれる', '検索してほしい',
-    '調べてくれますか', '検索してくれますか', '検索をお願い',
-    // 検索に関連する明示的なフレーズ
-    'について検索', 'を調べて', 'の情報を探して', 
-    'について調べて', 'を検索して', 'の情報を教えて',
-    // 時事性の高い情報を求めるフレーズ
-    '最新の', '最近の', '今日の', '今週の', '今月の',
-    '最新情報', '最新ニュース', '新しい情報', '現在の状況',
-    '最新動向', '最新トレンド', '最新アップデート',
-    // 情報要求を示す間接的なフレーズ
-    'とは何ですか', 'について教えて', 'とはどういう意味',
-    'の定義は', 'の仕組みは', 'の使い方', 'の方法',
-    'はどうやって', 'ってどんな', 'の特徴は',
-    // 事実確認を求めるフレーズ
-    'は本当に', 'は実際に', 'は事実ですか',
-    'の真相は', 'の事実関係', 'は正しいですか'
-  ],
+// 検索トリガーフレーズ - 明確な検索意図・事実確認のみ
+const SEARCH_TRIGGERS = [
+  // 明確な検索指示
+  '検索して', 'けんさくして', 'さがして', 'しらべて', 
+  'ネットで調べて', 'インターネットで検索', 'ウェブで検索',
+  'オンラインで調べて', 'インターネットで確認',
+  '検索してください', 'さがしてください', '調べてください', 
+  '検索してくれる', '調べてくれる', '検索してほしい',
+  '調べてくれますか', '検索してくれますか', '検索をお願い',
+  'について検索', 'を調べて', 'の情報を探して', 
+  'について調べて', 'を検索して', 'の情報を教えて',
+  // 事実確認
+  'は本当に', 'は実際に', 'は事実ですか',
+  'の真相は', 'の事実関係', 'は正しいですか',
   // 英語
-  en: [
-    // 直接的な検索トリガー - 明確に検索を指示するフレーズ
-    'search for', 'search about', 'search the web for',
-    'search online for', 'look up', 'find information about',
-    'google', 'browse for', 'check online',
-    // 丁寧な依頼フレーズ - 明確な検索指示
-    'can you search', 'please search', 'could you look up',
-    'can you find', 'would you search for', 'could you search',
-    'please look up', 'search the internet for',
-    // 検索に関連する明示的なフレーズ
-    'search information about', 'find details on',
-    'look online for', 'web search for',
-    // 時事性の高い情報を求めるフレーズ
-    'latest', 'recent', 'today\'s', 'this week\'s', 'this month\'s',
-    'current', 'newest', 'up-to-date', 'breaking',
-    // 情報要求を示す間接的なフレーズ
-    'what is', 'who is', 'how to', 'tell me about',
-    'explain', 'definition of', 'meaning of',
-    'how does', 'what are', 'where is',
-    // 事実確認を求めるフレーズ
-    'is it true', 'is it real', 'fact check',
-    'verify if', 'confirm if', 'is it correct'
-  ]
-};
-
-// ローカル検索（場所）のトリガーフレーズ - より多くの位置表現を含む
-const LOCAL_SEARCH_TRIGGERS = {
-  ja: [
-    // 位置表現
-    '近く', '周辺', '付近', '場所', 'どこ', 'どこで', 'どこに', 'どの辺',
-    // 施設
-    'お店', '店', 'レストラン', 'カフェ', 'コンビニ', '病院', '駅', '銀行',
-    '薬局', 'スーパー', '美容院', '映画館', 'ホテル', '旅館',
-    // 位置検索フレーズ
-    'まで何分', 'までの距離', 'の行き方', 'への道', 'の場所', 'はどこ',
-    '地図で見せて', '地図で表示'
-  ],
-  en: [
-    // 位置表現
-    'near', 'nearby', 'around', 'location', 'where', 'where is', 'close to',
-    // 施設
-    'store', 'shop', 'restaurant', 'cafe', 'hospital', 'station', 'bank',
-    'pharmacy', 'supermarket', 'hotel', 'theater', 'cinema',
-    // 位置検索フレーズ
-    'how to get to', 'directions to', 'map of', 'distance to', 'find on map',
-    'show me on map', 'address of', 'located at'
-  ]
-};
+  'search for', 'search about', 'search the web for',
+  'search online for', 'look up', 'find information about',
+  'google', 'browse for', 'check online',
+  'can you search', 'please search', 'could you look up',
+  'can you find', 'would you search for', 'could you search',
+  'please look up', 'search the internet for',
+  'search information about', 'find details on',
+  'look online for', 'web search for',
+  'is it true', 'is it real', 'fact check',
+  'verify if', 'confirm if', 'is it correct'
+];
 
 /**
  * 検索が有効かどうかをチェックする
@@ -315,7 +265,7 @@ function detectSearchTrigger(content) {
   
   // すべての言語のトリガーをスコア付きで収集
   for (const lang of Object.keys(SEARCH_TRIGGERS)) {
-    for (const trigger of SEARCH_TRIGGERS[lang]) {
+    for (const trigger of SEARCH_TRIGGERS) {
       if (contentLower.includes(trigger.toLowerCase())) {
         const triggerIndex = contentLower.indexOf(trigger.toLowerCase());
         
@@ -427,33 +377,6 @@ function detectSearchTrigger(content) {
     isRecentInfoQuery: bestMatch.hasRecentInfoPattern,  // 最新情報クエリかどうか
     isExplicitSearch: bestMatch.hasExplicitSearchPattern  // 明示的な検索リクエストかどうか
   };
-}
-
-/**
- * クエリがローカル検索（場所）かどうかを判定する
- * @param {string} query 検索クエリ
- * @returns {boolean} ローカル検索の場合はtrue
- */
-function isLocalSearchQuery(query) {
-  if (!query || typeof query !== 'string') {
-    return false;
-  }
-  
-  const queryLower = query.toLowerCase();
-  
-  // 全ての言語のローカル検索トリガーをチェック
-  for (const lang of Object.keys(LOCAL_SEARCH_TRIGGERS)) {
-    for (const trigger of LOCAL_SEARCH_TRIGGERS[lang]) {
-      if (queryLower.includes(trigger)) {
-        if (config.DEBUG) {
-          logger.debug(`ローカル検索トリガー検出: "${trigger}"`);
-        }
-        return true;
-      }
-    }
-  }
-  
-  return false;
 }
 
 /**
@@ -706,30 +629,14 @@ function getQueryTypeInfo(queryInfo) {
  * @returns {boolean} 検索が必要な場合はtrue
  */
 function shouldSearch(content) {
-  // 検索機能が無効な場合は常にfalse
-  if (!isSearchEnabled()) {
-    logger.debug('[shouldSearch] Search is disabled.');
-    return false;
-  }
-
-  // 検索トリガーを検出
-  const triggerInfo = detectSearchTrigger(content);
-  
-  if (config.DEBUG) {
-    logger.debug(`[shouldSearch] Content: "${content}"`);
-    logger.debug(`[shouldSearch] detectSearchTrigger result: ${JSON.stringify(triggerInfo)}`);
-  }
-  
-  // トリガーが検出された場合はtrue
-  const should = triggerInfo !== null;
-  logger.debug(`[shouldSearch] Decision: ${should}`);
-  return should;
+  if (!isSearchEnabled()) return false;
+  return SEARCH_TRIGGERS.some(word => content.includes(word));
 }
 
 // エクスポート
 module.exports = {
-  detectSearchTrigger,
-  isLocalSearchQuery,
+  // detectSearchTrigger, // 必要なら整理して残す
+  // isLocalSearchQuery, // 削除
   processMessage: processMessageWithSave, // 拡張された処理に置き換え
   sendSearchResult,
   handleSearchIfTriggered,
