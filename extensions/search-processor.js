@@ -76,37 +76,42 @@ function processResults(searchResults, searchParams) {
  * @returns {string} AI用に整形された検索結果
  */
 function formatSearchResultForAI(results, queryType, dateInfo = null) {
+  // 返り値が必ずstringになるようガード
   if (!results || !Array.isArray(results) || results.length === 0) {
     return '検索結果が見つかりませんでした。';
   }
-  
+  // 万が一配列やオブジェクトが渡された場合は明示的に文字列化
+  if (typeof results === 'object' && !Array.isArray(results)) {
+    results = [results];
+  }
+  if (!Array.isArray(results)) {
+    return String(results);
+  }
+
   // 日付関連のクエリの場合、現在の日付情報を追加
   let context = '';
   if (dateInfo) {
     context = `[現在の日本時間: ${dateInfo.year}年${dateInfo.month}月${dateInfo.day}日(${dateInfo.weekday}) ${dateInfo.hour}時${dateInfo.minute}分]\n\n`;
   }
-  
+
   // クエリタイプに応じた結果の整形
   let formattedContent = context;
   const limitedResults = results.slice(0, 5); // 結果数を制限
-  
-  limitedResults.forEach((result, index) => {
-    // 各結果の情報を構造化
-    const sourceInfo = {
-      title: result.title,
-      url: result.url,
-      description: result.description,
-      hostname: new URL(result.url).hostname
-    };
-    
-    // 自然な形式で結果を追加
-    formattedContent += `【情報源${index + 1}】\n`;
-    formattedContent += `タイトル: ${sourceInfo.title}\n`;
-    formattedContent += `内容: ${sourceInfo.description}\n`;
-    formattedContent += `出典: ${sourceInfo.hostname}\n`;
-    formattedContent += `URL: ${sourceInfo.url}\n\n`; // URLを明示的に表示
-  });
-  
+
+  formattedContent += limitedResults.map((result, index) => {
+    // 各結果の情報を構造化（未定義対策）
+    const title = result.title || '';
+    const url = result.url || '';
+    const description = result.description || '';
+    let hostname = '';
+    try {
+      hostname = url ? new URL(url).hostname : '';
+    } catch (e) {
+      hostname = '';
+    }
+    return `【情報源${index + 1}】\nタイトル: ${title}\n内容: ${description}\n出典: ${hostname}\nURL: ${url}`;
+  }).join('\n\n');
+
   return formattedContent;
 }
 
