@@ -571,23 +571,37 @@ async function getResponse(context) {
   try {
     const { userId, username = 'User', message, contextType = 'unknown', additionalContext } = context;
     console.log(`OpenAI getResponse呼び出し: userId=${userId}, contextType=${contextType}`);
-    
+
     // 日時関連の質問かチェック
     const isDateTimeRelated = isDateTimeQuestion(message);
     if (isDateTimeRelated) {
       console.log(`日付・時間関連の質問を検出: "${message}"`);
     }
-    
-    // getAIResponseメソッドに変換して呼び出し
+
+    // --- プロンプト強化 ---
+    let promptMessages = [];
+    // systemロールでさらに強い指示を先頭に追加
+    promptMessages.push({
+      role: 'system',
+      content: 'あなたはWeb検索結果を最優先に答えるAIです。必ず下記の検索結果を要約・引用し、情報源URLも明示してください。\n「検索中」「少々お待ちください」などの仮応答は絶対に返さず、検索結果がある場合は必ずその内容を日本語で簡潔に答えてください。検索結果がない場合のみ知識ベースで答えてください。'
+    });
+    // 検索結果（additionalContext）があればuserロールで追加
+    if (additionalContext && additionalContext.trim().length > 0) {
+      promptMessages.push({ role: 'user', content: additionalContext });
+    }
+    // ユーザーの本来のメッセージを追加
+    promptMessages.push({ role: 'user', content: message });
+    // --- ここまで ---
+
+    // getAIResponseを修正プロンプトで呼び出し
     const isDM = contextType === 'direct_message';
     const response = await getAIResponse(
       userId,
-      message,
+      promptMessages, // 配列で渡す
       username,
-      isDM,
-      additionalContext
+      isDM
     );
-    
+
     // 日時関連の質問に対しては、応答後も再確認
     if (isDateTimeRelated) {
       // 現在の日本時間を取得
@@ -595,7 +609,7 @@ async function getResponse(context) {
       const year = now.getFullYear();
       const month = now.getMonth() + 1;
       const day = now.getDate();
-      
+
       // 応答に現在の年が含まれているかチェック
       if (!response.includes(String(year))) {
         console.log(`日付修正: 応答に現在の年(${year})が含まれていないため修正します`);
@@ -607,11 +621,11 @@ async function getResponse(context) {
           day: 'numeric',
           weekday: 'long'
         }).format(now);
-        
+
         return `今日は${japanTime}です🌿\n\n${response}`;
       }
     }
-    
+
     return response;
   } catch (error) {
     console.error(`OpenAI getResponse呼び出しエラー: ${error.message}`);
