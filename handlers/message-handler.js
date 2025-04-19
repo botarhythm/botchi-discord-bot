@@ -316,10 +316,15 @@ function formatSearchResultsForPrompt(searchResults, userMessage) {
     dateInfo
   );
 
+  // 念のため型チェック
+  const formattedResultsText = typeof formattedResults === 'string'
+    ? formattedResults
+    : JSON.stringify(formattedResults);
+
   // プロンプトの構築
   let prompt = `以下の検索結果を参考に、自然な会話形式で回答してください。\n\n`;
   prompt += `検索クエリ: ${userMessage}\n\n`;
-  prompt += `検索結果:\n${formattedResults}\n\n`;
+  prompt += `検索結果:\n${formattedResultsText}\n\n`;
   prompt += `回答の指示:\n`;
   prompt += `1. 検索結果の内容を自然な会話形式で要約してください。\n`;
   prompt += `2. 情報源を適切に引用してください。\n`;
