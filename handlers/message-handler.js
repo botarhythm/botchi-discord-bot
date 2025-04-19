@@ -4,7 +4,6 @@
 const logger = require('../system/logger');
 const { setupClient } = require('../core/discord-init');
 const config = require('../config');
-const { getRAGSystem } = require('../extensions/rag');
 const characterDefinitions = require('../extensions/character/character');
 const { handleCommand } = require('./command-handler');
 const { isValidForIntervention, shouldIntervene } = require('./context-intervention');
@@ -12,12 +11,14 @@ const { shouldSearch, processMessage: performSearch } = require('./search-handle
 const { processResults, formatSearchResultForAI } = require('../extensions/search-processor');
 const dateHandler = require('../extensions/date-handler');
 const crypto = require('crypto');
+const { OpenAIService } = require('../extensions/openai-service');
+const { cleanPrompt } = require('../extensions/prompt-cleaner');
+const googleService = require('../extensions/google-service');
+const { BOT_VERSION, MEMORY_ENABLED, SEARCH_ENABLED } = require('../config');
 
 // Get environment variables
 const MENTIONS_ONLY = process.env.MENTIONS_ONLY === 'true';
 const IS_DEV_MODE = process.env.NODE_ENV === 'development';
-const MEMORY_ENABLED = process.env.MEMORY_ENABLED === 'true';
-const RAG_ENABLED = process.env.RAG_ENABLED === 'true';
 
 // Global provider instance - 抽象化AIサービス
 let aiService = null;
@@ -96,17 +97,17 @@ async function handleMessage(message) {
         logger.debug(`[${invocationId}] [handleMessage] Attempting to perform search...`);
         try {
           logger.debug(`[${invocationId}] Search determined necessary`);
-          const searchResults = await performSearch(message);
+          const searchResults = await performSearch(cleanContent);
           logger.debug(`[${invocationId}] [handleMessage] Search process completed. Success: ${searchResults?.success}. Results obtained: ${searchResults?.results?.length || 0}`);
-          await processMessageWithAI(message, cleanContent, searchResults, false, invocationId); // Pass ID
+          await processMessageWithAI(message, cleanContent, searchResults);
         } catch (err) {
           logger.error(`[${invocationId}] [handleMessage] Error during performSearch (processMessage): ${err.message}`);
-          await processMessageWithAI(message, cleanContent, null, false, invocationId); // Pass ID
+          await processMessageWithAI(message, cleanContent, null);
         }
       } else {
         logger.debug(`[${invocationId}] [handleMessage] Search not required. Proceeding without search.`);
         logger.debug(`[${invocationId}] Executing AI process without search`);
-        await processMessageWithAI(message, cleanContent, null, false, invocationId); // Pass ID
+        await processMessageWithAI(message, cleanContent, null);
       }
     } else if (await shouldIntervene(message, client /*, invocationId */)) {
       logger.debug(`[${invocationId}] Context intervention criteria met`); // Changed log message slightly for clarity
@@ -127,30 +128,22 @@ async function handleIntervention(message, invocationId = 'N/A') { // Accept ID
     message.channel.sendTyping();
 
     // Process the message for intervention
-    await processMessageWithAI(message, message.content, null, true, invocationId); // Pass ID
+    await processMessageWithAI(message, message.content, null);
   } catch (error) {
     logger.error(`[${invocationId}] Error handling intervention: ${error.stack}`);
   }
 }
 
-async function processMessageWithAI(message, cleanContent, searchResults = null, isIntervention = false, invocationId = 'N/A') {
-  const idLog = `[${invocationId}]`;
-  logger.debug(`${idLog} Debugging Member Info: message.member exists? ${!!message.member}`);
-  if (message.member) {
-    logger.debug(`${idLog} Debugging Member Info: Keys: ${Object.keys(message.member).join(', ')}`);
-    logger.debug(`${idLog} Debugging Member Info: Nickname: ${message.member.nickname}`);
-    logger.debug(`${idLog} Debugging Member Info: Display Name: ${message.member.displayName}`);
-  } else {
-    logger.debug(`${idLog} Debugging Member Info: message.member object is null or undefined.`);
-  }
-
+async function processMessageWithAI(message, content, searchResults = null) {
+  const idLog = `[${message.channel.id}]`;
+  
   try {
-    if (!cleanContent || cleanContent.trim() === '') {
-        logger.warn(`${idLog} [processMessageWithAI] cleanContent is empty, skipping AI processing.`);
+    if (!content || content.trim() === '') {
+        logger.warn(`${idLog} [processMessageWithAI] content is empty, skipping AI processing.`);
         return;
     }
 
-    logger.debug(`${idLog} AI Processing Start: ${isIntervention ? 'Intervention Mode' : 'Normal Mode'}`);
+    logger.debug(`${idLog} AI Processing Start: ${searchResults ? 'With Search Results' : 'Normal Mode'}`);
 
     if (!aiService) {
       logger.error(`${idLog} No AI service set in message handler`);
@@ -160,11 +153,10 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
 
     logger.debug(`${idLog} AI Service: ${aiService ? 'Set' : 'Not Set'}`);
 
+    // メンバー情報の取得
     let effectiveUsername = message.author.username;
-    let userIdentifier = message.author.username;
     if (message.member && message.member.nickname) {
         effectiveUsername = message.member.nickname;
-        userIdentifier = `${message.member.nickname} (${message.author.username})`;
         logger.debug(`${idLog} Using server nickname: ${effectiveUsername}`);
     } else if (message.channel.type === 1) {
         logger.debug(`${idLog} Using global username in DM: ${effectiveUsername}`);
@@ -177,17 +169,17 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
       username: message.author.username,
       effectiveUsername: effectiveUsername,
       channelId: message.channel.id,
-      channelName: message.channel.name,
+      channelName: message.channel.name || 'unknown',
       channelType: message.channel.type,
       guildId: message.guild?.id,
       guildName: message.guild?.name,
-      message: cleanContent,
-      contextType: isIntervention ? 'intervention' : (message.channel.type === 1 ? 'direct_message' : 'channel'),
-      isIntervention: isIntervention,
-      invocationId: invocationId
+      message: content,
+      isIntervention: false
     };
+    
     logger.debug(`${idLog} Message context generated: ${JSON.stringify(messageContext).substring(0, 200)}...`);
 
+    // 会話履歴の取得
     let conversationHistory = [];
     if (MEMORY_ENABLED && global.botchiMemory?.manager) {
       try {
@@ -201,46 +193,46 @@ async function processMessageWithAI(message, cleanContent, searchResults = null,
       }
     }
 
-    // --- RAG（Supabase等）を完全に無効化 ---
-    // let ragResults = null; // RAG関連の取得・プロンプト挿入を削除
+    // プロンプトの準備
+    const systemPrompt = buildContextPrompt(content, messageContext, conversationHistory, searchResults);
+    logger.debug(`${idLog} System prompt generated`);
 
-    // 検索結果があればそれを、なければcleanContentのみ
+    // 検索結果があればそれを追加コンテキストとして利用
     let additionalContext = '';
     if (searchResults && searchResults.success && Array.isArray(searchResults.results) && searchResults.results.length > 0) {
-      additionalContext = formatSearchResultsForPrompt(searchResults, cleanContent);
-      additionalContext += '\n\n※上記のWeb検索結果を必ず参照し、要約・コメント・出典URLを明示してください。検索結果にない情報は推測せず、知識ベースや会話文脈で補足する場合は必ずその旨を明記してください。';
+      additionalContext = formatSearchResultsForPrompt(searchResults, content);
+      logger.debug(`${idLog} Using search results for AI context`);
     } else {
-      additionalContext = cleanContent;
-    }
-    // --- ここまで ---
-
-    if (conversationHistory && conversationHistory.length > 0) {
-      messageContext.conversationHistory = conversationHistory;
-      logger.debug(`${idLog} Conversation history added to context: ${conversationHistory.length} items`);
+      additionalContext = content;
+      logger.debug(`${idLog} No search results available, using clean content`);
     }
 
-    logger.debug(`${idLog} additionalContext to AI: ${additionalContext}`);
     logger.debug(`${idLog} Sending request to AI service`);
     const aiResponse = await aiService.getResponse({
       ...messageContext,
+      systemPrompt,
       additionalContext
     });
+    
     logger.debug(`${idLog} Received AI response: ${aiResponse ? aiResponse.substring(0, 50) + '...' : 'No response'}`);
 
     if (aiResponse && aiResponse.trim()) {
       const formattedResponse = characterDefinitions.formatMessage(aiResponse);
       const chunks = chunkMessage(formattedResponse, 1990);
       logger.debug(`${idLog} Answer split into ${chunks.length} chunks`);
+      
       for (const chunk of chunks) {
         await message.reply(chunk);
         logger.debug(`${idLog} Answer sent`);
       }
+      
+      // 会話履歴を保存
       if (MEMORY_ENABLED && global.botchiMemory?.manager) {
         try {
           await global.botchiMemory.manager.storeConversation(
             messageContext.channelId,
             messageContext.userId,
-            cleanContent,
+            content,
             aiResponse 
           );
           logger.debug(`${idLog} Conversation history saved`);
@@ -303,20 +295,6 @@ function formatSearchResultsForPrompt(searchResults, userMessage) {
 }
 
 /**
- * RAG結果をプロンプト用に整形する関数
- * @param {string | null} ragResults - RAGシステムからの結果文字列
- * @returns {string} プロンプトに追加するRAG結果の文字列
- */
-function formatRagResultsForPrompt(ragResults) {
-  let promptSection = '';
-  if (ragResults) {
-    promptSection += `\n【関連知識】\n${ragResults}\n`;
-    promptSection += `上記の関連知識を参考にしつつ、質問に答えてください。\n`;
-  }
-  return promptSection;
-}
-
-/**
  * 会話履歴をプロンプト用に整形する関数
  * @param {Array} conversationHistory - 会話履歴の配列
  * @param {Object} messageContext - メッセージコンテキスト (ユーザー名を含む)
@@ -342,7 +320,7 @@ function formatConversationHistoryForPrompt(conversationHistory, messageContext,
   return promptSection;
 }
 
-function buildContextPrompt(userMessage, messageContext, conversationHistory = [], searchResults = null, ragResults = null) {
+function buildContextPrompt(userMessage, messageContext, conversationHistory = [], searchResults = null) {
   // Get current time in Japan using the date handler
   const dateInfo = dateHandler.formatDateForAI(dateHandler.getCurrentJapanTime());
   const japanTime = dateHandler.getFormattedDateTimeString(); // 例: "2024年MM月DD日(曜日) 午後3時32分 (JST (UTC+9))"
@@ -372,9 +350,7 @@ function buildContextPrompt(userMessage, messageContext, conversationHistory = [
   systemPrompt += `【キャラクター設定】\n${character.description}\n\n`;
   systemPrompt += `【会話スタイル】\n${character.conversationStyle}\n\n`;
   systemPrompt += `【基本情報】\n`;
-  // systemPrompt += `- 現在の日時: ${japanTime}\n`; // コメントアウトまたは削除
   systemPrompt += `- タイムゾーン: ${dateInfo.timezoneName}\n`;
-  // Use effectiveUsername when displaying the user's name in the context
   systemPrompt += `- ユーザー名: ${messageContext.effectiveUsername}\n`;
 
   if (messageContext.guildName) {
@@ -389,12 +365,10 @@ function buildContextPrompt(userMessage, messageContext, conversationHistory = [
 `;
   systemPrompt += `- 人間らしい温かみのある会話を心がけてください。
 `;
-  // --- 新しい指示を追加 ---
   systemPrompt += `- **時間帯への配慮:** 現在の日本時間は ${japanTime} (${hour}時台) です。この時間帯を応答内容や会話のトーンに自然に反映させてください。例えば、夜遅くなら相手を気遣う言葉、朝なら活気のある言葉を選ぶなど、状況に応じた人間らしい配慮をお願いします。
 `;
   systemPrompt += `- **挨拶の対応:** もしユーザーが「おはよう」「こんにちは」「こんばんは」といった挨拶からメッセージを始めた場合は、あなたも現在の時間帯 (${hour}時台) に合った適切な挨拶（${timeGreeting} など）を返してください。ユーザーからの挨拶がない場合は、必ずしも挨拶で応答を開始する必要はありません。
 `;
-  // --- ここまで ---
   systemPrompt += `- 時間や日付に関する質問には、必ず${dateInfo.timezoneName}を基準に回答してください。
 `;
   systemPrompt += `- 検索結果を引用する場合は、必ず情報源のURLを含めてください。
@@ -405,22 +379,21 @@ function buildContextPrompt(userMessage, messageContext, conversationHistory = [
   systemPrompt += `- **メンバーに関する質問:** もし「このサーバーには誰がいますか？」といった質問を受けた場合は、現在サーバーに参加しているメンバーのニックネーム（またはユーザー名）をリストアップして答えるのが適切です。（現時点ではメンバーリストを直接参照できませんが、応答方針として覚えておいてください）
 `;
   
+  // 会話履歴の追加
+  if (conversationHistory && conversationHistory.length > 0) {
+    systemPrompt += `\n\n# 会話履歴\n以下は最近の${conversationHistory.length}件の会話です：\n`;
+    
+    conversationHistory.forEach((historyItem, index) => {
+      const roleName = historyItem.role === 'user' ? `${historyItem.username || 'ユーザー'}` : 'ボッチー';
+      systemPrompt += `\n[${index + 1}] ${roleName}: ${historyItem.content}\n`;
+    });
+  }
+    
   // 検索結果を整形してプロンプトに追加
-  const searchPromptSection = formatSearchResultsForPrompt(searchResults, messageContext.message);
+  const searchPromptSection = formatSearchResultsForPrompt(searchResults, userMessage);
   systemPrompt += searchPromptSection;
-
-  // RAG結果を整形してプロンプトに追加
-  const ragPromptSection = formatRagResultsForPrompt(ragResults);
-  systemPrompt += ragPromptSection;
   
-  // Format conversation history
-  const historyPromptSection = formatConversationHistoryForPrompt(conversationHistory, messageContext, character);
-  systemPrompt += historyPromptSection;
-  
-  // Add user message - Remove the forced timeGreeting from the previous attempt
-  const finalPrompt = `${systemPrompt}\n【現在のメッセージ】\n${messageContext.effectiveUsername}: ${userMessage}\n\n${character.name}: `;
-  
-  return finalPrompt;
+  return systemPrompt;
 }
 
 // Function to chunk messages for Discord's 2000 character limit
